@@ -1,0 +1,5 @@
+{
+  "name": "SnapType",
+  "description": "A modern typing test application that generates practice text from your own uploaded images using Gemini AI.",
+  "requestFramePermissions": []
+}
