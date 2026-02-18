@@ -18,7 +18,7 @@ const KEYS = [
 // Simplified color coding
 const FINGER_MAP: Record<string, string> = {
     // Left Pinky
-    '1': 'bg-red-500', 'q': 'bg-red-500', 'a': 'bg-red-500', 'z': 'bg-red-500', '`': 'bg-red-500', 'Tab': 'bg-red-500', 'Caps': 'bg-red-500', 'Shift': 'bg-red-500',
+    '1': 'bg-red-500', 'q': 'bg-red-500', 'a': 'bg-red-500', 'z': 'bg-red-500', '`': 'bg-red-500', 'tab': 'bg-red-500', 'caps': 'bg-red-500', 'shift': 'bg-red-500',
     // Left Ring
     '2': 'bg-orange-500', 'w': 'bg-orange-500', 's': 'bg-orange-500', 'x': 'bg-orange-500',
     // Left Middle
@@ -35,16 +35,18 @@ const FINGER_MAP: Record<string, string> = {
     '9': 'bg-indigo-500', 'o': 'bg-indigo-500', 'l': 'bg-indigo-500', '.': 'bg-indigo-500',
     // Right Pinky
     '0': 'bg-pink-500', 'p': 'bg-pink-500', ';': 'bg-pink-500', '/': 'bg-pink-500',
-    '-': 'bg-pink-500', '=': 'bg-pink-500', '[': 'bg-pink-500', ']': 'bg-pink-500', "'": 'bg-pink-500', '\\': 'bg-pink-500', 'Backspace': 'bg-pink-500', 'Enter': 'bg-pink-500',
+    '-': 'bg-pink-500', '=': 'bg-pink-500', '[': 'bg-pink-500', ']': 'bg-pink-500', "'": 'bg-pink-500', '\\': 'bg-pink-500', 'backspace': 'bg-pink-500', 'enter': 'bg-pink-500',
     // Thumb
-    'Space': 'bg-slate-400'
+    'space': 'bg-slate-400'
 };
+
+const normalizeKey = (key: string) => key.toLowerCase();
 
 export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({ nextChar }) => {
     const targetKey = useMemo(() => {
-        if (nextChar === '\n') return 'Enter';
-        if (nextChar === ' ') return 'Space';
-        return nextChar.toLowerCase();
+        if (nextChar === '\n') return 'enter';
+        if (nextChar === ' ') return 'space';
+        return normalizeKey(nextChar);
     }, [nextChar]);
 
     const isShiftNeeded = useMemo(() => {
@@ -52,27 +54,29 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({ nextChar }) =>
     }, [nextChar]);
 
     return (
-        <div className="w-full max-w-3xl mx-auto bg-slate-900 p-4 rounded-xl border border-slate-700 shadow-2xl mt-6 select-none hidden md:block opacity-50 focus-within:opacity-100 transition-opacity hover:opacity-100">
-             <div className="flex flex-col gap-1.5">
+        <div className="w-full mt-3 shrink-0 select-none">
+             <div className="w-full overflow-x-auto rounded-xl border border-slate-700 bg-slate-900/90 p-2 md:p-3 shadow-2xl">
+             <div className="flex flex-col gap-1 min-w-[700px] md:min-w-[760px]">
                 {KEYS.map((row, rIndex) => (
-                    <div key={rIndex} className="flex justify-center gap-1.5">
+                    <div key={rIndex} className="flex justify-center gap-1">
                         {row.map((key, kIndex) => {
-                            let isActive = key.toLowerCase() === targetKey;
+                            const normalizedKey = normalizeKey(key);
+                            let isActive = normalizedKey === targetKey;
                             
                             // Handle shift highlighting
-                            if (key === 'Shift' && isShiftNeeded) isActive = true;
+                            if (normalizedKey === 'shift' && isShiftNeeded) isActive = true;
 
-                            let width = 'w-10';
-                            if (key === 'Backspace') width = 'w-20';
-                            if (key === 'Tab') width = 'w-16';
-                            if (key === 'Caps') width = 'w-18';
-                            if (key === 'Enter') width = 'w-20';
-                            if (key === 'Shift') width = 'w-24';
-                            if (key === 'Space') width = 'w-64';
+                            let width = 'w-8 md:w-10';
+                            if (key === 'Backspace') width = 'w-16 md:w-20';
+                            if (key === 'Tab') width = 'w-14 md:w-16';
+                            if (key === 'Caps') width = 'w-14 md:w-16';
+                            if (key === 'Enter') width = 'w-16 md:w-20';
+                            if (key === 'Shift') width = 'w-20 md:w-24';
+                            if (key === 'Space') width = 'w-44 md:w-64';
 
                             const baseColor = 'bg-slate-800 text-slate-400 border-slate-700';
-                            const activeColor = FINGER_MAP[key.toLowerCase()] 
-                                ? `${FINGER_MAP[key.toLowerCase()]} text-white border-white scale-95 shadow-[0_0_10px_rgba(255,255,255,0.3)]` 
+                            const activeColor = FINGER_MAP[normalizedKey] 
+                                ? `${FINGER_MAP[normalizedKey]} text-white border-white scale-95 shadow-[0_0_10px_rgba(255,255,255,0.3)]` 
                                 : 'bg-slate-200 text-slate-900 border-white';
 
                             // Use unique key by combining key name, row index, and col index
@@ -82,7 +86,7 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({ nextChar }) =>
                                 <div 
                                     key={uniqueKey} 
                                     className={`
-                                        ${width} h-10 rounded-md flex items-center justify-center text-xs font-bold border-b-4 transition-all duration-75
+                                        ${width} h-8 md:h-10 rounded-md flex items-center justify-center text-[11px] md:text-xs font-bold border-b-4 transition-all duration-75
                                         ${isActive ? activeColor : baseColor}
                                     `}
                                 >
@@ -92,6 +96,7 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({ nextChar }) =>
                         })}
                     </div>
                 ))}
+             </div>
              </div>
              <div className="mt-2 text-center text-[10px] text-slate-500 uppercase tracking-widest">
                  Use the highlighted finger

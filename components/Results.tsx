@@ -152,8 +152,10 @@ export const Results: React.FC<ResultsProps> = ({ results, mode, onReset, onNewI
       setHistory(getHistory());
       // Play badge unlock sound if any
       if ((results.badgesUnlocked && results.badgesUnlocked.length > 0) || (results.isSSC && (results.sscMarks || 0) > 0)) {
-          setTimeout(() => playSound('success'), 500);
+          const timeoutId = setTimeout(() => playSound('success'), 500);
+          return () => clearTimeout(timeoutId);
       }
+      return undefined;
   }, [results]);
 
   // Sort hard keys by frequency

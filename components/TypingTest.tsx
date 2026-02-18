@@ -6,6 +6,8 @@ import { levenshteinDistance } from '../utils/stringUtils';
 import { VirtualKeyboard } from './VirtualKeyboard';
 import { playSound } from '../services/soundService';
 
+const TYPING_TEXT_SCALE_KEY = 'snaptype_typing_text_scale_v1';
+
 interface TypingTestProps {
   text: string;
   timeLimit: TimeLimit;
@@ -16,7 +18,7 @@ interface TypingTestProps {
 
 // Memoized char item
 const CharItem = React.memo(({ char, status, index }: { char: string, status: 'pending' | 'correct' | 'incorrect', index: number }) => {
-    let className = "relative font-mono text-2xl md:text-3xl leading-relaxed transition-colors duration-75 inline-block ";
+    let className = "relative font-mono transition-colors duration-75 inline-block ";
     
     if (status === 'pending') className += "text-slate-500";
     else if (status === 'correct') className += "text-emerald-400";
@@ -37,8 +39,18 @@ export const TypingTest: React.FC<TypingTestProps> = ({ text, timeLimit, onCompl
   const [startTime, setStartTime] = useState<number | null>(null);
   const [currIndex, setCurrIndex] = useState(0);
   const [hardKeys, setHardKeys] = useState<Record<string, number>>({});
-  const [caretPos, setCaretPos] = useState({ top: 0, left: 0 });
+  const [caretPos, setCaretPos] = useState({ top: 0, left: 0, width: 12 });
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [textScale, setTextScale] = useState<number>(() => {
+    try {
+      const raw = localStorage.getItem(TYPING_TEXT_SCALE_KEY);
+      const parsed = raw ? Number(raw) : 30;
+      if (Number.isNaN(parsed)) return 30;
+      return Math.min(46, Math.max(20, parsed));
+    } catch {
+      return 30;
+    }
+  });
   
   // History tracking
   const historyRef = useRef<{ time: number; wpm: number; raw: number; accuracy: number }[]>([]);
@@ -46,8 +58,12 @@ export const TypingTest: React.FC<TypingTestProps> = ({ text, timeLimit, onCompl
   // Tick state to force re-renders for timer
   const [, setTick] = useState(0);
   
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    localStorage.setItem(TYPING_TEXT_SCALE_KEY, String(textScale));
+  }, [textScale]);
 
   // Memoize target text handling
   const targetText = useMemo(() => text.replace(/\r\n/g, "\n"), [text]);
@@ -209,41 +225,65 @@ export const TypingTest: React.FC<TypingTestProps> = ({ text, timeLimit, onCompl
     inputRef.current?.focus();
   }, []);
 
-  // Update Caret Position & Typewriter Scroll
+  // Session shortcuts: Esc to restart, Ctrl/Cmd+Enter to submit
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        onRestart();
+      }
+      if ((event.ctrlKey || event.metaKey) && event.key === 'Enter' && startTime) {
+        event.preventDefault();
+        finishTestRef.current?.();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [onRestart, startTime]);
+
+  // Keep caret aligned to the active character baseline and scroll only when needed.
   useEffect(() => {
       const rafId = requestAnimationFrame(() => {
           const container = containerRef.current;
-          const charIndexToMeasure = Math.min(currIndex, targetText.length - 1);
+          if (!container || chars.length === 0) return;
+
+          const charIndexToMeasure = Math.min(currIndex, chars.length - 1);
           const cursorEl = document.getElementById(`char-${charIndexToMeasure}`);
+          if (!cursorEl) return;
 
-          if (container && cursorEl) {
-              
-              let newTop = cursorEl.offsetTop;
-              let newLeft = cursorEl.offsetLeft;
-              const cursorWidth = cursorEl.offsetWidth;
-              const cursorHeight = cursorEl.offsetHeight;
+          const containerRect = container.getBoundingClientRect();
+          const cursorRect = cursorEl.getBoundingClientRect();
 
-              if (currIndex === targetText.length) {
-                 newLeft += cursorWidth;
-              }
+          const topMargin = 40;
+          const bottomMargin = 56;
+          const cursorTopInView = cursorRect.top - containerRect.top;
+          const cursorBottomInView = cursorRect.bottom - containerRect.top;
 
-              const containerHeight = container.clientHeight;
-              const targetScroll = newTop - (containerHeight / 2) + (cursorHeight / 2);
-              
-              container.scrollTop = targetScroll;
-              
-              setCaretPos({ top: newTop, left: newLeft });
+          if (cursorBottomInView > container.clientHeight - bottomMargin) {
+            container.scrollTop += cursorBottomInView - (container.clientHeight - bottomMargin);
+          } else if (cursorTopInView < topMargin) {
+            container.scrollTop -= topMargin - cursorTopInView;
           }
+
+          let newLeft = cursorRect.left - containerRect.left + container.scrollLeft;
+          let newWidth = Math.max(8, Math.min(28, cursorRect.width));
+          if (currIndex >= chars.length) {
+            newLeft += cursorRect.width;
+            newWidth = Math.max(8, Math.min(20, cursorRect.width * 0.65));
+          }
+
+          const underlineTop = cursorRect.bottom - containerRect.top + container.scrollTop - 4;
+          setCaretPos({ top: underlineTop, left: newLeft, width: newWidth });
       });
       return () => cancelAnimationFrame(rafId);
-  }, [currIndex, targetText.length]);
+  }, [currIndex, chars.length]);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value;
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value.slice(0, targetText.length);
     if (!startTime) setStartTime(Date.now());
 
     // Sound and Logic for new keystroke
-    if (val.length > input.length) {
+    if (val.length === input.length + 1) {
         const newCharIndex = val.length - 1;
         if (newCharIndex < targetText.length) {
             const typedChar = val[newCharIndex];
@@ -261,14 +301,14 @@ export const TypingTest: React.FC<TypingTestProps> = ({ text, timeLimit, onCompl
         }
     }
 
-    if (val.length <= targetText.length) {
-        setInput(val);
-        setCurrIndex(val.length);
-    }
+    setInput(val);
+    setCurrIndex(val.length);
   };
 
   const focusInput = () => inputRef.current?.focus();
   const stats = calculateStats();
+  const progressPercent = targetText.length === 0 ? 0 : Math.min(100, Math.round((input.length / targetText.length) * 100));
+  const lineHeight = 1.65;
   
   let displayTime = Math.floor(stats.timeElapsed);
   if (timeLimit > 0) {
@@ -283,10 +323,10 @@ export const TypingTest: React.FC<TypingTestProps> = ({ text, timeLimit, onCompl
   };
 
   return (
-    <div className="w-full max-w-5xl mx-auto flex flex-col h-full items-center" onClick={focusInput}>
+    <div className="w-full max-w-6xl mx-auto flex flex-col h-full min-h-0 items-center" onClick={focusInput}>
       {/* Stats Header */}
-      <div className="w-full sticky top-0 z-40 bg-slate-900/95 backdrop-blur-md border-b border-slate-700 py-3 px-6 mb-6 flex justify-between items-center rounded-b-2xl shadow-2xl">
-        <div className="flex gap-4 md:gap-8">
+      <div className="w-full shrink-0 z-40 bg-slate-900/95 backdrop-blur-md border border-slate-700 py-2 px-4 md:px-6 mb-3 flex flex-col md:flex-row md:justify-between md:items-center rounded-2xl shadow-2xl gap-3">
+        <div className="flex flex-wrap gap-3 md:gap-6">
             <div className="flex flex-col">
                 <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">{isSSC ? 'SSC Speed' : 'Net WPM'}</span>
                 <span className={`text-2xl font-mono font-bold leading-none ${isSSC && stats.netWpm < 30 ? 'text-rose-400' : 'text-indigo-400'}`}>
@@ -305,15 +345,46 @@ export const TypingTest: React.FC<TypingTestProps> = ({ text, timeLimit, onCompl
                     <span className="text-rose-400 text-2xl font-mono font-bold leading-none">{stats.incorrectChars}</span>
                 </div>
             )}
+            {!isSSC && (
+                 <div className="flex flex-col">
+                    <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Mistakes</span>
+                    <span className="text-rose-400 text-2xl font-mono font-bold leading-none">{stats.incorrectChars}</span>
+                </div>
+            )}
              <div className="flex flex-col">
                 <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">{timeLimit > 0 ? 'Remaining' : 'Time'}</span>
                 <span className={`${timeLimit > 0 && displayTime < 10 ? 'text-rose-500 animate-pulse' : 'text-slate-200'} text-2xl font-mono font-bold leading-none`}>
                     {formatTime(displayTime)}
                 </span>
             </div>
+            <div className="flex flex-col">
+                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Progress</span>
+                <span className="text-cyan-300 text-2xl font-mono font-bold leading-none">{progressPercent}%</span>
+            </div>
         </div>
         
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center justify-end gap-2 md:gap-3">
+             <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setTextScale(prev => Math.max(20, prev - 2));
+                }}
+                className="px-2 py-1 rounded bg-slate-800 text-slate-300 text-xs font-semibold hover:bg-slate-700"
+                title="Decrease text size"
+             >
+                A-
+             </button>
+             <span className="text-[10px] font-mono text-slate-500 min-w-7 text-center">{textScale}</span>
+             <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setTextScale(prev => Math.min(46, prev + 2));
+                }}
+                className="px-2 py-1 rounded bg-slate-800 text-slate-300 text-xs font-semibold hover:bg-slate-700"
+                title="Increase text size"
+             >
+                A+
+             </button>
              <button 
                 onClick={(e) => { e.stopPropagation(); setSoundEnabled(!soundEnabled); }}
                 className={`p-2 rounded-full transition-colors ${soundEnabled ? 'text-indigo-400 bg-indigo-500/10' : 'text-slate-600'}`}
@@ -325,8 +396,19 @@ export const TypingTest: React.FC<TypingTestProps> = ({ text, timeLimit, onCompl
                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" /></svg>
                  )}
              </button>
+            <Button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  finishTestRef.current?.();
+                }}
+                variant="primary"
+                className="!py-2 !px-4 text-xs font-bold uppercase tracking-wide"
+                disabled={!startTime && input.length === 0}
+            >
+                Submit
+            </Button>
             <Button onClick={(e) => { e.stopPropagation(); onRestart(); }} variant="secondary" className="!py-2 !px-4 text-xs font-bold uppercase tracking-wide">
-                Restart
+                Back
             </Button>
         </div>
       </div>
@@ -334,22 +416,28 @@ export const TypingTest: React.FC<TypingTestProps> = ({ text, timeLimit, onCompl
       {/* Typing Container */}
       <div 
         ref={containerRef}
-        className="w-full flex-1 relative bg-slate-800/30 rounded-3xl p-8 md:p-12 shadow-inner overflow-hidden border border-slate-700/50 min-h-[300px]"
-        style={{ perspective: '1000px' }}
+        className="w-full flex-1 min-h-0 relative bg-slate-800/30 rounded-2xl p-5 md:p-6 shadow-inner overflow-y-auto border border-slate-700/50"
+        style={{
+          perspective: '1000px',
+        }}
       >
         {/* Floating Caret */}
         <div 
-            className="absolute w-[2px] h-8 bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.8)] z-20 rounded-full"
+            className="absolute h-[3px] bg-indigo-400 shadow-[0_0_10px_rgba(99,102,241,0.85)] z-20 rounded-full"
             style={{ 
+                width: caretPos.width,
                 top: 0, 
                 left: 0,
                 transform: `translate(${caretPos.left}px, ${caretPos.top}px)`,
                 transition: 'transform 0.1s cubic-bezier(0.2, 0, 0.2, 1)', 
-                opacity: startTime ? 1 : 0
+                opacity: 1
             }}
         />
 
-        <div className="whitespace-pre-wrap break-words min-h-full pb-64 relative z-10">
+        <div
+            className="whitespace-pre-wrap break-words min-h-full pb-12 relative z-10"
+            style={{ fontSize: `${textScale}px`, lineHeight }}
+        >
             {chars.map((char, index) => {
                 let status: 'pending' | 'correct' | 'incorrect' = 'pending';
                 if (index < input.length) {
@@ -367,24 +455,24 @@ export const TypingTest: React.FC<TypingTestProps> = ({ text, timeLimit, onCompl
             })}
         </div>
         
-        {/* Hidden Input */}
-        <input
+        {/* Hidden Textarea (supports newline input) */}
+        <textarea
             ref={inputRef}
-            type="text"
-            className="opacity-0 absolute inset-0 w-full h-full cursor-default z-30"
+            className="opacity-0 absolute inset-0 w-full h-full cursor-default z-30 pointer-events-none"
             value={input}
             onChange={handleInputChange}
+            onBlur={focusInput}
             autoComplete="off"
             autoCorrect="off"
             autoCapitalize="off"
             spellCheck="false"
+            rows={1}
         />
         
         {!startTime && (
-            <div className="absolute inset-0 flex items-center justify-center bg-slate-900/60 backdrop-blur-[2px] z-40 transition-opacity duration-300">
-                <div className="text-center">
-                    <div className="text-slate-200 text-xl font-medium mb-2">Click or Type to Start</div>
-                    <div className="text-slate-400 text-sm">{isSSC ? 'SSC Exam Mode (10 Mins)' : 'Focus mode enabled'}</div>
+            <div className="absolute top-3 right-4 z-40 transition-opacity duration-300 pointer-events-none">
+                <div className="text-[11px] text-slate-300 bg-slate-900/80 border border-slate-700 rounded-full px-3 py-1">
+                    {isSSC ? 'SSC Exam Ready' : 'Type to start'}
                 </div>
             </div>
         )}

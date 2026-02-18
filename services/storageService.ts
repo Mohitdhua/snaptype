@@ -6,6 +6,18 @@ const STORAGE_KEY = 'snaptype_history_v1';
 const STATS_KEY = 'snaptype_stats_v1';
 const SAVED_TESTS_KEY = 'snaptype_saved_tests_v1';
 
+const DEFAULT_STATS: UserStats = {
+  totalTests: 0,
+  totalTimeSeconds: 0,
+  currentStreak: 0,
+  lastLoginDate: '',
+  bestWpm: 0,
+  unlockedBadges: [],
+  xp: 0
+};
+
+const isGameMode = (mode: unknown): mode is GameMode => mode === 'DIGITAL' || mode === 'PHYSICAL';
+
 export const saveResult = (results: TestResults, mode: GameMode): { updatedHistory: StoredResult[], newBadges: Badge[], xpGained: number } => {
   // 1. Save History
   const newEntry: StoredResult = {
@@ -48,7 +60,7 @@ export const saveResult = (results: TestResults, mode: GameMode): { updatedHisto
       currentStreak: newStreak,
       lastLoginDate: today,
       bestWpm: Math.max(stats.bestWpm, results.netWpm),
-      unlockedBadges: stats.unlockedBadges,
+      unlockedBadges: [...stats.unlockedBadges],
       xp: stats.xp + xpGained
   };
 
@@ -75,7 +87,17 @@ export const saveResult = (results: TestResults, mode: GameMode): { updatedHisto
 export const getHistory = (): StoredResult[] => {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
+    const parsed = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((entry): entry is Partial<StoredResult> => !!entry && typeof entry === 'object')
+      .map(entry => ({
+        id: String(entry.id ?? Date.now()),
+        timestamp: Number(entry.timestamp ?? Date.now()),
+        netWpm: Number(entry.netWpm ?? 0),
+        accuracy: Number(entry.accuracy ?? 0),
+        mode: isGameMode(entry.mode) ? entry.mode : 'DIGITAL'
+      }));
   } catch (e) {
     console.error("Failed to load history", e);
     return [];
@@ -85,21 +107,25 @@ export const getHistory = (): StoredResult[] => {
 export const getUserStats = (): UserStats => {
     try {
         const raw = localStorage.getItem(STATS_KEY);
-        if (raw) return JSON.parse(raw);
+        if (raw) {
+            const parsed = JSON.parse(raw) as Partial<UserStats>;
+            return {
+                ...DEFAULT_STATS,
+                ...parsed,
+                totalTests: Number(parsed.totalTests ?? 0),
+                totalTimeSeconds: Number(parsed.totalTimeSeconds ?? 0),
+                currentStreak: Number(parsed.currentStreak ?? 0),
+                bestWpm: Number(parsed.bestWpm ?? 0),
+                xp: Number(parsed.xp ?? 0),
+                lastLoginDate: typeof parsed.lastLoginDate === 'string' ? parsed.lastLoginDate : '',
+                unlockedBadges: Array.isArray(parsed.unlockedBadges) ? parsed.unlockedBadges.map(String) : []
+            };
+        }
     } catch (e) {
         console.error("Failed to load stats", e);
     }
     
-    // Default stats
-    return {
-        totalTests: 0,
-        totalTimeSeconds: 0,
-        currentStreak: 0,
-        lastLoginDate: '',
-        bestWpm: 0,
-        unlockedBadges: [],
-        xp: 0
-    };
+    return DEFAULT_STATS;
 };
 
 // --- Saved Tests Logic ---
@@ -107,7 +133,19 @@ export const getUserStats = (): UserStats => {
 export const getSavedTests = (): SavedTest[] => {
     try {
         const raw = localStorage.getItem(SAVED_TESTS_KEY);
-        return raw ? JSON.parse(raw) : [];
+        const parsed = raw ? JSON.parse(raw) : [];
+        if (!Array.isArray(parsed)) return [];
+        return parsed
+            .filter((test): test is Partial<SavedTest> => !!test && typeof test === 'object')
+            .map(test => ({
+                id: String(test.id ?? Date.now()),
+                title: typeof test.title === 'string' ? test.title : 'Untitled Test',
+                text: typeof test.text === 'string' ? test.text : '',
+                imageSrc: typeof test.imageSrc === 'string' ? test.imageSrc : null,
+                createdAt: Number(test.createdAt ?? Date.now()),
+                gameMode: isGameMode(test.gameMode) ? test.gameMode : 'DIGITAL'
+            }))
+            .filter(test => test.text.trim().length > 0);
     } catch (e) {
         console.error("Failed to load saved tests", e);
         return [];
@@ -123,7 +161,7 @@ export const saveTest = (testData: Omit<SavedTest, 'id' | 'createdAt'>): SavedTe
         // Move to top if exists
         const existing = savedTests[existingIndex];
         savedTests.splice(existingIndex, 1);
-        const updated = { ...existing, createdAt: Date.now() };
+        const updated = { ...existing, ...testData, createdAt: Date.now() };
         savedTests.unshift(updated);
         try {
             localStorage.setItem(SAVED_TESTS_KEY, JSON.stringify(savedTests));

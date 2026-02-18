@@ -5,7 +5,7 @@ import { TimeLimit, GameMode } from '../types';
 
 interface ImageUploaderProps {
   onImageSelect: (base64: string, mimeType: string, timeLimit: TimeLimit, mode: GameMode, isSSC: boolean) => void;
-  onTextSelect: (text: string, timeLimit: TimeLimit, isSSC: boolean) => void;
+  onTextSelect: (text: string, timeLimit: TimeLimit, mode: GameMode, isSSC: boolean) => void;
   isProcessing: boolean;
 }
 
@@ -26,6 +26,8 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageSelect, onT
     // Validate type
     if (!file.type.startsWith('image/')) {
       setError('Please upload a valid image file.');
+      setPreview(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
 
@@ -46,7 +48,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageSelect, onT
        const file = fileInputRef.current.files[0];
        onImageSelect(preview, file.type, finalTimeLimit, gameMode, isSSCMode);
     } else if (inputMode === 'text' && customText.trim()) {
-       onTextSelect(customText, finalTimeLimit, isSSCMode);
+       onTextSelect(customText, finalTimeLimit, gameMode, isSSCMode);
     }
   };
 
@@ -162,36 +164,34 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageSelect, onT
              {/* Standard Options (Hidden if SSC is active) */}
              {!isSSCMode && (
                  <>
-                    {inputMode === 'image' && (
-                        <div className="w-full bg-slate-800/50 p-4 rounded-xl border border-slate-700">
-                            <label className="block text-slate-400 text-sm font-bold mb-3 uppercase tracking-wider text-center">Select Experience</label>
-                            <div className="grid grid-cols-2 gap-4">
-                                <button
-                                    onClick={() => setGameMode('DIGITAL')}
-                                    className={`p-4 rounded-xl border-2 text-left transition-all ${
-                                        gameMode === 'DIGITAL'
-                                        ? 'border-indigo-500 bg-indigo-500/10'
-                                        : 'border-slate-700 hover:border-slate-600 bg-slate-800'
-                                    }`}
-                                >
-                                    <div className={`font-bold mb-1 ${gameMode === 'DIGITAL' ? 'text-indigo-400' : 'text-slate-300'}`}>On-Screen Text</div>
-                                    <div className="text-xs text-slate-500">Read from screen and type (Standard)</div>
-                                </button>
+                    <div className="w-full bg-slate-800/50 p-4 rounded-xl border border-slate-700">
+                        <label className="block text-slate-400 text-sm font-bold mb-3 uppercase tracking-wider text-center">Typing Mode</label>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <button
+                                onClick={() => setGameMode('DIGITAL')}
+                                className={`p-4 rounded-xl border-2 text-left transition-all ${
+                                    gameMode === 'DIGITAL'
+                                    ? 'border-indigo-500 bg-indigo-500/10'
+                                    : 'border-slate-700 hover:border-slate-600 bg-slate-800'
+                                }`}
+                            >
+                                <div className={`font-bold mb-1 ${gameMode === 'DIGITAL' ? 'text-indigo-400' : 'text-slate-300'}`}>Digital Mode</div>
+                                <div className="text-xs text-slate-500">Type while reading on-screen text.</div>
+                            </button>
 
-                                <button
-                                    onClick={() => setGameMode('PHYSICAL')}
-                                    className={`p-4 rounded-xl border-2 text-left transition-all ${
-                                        gameMode === 'PHYSICAL'
-                                        ? 'border-indigo-500 bg-indigo-500/10'
-                                        : 'border-slate-700 hover:border-slate-600 bg-slate-800'
-                                    }`}
-                                >
-                                    <div className={`font-bold mb-1 ${gameMode === 'PHYSICAL' ? 'text-indigo-400' : 'text-slate-300'}`}>Physical Paper</div>
-                                    <div className="text-xs text-slate-500">Read from your physical page, analyze later</div>
-                                </button>
-                            </div>
+                            <button
+                                onClick={() => setGameMode('PHYSICAL')}
+                                className={`p-4 rounded-xl border-2 text-left transition-all ${
+                                    gameMode === 'PHYSICAL'
+                                    ? 'border-indigo-500 bg-indigo-500/10'
+                                    : 'border-slate-700 hover:border-slate-600 bg-slate-800'
+                                }`}
+                            >
+                                <div className={`font-bold mb-1 ${gameMode === 'PHYSICAL' ? 'text-indigo-400' : 'text-slate-300'}`}>Paper / Physical Mode</div>
+                                <div className="text-xs text-slate-500">Type in a separate panel and analyze after finishing.</div>
+                            </button>
                         </div>
-                    )}
+                    </div>
 
                     <div className="w-full bg-slate-800/50 p-4 rounded-xl border border-slate-700">
                         <label className="block text-slate-400 text-sm font-bold mb-3 uppercase tracking-wider text-center">Time Limit</label>

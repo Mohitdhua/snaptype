@@ -2,19 +2,23 @@
 <img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
 </div>
 
-# Run and deploy your AI Studio app
+# SnapType
 
-This contains everything you need to run your app locally.
+This project is a Vite + React app for OCR-based typing tests.
 
-View your app in AI Studio: https://ai.studio/apps/drive/1NE_SWceZRvJYmCMmqrM-zfVHThfSrC2M
+## Run locally
 
-## Run Locally
+1. Install dependencies: `npm install`
+2. Create `.env.local` with:
+   `GEMINI_API_KEY=your_gemini_api_key`
+3. Start with Vercel dev server (required for `/api` routes): `npx vercel dev`
+4. Type-check: `npm run typecheck`
+5. Build frontend bundle: `npm run build`
 
-**Prerequisites:**  Node.js
+## Deploy to Vercel
 
-
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+1. Import this repo in Vercel.
+2. Keep framework preset as `Vite`.
+3. Add environment variable:
+   `GEMINI_API_KEY=your_gemini_api_key`
+4. Deploy.

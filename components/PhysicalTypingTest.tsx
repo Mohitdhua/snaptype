@@ -6,15 +6,16 @@ import { levenshteinDistance } from '../utils/stringUtils';
 interface PhysicalTypingTestProps {
   ocrText: string;
   imageSrc: string | null;
+  referenceText?: string | null;
   timeLimit: TimeLimit;
   onComplete: (results: TestResults) => void;
   onRestart: () => void;
 }
 
-export const PhysicalTypingTest: React.FC<PhysicalTypingTestProps> = ({ ocrText, imageSrc, timeLimit, onComplete, onRestart }) => {
+export const PhysicalTypingTest: React.FC<PhysicalTypingTestProps> = ({ ocrText, imageSrc, referenceText = null, timeLimit, onComplete, onRestart }) => {
   const [input, setInput] = useState('');
   const [startTime, setStartTime] = useState<number | null>(null);
-  const [showImage, setShowImage] = useState(true);
+  const [showReference, setShowReference] = useState(true);
   const [elapsed, setElapsed] = useState(0);
 
   // Zoom state
@@ -27,6 +28,7 @@ export const PhysicalTypingTest: React.FC<PhysicalTypingTestProps> = ({ ocrText,
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const mirrorRef = useRef<HTMLDivElement>(null);
+  const scrollRafRef = useRef<number | null>(null);
 
   useEffect(() => { inputRef.current = input; }, [input]);
   useEffect(() => { startTimeRef.current = startTime; }, [startTime]);
@@ -160,6 +162,11 @@ export const PhysicalTypingTest: React.FC<PhysicalTypingTestProps> = ({ ocrText,
 
   useEffect(() => {
       textareaRef.current?.focus();
+      return () => {
+          if (scrollRafRef.current !== null) {
+              cancelAnimationFrame(scrollRafRef.current);
+          }
+      };
   }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -167,7 +174,10 @@ export const PhysicalTypingTest: React.FC<PhysicalTypingTestProps> = ({ ocrText,
     const val = e.target.value;
     setInput(val);
 
-    requestAnimationFrame(() => {
+    if (scrollRafRef.current !== null) {
+        cancelAnimationFrame(scrollRafRef.current);
+    }
+    scrollRafRef.current = requestAnimationFrame(() => {
         if (textareaRef.current && mirrorRef.current) {
             const textarea = textareaRef.current;
             const mirror = mirrorRef.current;
@@ -178,6 +188,7 @@ export const PhysicalTypingTest: React.FC<PhysicalTypingTestProps> = ({ ocrText,
             const targetScroll = mirror.scrollHeight - (textarea.clientHeight / 2);
             textarea.scrollTop = targetScroll;
         }
+        scrollRafRef.current = null;
     });
   };
 
@@ -203,16 +214,21 @@ export const PhysicalTypingTest: React.FC<PhysicalTypingTestProps> = ({ ocrText,
       }
   };
 
+  const hasReference = Boolean(imageSrc || referenceText);
+  const referenceLabel = imageSrc ? 'Reference Image' : 'Reference Text';
+
   return (
     <div className="w-full max-w-6xl mx-auto flex flex-col md:flex-row gap-6 h-[80vh] animate-fade-in">
         
         {/* Left Side: Image Reference */}
-        {imageSrc && (
-            <div className={`${showImage ? 'md:w-1/2 h-64 md:h-full' : 'w-12 h-12 absolute md:static'} transition-all duration-300 flex flex-col bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden shadow-lg z-20`}>
+        {hasReference && showReference && (
+            <div className="md:w-1/2 h-64 md:h-full transition-all duration-300 flex flex-col bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden shadow-lg z-20">
                 <div className="p-3 bg-slate-900/80 flex justify-between items-center backdrop-blur-sm border-b border-slate-700">
-                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Reference Image</span>
+                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                        {referenceLabel}
+                    </span>
                     <div className="flex gap-2">
-                        {showImage && (
+                        {showReference && imageSrc && (
                              <button 
                                 onClick={() => setZoomLevel(prev => prev === 1 ? 2.5 : 1)}
                                 className={`text-xs px-2 py-1 rounded border ${zoomLevel > 1 ? 'bg-indigo-500 border-indigo-500 text-white' : 'border-slate-600 text-slate-400'}`}
@@ -221,17 +237,14 @@ export const PhysicalTypingTest: React.FC<PhysicalTypingTestProps> = ({ ocrText,
                              </button>
                         )}
                         <button 
-                            onClick={() => setShowImage(!showImage)}
+                            onClick={() => setShowReference(false)}
                             className="text-slate-400 hover:text-white"
                         >
-                            {showImage ? 
-                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg> :
-                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" /> </svg>
-                            }
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                         </button>
                     </div>
                 </div>
-                {showImage && (
+                {showReference && imageSrc && (
                     <div 
                         ref={imageContainerRef}
                         className="flex-1 overflow-hidden relative cursor-crosshair bg-black/20"
@@ -251,7 +264,27 @@ export const PhysicalTypingTest: React.FC<PhysicalTypingTestProps> = ({ ocrText,
                         </div>
                     </div>
                 )}
+                {showReference && !imageSrc && referenceText && (
+                    <div className="flex-1 overflow-auto p-4 bg-slate-900/30">
+                        <pre className="whitespace-pre-wrap break-words text-sm md:text-base font-mono text-slate-300 leading-relaxed">
+                            {referenceText}
+                        </pre>
+                    </div>
+                )}
             </div>
+        )}
+        {hasReference && !showReference && (
+            <button
+                type="button"
+                onClick={() => setShowReference(true)}
+                className="shrink-0 self-start md:self-start mt-1 bg-slate-800 border border-slate-700 text-slate-300 hover:text-white hover:border-indigo-500/60 rounded-xl px-3 py-2 shadow-lg transition-colors flex items-center gap-2"
+                title={`Open ${referenceLabel}`}
+            >
+                <svg className="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+                <span className="text-[11px] font-bold uppercase tracking-wider">Open Reference</span>
+            </button>
         )}
 
         {/* Right Side: Typing Area */}
