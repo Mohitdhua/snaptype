@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">SnapType Logo Mark</title>
+  <desc id="desc">Rounded square logo with a stylized S curve and cursor accent.</desc>
+  <defs>
+    <linearGradient id="bg" x1="64" y1="64" x2="448" y2="448" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#22d3ee" />
+      <stop offset="1" stop-color="#2563eb" />
+    </linearGradient>
+    <radialGradient id="shine" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(178 126) rotate(46) scale(280 220)">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.35" />
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+
+  <rect x="32" y="32" width="448" height="448" rx="122" fill="url(#bg)" />
+  <rect x="32" y="32" width="448" height="448" rx="122" fill="url(#shine)" />
+  <rect x="32" y="32" width="448" height="448" rx="122" fill="none" stroke="#dbeafe" stroke-opacity="0.22" stroke-width="3" />
+
+  <path d="M339 150H213c-33 0-60 27-60 60s27 60 60 60h88c33 0 60 27 60 60s-27 60-60 60H173" fill="none" stroke="#ffffff" stroke-width="44" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M176 150h161" fill="none" stroke="#a5f3fc" stroke-opacity="0.9" stroke-width="14" stroke-linecap="round" />
+  <rect x="336" y="346" width="46" height="26" rx="9" fill="#a5f3fc" />
+</svg>
