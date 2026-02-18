@@ -20,21 +20,11 @@ const countLinearMismatches = (typed: string, expected: string): number => {
   return mismatches;
 };
 
-const calculateSpeedByMode = (
-  isSSC: boolean,
+const calculateSpeed = (
   totalChars: number,
   errors: number,
   effectiveMins: number
 ): { rawWpm: number; netWpm: number } => {
-  if (isSSC) {
-    const words = totalChars / 5;
-    const tentativeSpeed = words / effectiveMins;
-    return {
-      rawWpm: Math.round(tentativeSpeed),
-      netWpm: Math.max(0, Math.round(tentativeSpeed - errors)),
-    };
-  }
-
   return {
     rawWpm: Math.round((totalChars / 5) / effectiveMins),
     netWpm: Math.max(0, Math.round(((totalChars - errors) / 5) / effectiveMins)),
@@ -259,7 +249,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({ text, timeLimit, onCompl
     const correctChars = Math.max(0, input.length - errors);
     const missedWordsCount: Record<string, number> = {};
 
-    const { rawWpm, netWpm } = calculateSpeedByMode(isSSC, input.length, errors, effectiveMins);
+    const { rawWpm, netWpm } = calculateSpeed(input.length, errors, effectiveMins);
 
     const accuracy = input.length > 0 
         ? Math.max(0, Math.round(((input.length - errors) / input.length) * 100)) 
@@ -277,10 +267,9 @@ export const TypingTest: React.FC<TypingTestProps> = ({ text, timeLimit, onCompl
       missedWords: missedWordsCount,
       history: historyRef.current,
       originalText: targetText,
-      typedText: input,
-      isSSC: isSSC
+      typedText: input
     };
-  }, [input, startTime, targetText, timeLimit, hardKeys, isSSC]);
+  }, [input, startTime, targetText, timeLimit, hardKeys]);
 
   const finishTest = useCallback(() => {
      if (hasCompletedRef.current) return;
@@ -304,19 +293,30 @@ export const TypingTest: React.FC<TypingTestProps> = ({ text, timeLimit, onCompl
         }
     }
     
-    // Calculate SSC Marks if applicable
-    let sscMarks = 0;
+    const finalResults: TestResults = { ...partialStats, missedWords: missedWordsCount };
+
     if (isSSC) {
-        const speed = partialStats.netWpm;
+        const effectiveMins = Math.max(0.001, partialStats.timeElapsed / 60);
+        const tentativeSpeed = (partialStats.totalChars / 5) / effectiveMins;
+        const sscRawWpm = Math.round(tentativeSpeed);
+        const sscNetWpm = Math.max(0, Math.round(tentativeSpeed - partialStats.incorrectChars));
+
+        let sscMarks = 0;
+        const speed = sscNetWpm;
         if (speed >= 30) sscMarks = 10;
         if (speed >= 31) sscMarks = 12;
         if (speed >= 36) sscMarks = 15;
         if (speed >= 41) sscMarks = 18;
         if (speed >= 46) sscMarks = 21;
         if (speed > 50) sscMarks = 25;
+
+        finalResults.rawWpm = sscRawWpm;
+        finalResults.netWpm = sscNetWpm;
+        finalResults.isSSC = true;
+        finalResults.sscMarks = sscMarks;
     }
 
-    onComplete({ ...partialStats, missedWords: missedWordsCount, sscMarks: isSSC ? sscMarks : undefined });
+    onComplete(finalResults);
   }, [calculateStats, input, targetText, onComplete, isSSC]);
 
   // Ref to hold the latest version of finishTest
@@ -490,7 +490,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({ text, timeLimit, onCompl
   const stats = calculateStats(false);
   const progressPercent = targetText.length === 0 ? 0 : Math.min(100, Math.round((input.length / targetText.length) * 100));
   const lineHeight = 1.65;
-  const showVirtualKeyboard = !isSSC && targetText.length <= 8000;
+  const showVirtualKeyboard = targetText.length <= 8000;
   
   let displayTime = Math.floor(stats.timeElapsed);
   if (timeLimit > 0) {
@@ -510,29 +510,19 @@ export const TypingTest: React.FC<TypingTestProps> = ({ text, timeLimit, onCompl
       <div className="w-full shrink-0 z-40 bg-slate-900/95 backdrop-blur-md border border-slate-700 py-2 px-4 md:px-6 mb-3 flex flex-col md:flex-row md:justify-between md:items-center rounded-2xl shadow-2xl gap-3">
         <div className="flex flex-wrap gap-3 md:gap-6">
             <div className="flex flex-col">
-                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">{isSSC ? 'SSC Speed' : 'Net WPM'}</span>
-                <span className={`text-2xl font-mono font-bold leading-none ${isSSC && stats.netWpm < 30 ? 'text-rose-400' : 'text-indigo-400'}`}>
+                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Net WPM</span>
+                <span className="text-2xl font-mono font-bold leading-none text-indigo-400">
                     {stats.netWpm}
                 </span>
             </div>
-            {!isSSC && (
-                <div className="flex flex-col">
-                    <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Accuracy</span>
-                    <span className={`${stats.accuracy > 95 ? 'text-emerald-400' : 'text-rose-400'} text-2xl font-mono font-bold leading-none`}>{stats.accuracy}%</span>
-                </div>
-            )}
-            {isSSC && (
-                 <div className="flex flex-col">
-                    <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Mistakes</span>
-                    <span className="text-rose-400 text-2xl font-mono font-bold leading-none">{stats.incorrectChars}</span>
-                </div>
-            )}
-            {!isSSC && (
-                 <div className="flex flex-col">
-                    <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Mistakes</span>
-                    <span className="text-rose-400 text-2xl font-mono font-bold leading-none">{stats.incorrectChars}</span>
-                </div>
-            )}
+            <div className="flex flex-col">
+                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Accuracy</span>
+                <span className={`${stats.accuracy > 95 ? 'text-emerald-400' : 'text-rose-400'} text-2xl font-mono font-bold leading-none`}>{stats.accuracy}%</span>
+            </div>
+            <div className="flex flex-col">
+                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Mistakes</span>
+                <span className="text-rose-400 text-2xl font-mono font-bold leading-none">{stats.incorrectChars}</span>
+            </div>
              <div className="flex flex-col">
                 <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">{timeLimit > 0 ? 'Remaining' : 'Time'}</span>
                 <span className={`${timeLimit > 0 && displayTime < 10 ? 'text-rose-500 animate-pulse' : 'text-slate-200'} text-2xl font-mono font-bold leading-none`}>
@@ -652,7 +642,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({ text, timeLimit, onCompl
         {!startTime && (
             <div className="absolute top-3 right-4 z-40 transition-opacity duration-300 pointer-events-none">
                 <div className="text-[11px] text-slate-300 bg-slate-900/80 border border-slate-700 rounded-full px-3 py-1">
-                    {isSSC ? 'SSC Exam Ready' : 'Type to start'}
+                    Type to start
                 </div>
             </div>
         )}

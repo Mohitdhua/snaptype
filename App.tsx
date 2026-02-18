@@ -244,7 +244,7 @@ const App: React.FC = () => {
   };
 
   const handlePlaySavedTest = (test: SavedTest, selectedTimeLimit: TimeLimit, selectedMode: GameMode, isSSC: boolean) => {
-    const finalMode: GameMode = isSSC ? 'DIGITAL' : selectedMode;
+    const finalMode: GameMode = selectedMode;
     const finalTimeLimit: TimeLimit = isSSC ? 600 : selectedTimeLimit;
     const gameText = prepareTextForGame(test.text, finalTimeLimit);
     setOriginalText(test.text);
@@ -489,6 +489,7 @@ const App: React.FC = () => {
                 imageSrc={imagePreview}
                 referenceText={imagePreview ? null : text}
                 timeLimit={timeLimit}
+                isSSC={isSSCMode}
                 onComplete={handleComplete}
                 onRestart={goHomeCreate}
               />

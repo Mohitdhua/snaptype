@@ -1,7 +1,7 @@
 
-import React, { useMemo, useEffect, useState } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import { Button } from './Button';
-import { TestResults, StoredResult } from '../types';
+import { TestResults } from '../types';
 import { getHistory } from '../services/storageService';
 import { ProgressChart } from './ProgressChart';
 import { ComposedChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -48,24 +48,13 @@ const SessionTooltip = ({ active, payload, label }: any) => {
 };
 
 export const Results: React.FC<ResultsProps> = ({ results, onReset, onNewImage, onPractice }) => {
-  const [allTimeHistory, setAllTimeHistory] = useState<StoredResult[] | null>(null);
-  const [showAllTimeProgress, setShowAllTimeProgress] = useState(false);
-
   useEffect(() => {
-      setShowAllTimeProgress(false);
-      setAllTimeHistory(null);
       if ((results.badgesUnlocked && results.badgesUnlocked.length > 0) || (results.isSSC && (results.sscMarks || 0) > 0)) {
           const timeoutId = setTimeout(() => playSound('success'), 500);
           return () => clearTimeout(timeoutId);
       }
       return undefined;
   }, [results]);
-
-  useEffect(() => {
-    if (showAllTimeProgress && allTimeHistory === null) {
-      setAllTimeHistory(getHistory());
-    }
-  }, [showAllTimeProgress, allTimeHistory]);
 
   const topHardKeys = useMemo(
     () =>
@@ -286,7 +275,7 @@ export const Results: React.FC<ResultsProps> = ({ results, onReset, onNewImage, 
             )}
         </div>
 
-        {sameTestHistory.length >= 10 && (
+        {results.testId && sameTestHistory.length >= 1 && (
             <div className="w-full mb-8 space-y-3">
                 <div className="flex items-center justify-between">
                     <h3 className="text-slate-300 font-bold uppercase tracking-wider text-sm">This Test Performance</h3>
@@ -378,35 +367,7 @@ export const Results: React.FC<ResultsProps> = ({ results, onReset, onNewImage, 
              <Button onClick={onNewImage} variant="secondary" className="w-full sm:w-auto">
                 Upload New Image
             </Button>
-            <Button
-                onClick={() => setShowAllTimeProgress(prev => !prev)}
-                variant="secondary"
-                className="w-full sm:w-auto"
-            >
-                {showAllTimeProgress ? 'Hide All-time Progress' : 'View All-time Progress'}
-            </Button>
         </div>
-
-        {showAllTimeProgress && (
-            <div className="w-full mt-8 space-y-4">
-                <div className="flex items-center justify-between">
-                    <h3 className="text-slate-300 font-bold uppercase tracking-wider text-sm">All-time Progress</h3>
-                    <span className="text-xs text-slate-500">Across all saved tests</span>
-                </div>
-
-                {allTimeHistory === null ? (
-                    <div className="w-full bg-slate-900/40 border border-slate-700/70 rounded-xl p-4 text-sm text-slate-400">
-                        Loading progress history...
-                    </div>
-                ) : allTimeHistory.length > 0 ? (
-                    <ProgressChart history={allTimeHistory} />
-                ) : (
-                    <div className="w-full bg-slate-900/40 border border-slate-700/70 rounded-xl p-4 text-sm text-slate-400">
-                        No all-time history available yet.
-                    </div>
-                )}
-            </div>
-        )}
     </div>
   );
 };

@@ -81,10 +81,10 @@ export const SavedTestsList: React.FC<SavedTestsListProps> = ({ tests, onPlay, o
                                     type="button"
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      updateOptions(test, { mode: 'DIGITAL', isSSC: false });
+                                      updateOptions(test, { mode: 'DIGITAL' });
                                     }}
-                                    className={`text-xs font-semibold rounded-md px-2 py-1.5 border transition-colors ${
-                                      selected.mode === 'DIGITAL' && !selected.isSSC
+                                    className={`min-w-0 truncate whitespace-nowrap text-xs font-semibold rounded-md px-2 py-1.5 border transition-colors ${
+                                      selected.mode === 'DIGITAL'
                                         ? 'border-indigo-500 bg-indigo-500/20 text-indigo-300'
                                         : 'border-slate-700 text-slate-400 hover:text-slate-200'
                                     }`}
@@ -95,23 +95,23 @@ export const SavedTestsList: React.FC<SavedTestsListProps> = ({ tests, onPlay, o
                                     type="button"
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      updateOptions(test, { mode: 'PHYSICAL', isSSC: false });
+                                      updateOptions(test, { mode: 'PHYSICAL' });
                                     }}
-                                    className={`text-xs font-semibold rounded-md px-2 py-1.5 border transition-colors ${
-                                      selected.mode === 'PHYSICAL' && !selected.isSSC
+                                    className={`min-w-0 truncate whitespace-nowrap text-xs font-semibold rounded-md px-2 py-1.5 border transition-colors ${
+                                      selected.mode === 'PHYSICAL'
                                         ? 'border-indigo-500 bg-indigo-500/20 text-indigo-300'
                                         : 'border-slate-700 text-slate-400 hover:text-slate-200'
                                     }`}
                                 >
-                                    Paper/Physical
+                                    Paper
                                 </button>
                                 <button
                                     type="button"
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      updateOptions(test, { mode: 'DIGITAL', isSSC: true, timeLimit: 600 });
+                                      updateOptions(test, { isSSC: !selected.isSSC });
                                     }}
-                                    className={`text-xs font-semibold rounded-md px-2 py-1.5 border transition-colors ${
+                                    className={`min-w-0 truncate whitespace-nowrap text-xs font-semibold rounded-md px-2 py-1.5 border transition-colors ${
                                       selected.isSSC
                                         ? 'border-rose-500 bg-rose-500/20 text-rose-300'
                                         : 'border-slate-700 text-slate-400 hover:text-slate-200'
@@ -127,7 +127,7 @@ export const SavedTestsList: React.FC<SavedTestsListProps> = ({ tests, onPlay, o
                                 <select
                                     value={selected.isSSC ? 600 : selected.timeLimit}
                                     onChange={(e) =>
-                                      updateOptions(test, { timeLimit: Number(e.target.value) as TimeLimit, isSSC: false })
+                                      updateOptions(test, { timeLimit: Number(e.target.value) as TimeLimit })
                                     }
                                     disabled={selected.isSSC}
                                     className="w-full bg-slate-900 border border-slate-700 rounded-md px-2 py-1.5 text-xs text-slate-300 focus:outline-none focus:border-indigo-500"

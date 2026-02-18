@@ -8,11 +8,12 @@ interface PhysicalTypingTestProps {
   imageSrc: string | null;
   referenceText?: string | null;
   timeLimit: TimeLimit;
+  isSSC?: boolean;
   onComplete: (results: TestResults) => void;
   onRestart: () => void;
 }
 
-export const PhysicalTypingTest: React.FC<PhysicalTypingTestProps> = ({ ocrText, imageSrc, referenceText = null, timeLimit, onComplete, onRestart }) => {
+export const PhysicalTypingTest: React.FC<PhysicalTypingTestProps> = ({ ocrText, imageSrc, referenceText = null, timeLimit, isSSC = false, onComplete, onRestart }) => {
   const [input, setInput] = useState('');
   const [startTime, setStartTime] = useState<number | null>(null);
   const [showReference, setShowReference] = useState(true);
@@ -36,7 +37,7 @@ export const PhysicalTypingTest: React.FC<PhysicalTypingTestProps> = ({ ocrText,
   useEffect(() => { startTimeRef.current = startTime; }, [startTime]);
   useEffect(() => {
     hasCompletedRef.current = false;
-  }, [ocrText, timeLimit]);
+  }, [ocrText, timeLimit, isSSC]);
 
   const finishTest = useCallback((finalTime?: number) => {
       if (hasCompletedRef.current) return;
@@ -59,7 +60,9 @@ export const PhysicalTypingTest: React.FC<PhysicalTypingTestProps> = ({ ocrText,
               netWpm: 0, rawWpm: 0, accuracy: 0, timeElapsed: effectiveTime,
               totalChars: 0, correctChars: 0, incorrectChars: 0,
               hardKeys: {}, missedWords: {}, history: [],
-              originalText: '', typedText: currentInput
+              originalText: '', typedText: currentInput,
+              isSSC: isSSC ? true : undefined,
+              sscMarks: isSSC ? 0 : undefined
           });
           return;
       }
@@ -132,9 +135,25 @@ export const PhysicalTypingTest: React.FC<PhysicalTypingTestProps> = ({ ocrText,
 
       const truncatedOriginalRaw = ocrText.slice(0, charLimit);
 
-      const rawWpm = Math.round((normalizedCharCount / 5) / minutes);
-      const netWpm = Math.max(0, Math.round(((normalizedCharCount - errors) / 5) / minutes));
+      let rawWpm = Math.round((normalizedCharCount / 5) / minutes);
+      let netWpm = Math.max(0, Math.round(((normalizedCharCount - errors) / 5) / minutes));
       const accuracy = Math.max(0, Math.round((correctChars / cleanInput.length) * 100));
+      let sscMarks: number | undefined;
+
+      if (isSSC) {
+          const tentativeSpeed = (normalizedCharCount / 5) / minutes;
+          rawWpm = Math.round(tentativeSpeed);
+          netWpm = Math.max(0, Math.round(tentativeSpeed - errors));
+
+          let marks = 0;
+          if (netWpm >= 30) marks = 10;
+          if (netWpm >= 31) marks = 12;
+          if (netWpm >= 36) marks = 15;
+          if (netWpm >= 41) marks = 18;
+          if (netWpm >= 46) marks = 21;
+          if (netWpm > 50) marks = 25;
+          sscMarks = marks;
+      }
 
       const results: TestResults = {
           netWpm, rawWpm, accuracy, timeElapsed: effectiveTime,
@@ -143,11 +162,13 @@ export const PhysicalTypingTest: React.FC<PhysicalTypingTestProps> = ({ ocrText,
           missedWords: missedWordsCount, 
           history: [],
           originalText: truncatedOriginalRaw,
-          typedText: currentInput
+          typedText: currentInput,
+          isSSC: isSSC ? true : undefined,
+          sscMarks
       };
 
       onComplete(results);
-  }, [ocrText, onComplete]);
+  }, [ocrText, onComplete, isSSC]);
 
   const finishTestRef = useRef(finishTest);
   useEffect(() => { finishTestRef.current = finishTest; }, [finishTest]);
