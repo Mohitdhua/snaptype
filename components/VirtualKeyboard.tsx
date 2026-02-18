@@ -3,7 +3,6 @@ import React, { useMemo } from 'react';
 
 interface VirtualKeyboardProps {
     nextChar: string;
-    showHands?: boolean;
 }
 
 const KEYS = [

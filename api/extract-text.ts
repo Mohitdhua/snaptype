@@ -8,6 +8,16 @@ type ExtractTextRequest = {
   mimeType?: string;
 };
 
+type ApiRequest = {
+  method?: string;
+  body?: unknown;
+};
+
+type ApiResponse = {
+  setHeader: (name: string, value: string) => void;
+  status: (code: number) => { json: (payload: unknown) => void };
+};
+
 let aiClient: GoogleGenAI | null = null;
 
 function getClient() {
@@ -36,7 +46,7 @@ function parseBody(body: unknown): ExtractTextRequest {
   return {};
 }
 
-export default async function handler(req: any, res: any) {
+export default async function handler(req: ApiRequest, res: ApiResponse) {
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
     return res.status(405).json({ error: "Method Not Allowed" });

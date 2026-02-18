@@ -7,6 +7,39 @@ import { VirtualKeyboard } from './VirtualKeyboard';
 import { playSound } from '../services/soundService';
 
 const TYPING_TEXT_SCALE_KEY = 'snaptype_typing_text_scale_v1';
+const WINDOW_PRE_CHARS = 900;
+const WINDOW_POST_CHARS = 1800;
+
+const countLinearMismatches = (typed: string, expected: string): number => {
+  let mismatches = 0;
+  for (let i = 0; i < typed.length; i++) {
+    if (typed[i] !== expected[i]) {
+      mismatches++;
+    }
+  }
+  return mismatches;
+};
+
+const calculateSpeedByMode = (
+  isSSC: boolean,
+  totalChars: number,
+  errors: number,
+  effectiveMins: number
+): { rawWpm: number; netWpm: number } => {
+  if (isSSC) {
+    const words = totalChars / 5;
+    const tentativeSpeed = words / effectiveMins;
+    return {
+      rawWpm: Math.round(tentativeSpeed),
+      netWpm: Math.max(0, Math.round(tentativeSpeed - errors)),
+    };
+  }
+
+  return {
+    rawWpm: Math.round((totalChars / 5) / effectiveMins),
+    netWpm: Math.max(0, Math.round(((totalChars - errors) / 5) / effectiveMins)),
+  };
+};
 
 interface TypingTestProps {
   text: string;
@@ -16,8 +49,27 @@ interface TypingTestProps {
   isSSC?: boolean;
 }
 
-// Memoized char item
-const CharItem = React.memo(({ char, status, index }: { char: string, status: 'pending' | 'correct' | 'incorrect', index: number }) => {
+type CharStatus = 'pending' | 'correct' | 'incorrect';
+interface DisplayChar {
+  char: string;
+  index: number;
+}
+
+interface DisplayToken {
+  tokenKey: string;
+  isWord: boolean;
+  chars: DisplayChar[];
+  startIndex: number;
+  endIndex: number;
+}
+
+interface CharItemProps {
+  char: string;
+  status: CharStatus;
+  index: number;
+}
+
+const CharItemBase: React.FC<CharItemProps> = ({ char, status, index }) => {
     let className = "relative font-mono transition-colors duration-75 inline-block ";
     
     if (status === 'pending') className += "text-slate-500";
@@ -25,17 +77,73 @@ const CharItem = React.memo(({ char, status, index }: { char: string, status: 'p
     else if (status === 'incorrect') className += "text-rose-500 bg-rose-500/20 rounded";
 
     return (
-        <span id={`char-${index}`} className={className}>
-            {char === '\n' ? '↵' : char}
+        <span data-char-idx={index} className={className}>
+            {char === '\n' ? '\u00A0' : char}
             {char === '\n' && <br/>}
         </span>
     );
-}, (prev, next) => {
-    return prev.status === next.status && prev.char === next.char;
+};
+
+const CharItem = React.memo(CharItemBase, (prev, next) => {
+    return prev.status === next.status && prev.char === next.char && prev.index === next.index;
 });
+
+CharItemBase.displayName = 'CharItem';
+
+interface TokenItemProps {
+  token: DisplayToken;
+  input: string;
+  inputLength: number;
+  inputRevision: number;
+}
+
+const TokenItemBase: React.FC<TokenItemProps> = ({ token, input }) => {
+  const renderedChars = token.chars.map(({ char, index }) => {
+    let status: CharStatus = 'pending';
+    if (index < input.length) {
+      status = input[index] === char ? 'correct' : 'incorrect';
+    }
+
+    return (
+      <CharItem
+        key={index}
+        char={char}
+        status={status}
+        index={index}
+      />
+    );
+  });
+
+  if (token.isWord) {
+    return <span className="inline-block align-top">{renderedChars}</span>;
+  }
+  return <>{renderedChars}</>;
+};
+
+const TokenItem = React.memo(TokenItemBase, (prev, next) => {
+  if (prev.token !== next.token) return false;
+  if (prev.inputRevision !== next.inputRevision) return false;
+
+  const tokenStart = prev.token.startIndex;
+  const tokenEnd = prev.token.endIndex;
+  const prevLen = prev.inputLength;
+  const nextLen = next.inputLength;
+
+  // Token remains fully pending.
+  if (prevLen <= tokenStart && nextLen <= tokenStart) return true;
+
+  // Token is fully in the unchanged prefix region for append/backspace edits.
+  if (tokenEnd < Math.min(prevLen, nextLen) - 1) return true;
+
+  // Near cursor/partial overlap: allow re-render.
+  return false;
+});
+
+TokenItemBase.displayName = 'TokenItem';
 
 export const TypingTest: React.FC<TypingTestProps> = ({ text, timeLimit, onComplete, onRestart, isSSC = false }) => {
   const [input, setInput] = useState('');
+  const [inputRevision, setInputRevision] = useState(0);
   const [startTime, setStartTime] = useState<number | null>(null);
   const [currIndex, setCurrIndex] = useState(0);
   const [hardKeys, setHardKeys] = useState<Record<string, number>>({});
@@ -54,20 +162,76 @@ export const TypingTest: React.FC<TypingTestProps> = ({ text, timeLimit, onCompl
   
   // History tracking
   const historyRef = useRef<{ time: number; wpm: number; raw: number; accuracy: number }[]>([]);
+  const linearErrorsRef = useRef(0);
   
   // Tick state to force re-renders for timer
   const [, setTick] = useState(0);
   
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const hasCompletedRef = useRef(false);
 
   useEffect(() => {
-    localStorage.setItem(TYPING_TEXT_SCALE_KEY, String(textScale));
+    try {
+      localStorage.setItem(TYPING_TEXT_SCALE_KEY, String(textScale));
+    } catch {
+      // Ignore storage failures (private mode/quota restrictions).
+    }
   }, [textScale]);
 
   // Memoize target text handling
   const targetText = useMemo(() => text.replace(/\r\n/g, "\n"), [text]);
   const chars = useMemo(() => targetText.split(''), [targetText]);
+  const displayTokens = useMemo<DisplayToken[]>(() => {
+    const rawTokens = targetText.match(/(\s+|[^\s]+)/g) || [];
+    let nextIndex = 0;
+    return rawTokens.map((token, tokenIndex) => {
+      const startIndex = nextIndex;
+      const charsInToken = token.split('').map(char => ({
+        char,
+        index: nextIndex++
+      }));
+      return {
+        tokenKey: `${tokenIndex}-${charsInToken[0]?.index ?? tokenIndex}`,
+        isWord: /\S/.test(token),
+        chars: charsInToken,
+        startIndex,
+        endIndex: nextIndex - 1,
+      };
+    });
+  }, [targetText]);
+  const { windowStart, windowEnd } = useMemo(() => {
+    const start = Math.max(0, currIndex - WINDOW_PRE_CHARS);
+    const end = Math.min(targetText.length, currIndex + WINDOW_POST_CHARS);
+    return { windowStart: start, windowEnd: end };
+  }, [currIndex, targetText.length]);
+  const windowedTokens = useMemo<DisplayToken[]>(() => {
+    return displayTokens
+      .filter(token => token.endIndex >= windowStart && token.startIndex < windowEnd)
+      .map(token => {
+        if (token.startIndex >= windowStart && token.endIndex < windowEnd) {
+          return token;
+        }
+        const clippedChars = token.chars.filter(char => char.index >= windowStart && char.index < windowEnd);
+        if (clippedChars.length === 0) return null;
+        return {
+          ...token,
+          chars: clippedChars,
+          startIndex: clippedChars[0].index,
+          endIndex: clippedChars[clippedChars.length - 1].index,
+        };
+      })
+      .filter((token): token is DisplayToken => token !== null);
+  }, [displayTokens, windowStart, windowEnd]);
+  const prefixText = useMemo(() => (windowStart > 0 ? targetText.slice(0, windowStart) : ''), [targetText, windowStart]);
+  const suffixText = useMemo(() => (windowEnd < targetText.length ? targetText.slice(windowEnd) : ''), [targetText, windowEnd]);
+
+  useEffect(() => {
+    historyRef.current = [];
+    linearErrorsRef.current = 0;
+    hasCompletedRef.current = false;
+    setInputRevision(0);
+  }, [targetText]);
 
   // Next expected character for Virtual Keyboard
   const nextChar = useMemo(() => {
@@ -76,7 +240,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({ text, timeLimit, onCompl
   }, [currIndex, targetText]);
 
   // Stats calculation
-  const calculateStats = useCallback((): TestResults => {
+  const calculateStats = useCallback((useLevenshtein = false): TestResults => {
     const timeNow = Date.now();
     const start = startTime || timeNow;
     
@@ -88,34 +252,14 @@ export const TypingTest: React.FC<TypingTestProps> = ({ text, timeLimit, onCompl
     const timeElapsedMins = timeElapsedSecs / 60;
     const effectiveMins = timeElapsedMins < 0.001 ? 0.001 : timeElapsedMins;
     
-    // Use Levenshtein distance for smarter error detection (handles desync/skipped chars)
-    const expectedSlice = targetText.slice(0, input.length);
-    const errors = levenshteinDistance(input, expectedSlice);
+    const errors = useLevenshtein
+      ? levenshteinDistance(input, targetText.slice(0, input.length))
+      : linearErrorsRef.current;
     
     const correctChars = Math.max(0, input.length - errors);
     const missedWordsCount: Record<string, number> = {};
 
-    let netWpm = 0;
-    let rawWpm = 0;
-
-    if (isSSC) {
-        // SSC Calculation: 
-        // 1. Words = Total Strokes / 5
-        // 2. Tentative Speed = Words / Time
-        // 3. Actual Speed = Tentative Speed - Errors
-        const totalStrokes = input.length;
-        const sscWords = totalStrokes / 5;
-        const tentativeSpeed = sscWords / effectiveMins;
-        
-        rawWpm = Math.round(tentativeSpeed);
-        // Net WPM subtracts 1 WPM for every single mistake
-        netWpm = Math.max(0, Math.round(tentativeSpeed - errors));
-    } else {
-        // Standard Calculation
-        // Net WPM = (Chars - Errors) / 5 / Mins
-        rawWpm = Math.round((input.length / 5) / effectiveMins);
-        netWpm = Math.max(0, Math.round(((input.length - errors) / 5) / effectiveMins));
-    }
+    const { rawWpm, netWpm } = calculateSpeedByMode(isSSC, input.length, errors, effectiveMins);
 
     const accuracy = input.length > 0 
         ? Math.max(0, Math.round(((input.length - errors) / input.length) * 100)) 
@@ -139,18 +283,22 @@ export const TypingTest: React.FC<TypingTestProps> = ({ text, timeLimit, onCompl
   }, [input, startTime, targetText, timeLimit, hardKeys, isSSC]);
 
   const finishTest = useCallback(() => {
-     const partialStats = calculateStats();
+     if (hasCompletedRef.current) return;
+     hasCompletedRef.current = true;
+     const shouldUseLevenshtein = !isSSC && input.length > 0 && input.length <= 2500;
+     const partialStats = calculateStats(shouldUseLevenshtein);
      
      // Full missed words calculation
      const missedWordsCount: Record<string, number> = {};
-     const wordsIterator = targetText.matchAll(/(\S+)/g);
+     const typedBoundaryText = targetText.slice(0, input.length);
+     const wordsIterator = typedBoundaryText.matchAll(/(\S+)/g);
      for (const match of wordsIterator) {
-        const word = match[0];
-        const start = match.index!;
-        const end = start + word.length;
-        if (input.length >= end) {
-             const userSlice = input.slice(start, end);
-             if (userSlice !== word) {
+         const word = match[0];
+         const start = match.index!;
+         const end = start + word.length;
+         if (input.length >= end) {
+              const userSlice = input.slice(start, end);
+              if (userSlice !== word) {
                  missedWordsCount[word] = (missedWordsCount[word] || 0) + 1;
              }
         }
@@ -177,14 +325,21 @@ export const TypingTest: React.FC<TypingTestProps> = ({ text, timeLimit, onCompl
     finishTestRef.current = finishTest;
   }, [finishTest]);
 
+  // Keep a stable stats callback for the interval loop.
+  const calculateStatsRef = useRef(calculateStats);
+  useEffect(() => {
+    calculateStatsRef.current = calculateStats;
+  }, [calculateStats]);
+
   // Real-time update loop (Timer & History)
   useEffect(() => {
     let interval: ReturnType<typeof setInterval>;
     if (startTime) {
       interval = setInterval(() => {
+        if (hasCompletedRef.current) return;
         setTick(t => t + 1);
         
-        const stats = calculateStats();
+        const stats = calculateStatsRef.current(false);
         // Record history every second (approx)
         const historyItem = {
             time: Math.floor(stats.timeElapsed),
@@ -197,6 +352,9 @@ export const TypingTest: React.FC<TypingTestProps> = ({ text, timeLimit, onCompl
         const lastEntry = historyRef.current[historyRef.current.length - 1];
         if (!lastEntry || lastEntry.time !== historyItem.time) {
             historyRef.current.push(historyItem);
+            if (historyRef.current.length > 1800) {
+              historyRef.current.splice(0, historyRef.current.length - 1800);
+            }
         }
 
         if (timeLimit > 0) {
@@ -211,7 +369,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({ text, timeLimit, onCompl
       }, 1000); 
     }
     return () => clearInterval(interval);
-  }, [startTime, timeLimit, calculateStats]);
+  }, [startTime, timeLimit]);
 
   // Check for text completion
   useEffect(() => {
@@ -248,7 +406,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({ text, timeLimit, onCompl
           if (!container || chars.length === 0) return;
 
           const charIndexToMeasure = Math.min(currIndex, chars.length - 1);
-          const cursorEl = document.getElementById(`char-${charIndexToMeasure}`);
+          const cursorEl = container.querySelector(`[data-char-idx="${charIndexToMeasure}"]`) as HTMLSpanElement | null;
           if (!cursorEl) return;
 
           const containerRect = container.getBoundingClientRect();
@@ -279,8 +437,31 @@ export const TypingTest: React.FC<TypingTestProps> = ({ text, timeLimit, onCompl
   }, [currIndex, chars.length]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    if (hasCompletedRef.current) return;
     const val = e.target.value.slice(0, targetText.length);
+    const prevInput = input;
     if (!startTime) setStartTime(Date.now());
+    const isAppend = val.length >= prevInput.length && val.startsWith(prevInput);
+    const isTrim = val.length < prevInput.length && prevInput.startsWith(val);
+    if (!isAppend && !isTrim) {
+      setInputRevision(rev => rev + 1);
+    }
+
+    // Keep a cheap running mismatch count for live stats.
+    let nextLinearErrors = linearErrorsRef.current;
+    if (val.length >= prevInput.length && val.startsWith(prevInput)) {
+      for (let i = prevInput.length; i < val.length; i++) {
+        if (val[i] !== targetText[i]) nextLinearErrors += 1;
+      }
+    } else if (val.length < prevInput.length && prevInput.startsWith(val)) {
+      for (let i = val.length; i < prevInput.length; i++) {
+        if (prevInput[i] !== targetText[i]) nextLinearErrors -= 1;
+      }
+      nextLinearErrors = Math.max(0, nextLinearErrors);
+    } else {
+      nextLinearErrors = countLinearMismatches(val, targetText.slice(0, val.length));
+    }
+    linearErrorsRef.current = nextLinearErrors;
 
     // Sound and Logic for new keystroke
     if (val.length === input.length + 1) {
@@ -306,9 +487,10 @@ export const TypingTest: React.FC<TypingTestProps> = ({ text, timeLimit, onCompl
   };
 
   const focusInput = () => inputRef.current?.focus();
-  const stats = calculateStats();
+  const stats = calculateStats(false);
   const progressPercent = targetText.length === 0 ? 0 : Math.min(100, Math.round((input.length / targetText.length) * 100));
   const lineHeight = 1.65;
+  const showVirtualKeyboard = !isSSC && targetText.length <= 8000;
   
   let displayTime = Math.floor(stats.timeElapsed);
   if (timeLimit > 0) {
@@ -435,24 +617,22 @@ export const TypingTest: React.FC<TypingTestProps> = ({ text, timeLimit, onCompl
         />
 
         <div
-            className="whitespace-pre-wrap break-words min-h-full pb-12 relative z-10"
+            className="whitespace-pre-wrap break-normal min-h-full pb-12 relative z-10 [word-break:normal] [overflow-wrap:normal]"
             style={{ fontSize: `${textScale}px`, lineHeight }}
         >
-            {chars.map((char, index) => {
-                let status: 'pending' | 'correct' | 'incorrect' = 'pending';
-                if (index < input.length) {
-                    status = input[index] === char ? 'correct' : 'incorrect';
-                }
-                
+            {prefixText && <span className="text-slate-500/90">{prefixText}</span>}
+            {windowedTokens.map(token => {
                 return (
-                    <CharItem 
-                        key={index} 
-                        index={index} 
-                        char={char} 
-                        status={status} 
+                    <TokenItem
+                      key={token.tokenKey}
+                      token={token}
+                      input={input}
+                      inputLength={input.length}
+                      inputRevision={inputRevision}
                     />
                 );
             })}
+            {suffixText && <span className="text-slate-500/90">{suffixText}</span>}
         </div>
         
         {/* Hidden Textarea (supports newline input) */}
@@ -478,7 +658,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({ text, timeLimit, onCompl
         )}
       </div>
 
-      <VirtualKeyboard nextChar={nextChar} />
+      {showVirtualKeyboard && <VirtualKeyboard nextChar={nextChar} />}
     </div>
   );
 };

@@ -18,14 +18,27 @@ const DEFAULT_STATS: UserStats = {
 
 const isGameMode = (mode: unknown): mode is GameMode => mode === 'DIGITAL' || mode === 'PHYSICAL';
 
-export const saveResult = (results: TestResults, mode: GameMode): { updatedHistory: StoredResult[], newBadges: Badge[], xpGained: number } => {
+const toLocalIsoDate = (dateLike: Date | number = new Date()) => {
+  const date = typeof dateLike === 'number' ? new Date(dateLike) : dateLike;
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+export const saveResult = (
+  results: TestResults,
+  mode: GameMode,
+  context?: { testId?: string }
+): { updatedHistory: StoredResult[]; newBadges: Badge[]; xpGained: number; updatedStats: UserStats } => {
   // 1. Save History
   const newEntry: StoredResult = {
     id: Date.now().toString(),
     timestamp: Date.now(),
     netWpm: results.netWpm,
     accuracy: results.accuracy,
-    mode: mode
+    mode: mode,
+    testId: context?.testId
   };
 
   const existing = getHistory();
@@ -39,11 +52,11 @@ export const saveResult = (results: TestResults, mode: GameMode): { updatedHisto
 
   // 2. Update Stats & Check Gamification
   const stats = getUserStats();
-  const today = new Date().toISOString().split('T')[0];
+  const today = toLocalIsoDate();
   
   let newStreak = stats.currentStreak;
   if (stats.lastLoginDate !== today) {
-      const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+      const yesterday = toLocalIsoDate(Date.now() - 86400000);
       if (stats.lastLoginDate === yesterday) {
           newStreak += 1;
       } else {
@@ -81,7 +94,7 @@ export const saveResult = (results: TestResults, mode: GameMode): { updatedHisto
       console.error("Failed to save stats", e);
   }
   
-  return { updatedHistory, newBadges, xpGained };
+  return { updatedHistory, newBadges, xpGained, updatedStats };
 };
 
 export const getHistory = (): StoredResult[] => {
@@ -96,7 +109,8 @@ export const getHistory = (): StoredResult[] => {
         timestamp: Number(entry.timestamp ?? Date.now()),
         netWpm: Number(entry.netWpm ?? 0),
         accuracy: Number(entry.accuracy ?? 0),
-        mode: isGameMode(entry.mode) ? entry.mode : 'DIGITAL'
+        mode: isGameMode(entry.mode) ? entry.mode : 'DIGITAL',
+        testId: typeof entry.testId === 'string' ? entry.testId : undefined
       }));
   } catch (e) {
     console.error("Failed to load history", e);

@@ -13,12 +13,13 @@ export const Button: React.FC<ButtonProps> = ({
   disabled,
   ...props 
 }) => {
-  const baseStyles = "px-6 py-3 rounded-xl font-semibold transition-all duration-200 transform active:scale-95 shadow-lg flex items-center justify-center gap-2";
+  const baseStyles =
+    "inline-flex items-center justify-center gap-2 rounded-xl px-6 py-3 font-semibold tracking-wide transition-all duration-200 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900";
   
   const variants = {
-    primary: "bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-500/30",
-    secondary: "bg-slate-700 hover:bg-slate-600 text-slate-200 shadow-slate-900/30",
-    danger: "bg-rose-600 hover:bg-rose-500 text-white shadow-rose-500/30"
+    primary: "bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white shadow-lg shadow-cyan-900/30 border border-cyan-400/20",
+    secondary: "bg-slate-800/90 hover:bg-slate-700 text-slate-200 border border-slate-600/70 shadow-lg shadow-slate-950/20",
+    danger: "bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-500 hover:to-pink-500 text-white border border-rose-400/30 shadow-lg shadow-rose-950/30"
   };
 
   return (

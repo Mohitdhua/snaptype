@@ -27,6 +27,8 @@ export interface TestResults {
   // SSC Mode Specifics
   isSSC?: boolean;
   sscMarks?: number;
+  // Source saved-test id for per-test analytics.
+  testId?: string;
 }
 
 export interface StoredResult {
@@ -35,6 +37,8 @@ export interface StoredResult {
   netWpm: number;
   accuracy: number;
   mode: GameMode;
+  // Optional for backwards compatibility with older history entries.
+  testId?: string;
 }
 
 export interface SavedTest {

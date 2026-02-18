@@ -1,156 +1,59 @@
 
 import React, { useMemo, useEffect, useState } from 'react';
 import { Button } from './Button';
-import { TestResults, GameMode, StoredResult } from '../types';
+import { TestResults, StoredResult } from '../types';
 import { getHistory } from '../services/storageService';
 import { ProgressChart } from './ProgressChart';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { ComposedChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { playSound } from '../services/soundService';
 
 interface ResultsProps {
   results: TestResults;
-  mode: GameMode;
   onReset: () => void;
   onNewImage: () => void;
   onPractice: (type: 'words' | 'keys') => void;
 }
 
-const CustomTooltip = ({ active, payload, label }: any) => {
+const roundTo = (value: number, precision = 1) => {
+  const factor = 10 ** precision;
+  return Math.round(value * factor) / factor;
+};
+
+const MAX_SESSION_CHART_POINTS = 240;
+
+const downsampleSeries = <T,>(series: T[], maxPoints: number): T[] => {
+  if (series.length <= maxPoints) return series;
+  const stride = Math.ceil(series.length / maxPoints);
+  const reduced = series.filter((_, index) => index % stride === 0);
+  const last = series[series.length - 1];
+  if (reduced[reduced.length - 1] !== last) {
+    reduced.push(last);
+  }
+  return reduced;
+};
+
+const SessionTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
+    const point = payload[0]?.payload;
     return (
       <div className="bg-slate-800 border border-slate-700 p-3 rounded-lg shadow-xl z-50">
         <p className="text-slate-400 text-xs font-bold mb-1">{`Time: ${label}s`}</p>
-        <p className="text-indigo-400 text-sm font-bold">{`WPM: ${payload[0]?.value}`}</p>
-        {payload[1] && (
-             <p className="text-slate-500 text-xs">{`Raw: ${payload[1]?.value}`}</p>
-        )}
-        <p className="text-emerald-400 text-xs">{`Acc: ${payload[0]?.payload.accuracy}%`}</p>
+        <p className="text-indigo-400 text-sm font-bold">{`Net WPM: ${point?.wpm ?? 0}`}</p>
+        <p className="text-slate-300 text-xs">{`Raw WPM: ${point?.raw ?? 0}`}</p>
+        <p className="text-emerald-400 text-xs">{`Accuracy: ${point?.accuracy ?? 0}%`}</p>
       </div>
     );
   }
   return null;
 };
 
-// Digital Mode: Unified Diff
-const TextDiffView = ({ original, typed }: { original: string, typed: string }) => {
-    const diff = useMemo(() => {
-        const wordsOrig = original.split(/(\s+)/);
-        const wordsTyped = typed.split(/(\s+)/);
-        
-        const chunks: React.ReactNode[] = [];
-        let i = 0; 
-        let j = 0; 
-
-        while (i < wordsOrig.length || j < wordsTyped.length) {
-            const wo = wordsOrig[i];
-            const wt = wordsTyped[j];
-
-            if (wo === wt) {
-                chunks.push(<span key={`${i}-${j}`} className="text-slate-400">{wo}</span>);
-                i++; j++;
-            } else {
-                if (wo && wt) {
-                     chunks.push(
-                        <span key={`sub-${i}-${j}`} className="inline-block mx-0.5">
-                            <span className="line-through text-slate-600 opacity-50 text-[0.8em]">{wo}</span>
-                            <span className="text-rose-400 bg-rose-500/10 rounded px-0.5">{wt}</span>
-                        </span>
-                    );
-                    i++; j++;
-                } else if (wo) {
-                    chunks.push(<span key={`del-${i}`} className="text-amber-500/50 line-through decoration-amber-500/50">{wo}</span>);
-                    i++;
-                } else if (wt) {
-                    chunks.push(<span key={`ins-${j}`} className="text-rose-400 bg-rose-500/10 rounded px-0.5">{wt}</span>);
-                    j++;
-                }
-            }
-        }
-        return chunks;
-    }, [original, typed]);
-
-    return (
-        <div className="w-full bg-slate-900 rounded-xl p-6 font-mono text-sm md:text-base leading-relaxed whitespace-pre-wrap border border-slate-800 shadow-inner max-h-96 overflow-y-auto">
-            {diff}
-        </div>
-    );
-};
-
-// Physical Mode: Split Diff with Common Scrollbar
-const SplitTextDiffView = ({ original, typed }: { original: string, typed: string }) => {
-    const { left, right } = useMemo(() => {
-        const wordsOrig = original.split(/(\s+)/);
-        const wordsTyped = typed.split(/(\s+)/);
-        
-        const leftChunks: React.ReactNode[] = [];
-        const rightChunks: React.ReactNode[] = [];
-        let i = 0; 
-        let j = 0; 
-
-        while (i < wordsOrig.length || j < wordsTyped.length) {
-            const wo = wordsOrig[i] || '';
-            const wt = wordsTyped[j] || '';
-
-            // Handle whitespaces
-            if (wo.match(/^\s+$/) && wt.match(/^\s+$/)) {
-                 leftChunks.push(<span key={`l-${i}`}>{wo}</span>);
-                 rightChunks.push(<span key={`r-${j}`}>{wt}</span>);
-                 i++; j++;
-                 continue;
-            }
-
-            if (wo === wt) {
-                // Match
-                leftChunks.push(<span key={`l-${i}`} className="text-slate-400">{wo}</span>);
-                rightChunks.push(<span key={`r-${j}`} className="text-slate-400">{wt}</span>);
-                i++; j++;
-            } else {
-                // Mismatch
-                if (wo && wt) {
-                     // Substitution
-                     leftChunks.push(<span key={`l-sub-${i}`} className="text-amber-500 bg-amber-500/10 rounded px-0.5 font-bold">{wo}</span>);
-                     rightChunks.push(<span key={`r-sub-${j}`} className="text-rose-400 bg-rose-500/10 rounded px-0.5 font-bold">{wt}</span>);
-                     i++; j++;
-                } else if (wo) {
-                    // Deletion (User missed this word)
-                    leftChunks.push(<span key={`l-del-${i}`} className="text-amber-500 bg-amber-500/10 border border-amber-500/20 rounded px-0.5 font-bold">{wo}</span>);
-                    i++;
-                } else if (wt) {
-                    // Insertion (User typed extra)
-                    rightChunks.push(<span key={`r-ins-${j}`} className="text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded px-0.5 font-bold">{wt}</span>);
-                    j++;
-                }
-            }
-        }
-        return { left: leftChunks, right: rightChunks };
-    }, [original, typed]);
-
-    return (
-        <div className="flex flex-col h-96 bg-slate-900 rounded-xl border border-slate-800 shadow-inner overflow-hidden">
-             <div className="grid grid-cols-2 bg-slate-950/30 border-b border-slate-800 p-3">
-                 <div className="text-slate-500 text-xs font-bold uppercase tracking-wider text-center">Original Text</div>
-                 <div className="text-slate-500 text-xs font-bold uppercase tracking-wider text-center">You Typed</div>
-            </div>
-            <div className="flex-1 overflow-y-auto">
-                <div className="grid grid-cols-2 min-h-full">
-                    <div className="p-4 font-mono text-sm leading-relaxed whitespace-pre-wrap break-words border-r border-slate-800/50">
-                        {left}
-                    </div>
-                    <div className="p-4 font-mono text-sm leading-relaxed whitespace-pre-wrap break-words">
-                        {right}
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-};
-
-export const Results: React.FC<ResultsProps> = ({ results, mode, onReset, onNewImage, onPractice }) => {
-  const [history, setHistory] = useState<StoredResult[]>([]);
+export const Results: React.FC<ResultsProps> = ({ results, onReset, onNewImage, onPractice }) => {
+  const [allTimeHistory, setAllTimeHistory] = useState<StoredResult[] | null>(null);
+  const [showAllTimeProgress, setShowAllTimeProgress] = useState(false);
 
   useEffect(() => {
-      setHistory(getHistory());
-      // Play badge unlock sound if any
+      setShowAllTimeProgress(false);
+      setAllTimeHistory(null);
       if ((results.badgesUnlocked && results.badgesUnlocked.length > 0) || (results.isSSC && (results.sscMarks || 0) > 0)) {
           const timeoutId = setTimeout(() => playSound('success'), 500);
           return () => clearTimeout(timeoutId);
@@ -158,16 +61,64 @@ export const Results: React.FC<ResultsProps> = ({ results, mode, onReset, onNewI
       return undefined;
   }, [results]);
 
-  // Sort hard keys by frequency
-  const topHardKeys = Object.entries(results.hardKeys)
-    .sort((a, b) => (b[1] as number) - (a[1] as number))
-    .slice(0, 8);
+  useEffect(() => {
+    if (showAllTimeProgress && allTimeHistory === null) {
+      setAllTimeHistory(getHistory());
+    }
+  }, [showAllTimeProgress, allTimeHistory]);
 
-  const topMissedWords = Object.entries(results.missedWords || {})
-    .sort((a, b) => (b[1] as number) - (a[1] as number))
-    .slice(0, 12);
+  const topHardKeys = useMemo(
+    () =>
+      Object.entries(results.hardKeys)
+        .sort((a, b) => (b[1] as number) - (a[1] as number))
+        .slice(0, 8),
+    [results.hardKeys]
+  );
 
-  const sessionChartData = results.history || [];
+  const topMissedWords = useMemo(
+    () =>
+      Object.entries(results.missedWords || {})
+        .sort((a, b) => (b[1] as number) - (a[1] as number))
+        .slice(0, 12),
+    [results.missedWords]
+  );
+
+  const sessionHistory = results.history || [];
+  const sessionChartData = useMemo(
+    () => downsampleSeries(sessionHistory, MAX_SESSION_CHART_POINTS),
+    [sessionHistory]
+  );
+  const sameTestHistory = useMemo(() => {
+    if (!results.testId) return [];
+    return getHistory().filter(entry => entry.testId === results.testId);
+  }, [results.testId]);
+
+  const sessionInsights = useMemo(() => {
+    if (sessionHistory.length === 0) {
+      return {
+        peakWpm: results.netWpm,
+        avgWpm: results.netWpm,
+        avgAcc: results.accuracy,
+        stability: 0,
+        trendDelta: 0,
+      };
+    }
+
+    const wpmValues = sessionHistory.map(point => point.wpm);
+    const accuracyValues = sessionHistory.map(point => point.accuracy);
+    const avgWpm = wpmValues.reduce((sum, value) => sum + value, 0) / wpmValues.length;
+    const avgAcc = accuracyValues.reduce((sum, value) => sum + value, 0) / accuracyValues.length;
+    const variance = wpmValues.reduce((sum, value) => sum + (value - avgWpm) ** 2, 0) / wpmValues.length;
+    const trendDelta = wpmValues[wpmValues.length - 1] - wpmValues[0];
+
+    return {
+      peakWpm: Math.max(...wpmValues),
+      avgWpm: roundTo(avgWpm, 1),
+      avgAcc: roundTo(avgAcc, 1),
+      stability: roundTo(Math.sqrt(variance), 1),
+      trendDelta: roundTo(trendDelta, 1),
+    };
+  }, [results.accuracy, results.netWpm, sessionHistory]);
 
   return (
     <div className="w-full max-w-6xl mx-auto flex flex-col items-center animate-scale-in pb-12">
@@ -179,7 +130,7 @@ export const Results: React.FC<ResultsProps> = ({ results, mode, onReset, onNewI
         {(results.badgesUnlocked && results.badgesUnlocked.length > 0) || results.xpGained ? (
             <div className="w-full mb-8 bg-indigo-500/10 border border-indigo-500/30 p-4 rounded-xl flex flex-col md:flex-row items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
-                    <span className="text-2xl">✨</span>
+                    <span className="text-2xl">*</span>
                     <div>
                         <div className="text-indigo-300 font-bold">Session Complete!</div>
                         <div className="text-indigo-200 text-sm">You earned <span className="font-bold text-white">+{results.xpGained || 0} XP</span></div>
@@ -266,52 +217,88 @@ export const Results: React.FC<ResultsProps> = ({ results, mode, onReset, onNewI
             </div>
         </div>
 
-        {/* Text Diff Visualization */}
-        {results.originalText && results.typedText && (
-            <div className="w-full bg-slate-800/50 rounded-2xl border border-slate-700 p-6 mb-8 shadow-inner">
-                <h3 className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-4 flex justify-between items-center">
-                    <span>Text Comparison</span>
-                    <span className="text-[10px] normal-case bg-slate-700 px-2 py-1 rounded text-slate-300">
-                        {mode === 'PHYSICAL' ? 'Left: Original (Amber=Missed) | Right: You (Red=Error)' : 'Red: Input | Strikethrough: Expected'}
-                    </span>
-                </h3>
-                {mode === 'PHYSICAL' ? (
-                    <SplitTextDiffView original={results.originalText} typed={results.typedText} />
-                ) : (
-                    <TextDiffView original={results.originalText} typed={results.typedText} />
-                )}
+        {/* Session Performance */}
+        <div className="w-full mb-8 space-y-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="bg-slate-900/50 border border-slate-700/80 rounded-xl p-3">
+                    <div className="text-[10px] uppercase tracking-wider text-slate-500">Peak WPM</div>
+                    <div className="text-xl font-mono text-indigo-300">{sessionInsights.peakWpm}</div>
+                </div>
+                <div className="bg-slate-900/50 border border-slate-700/80 rounded-xl p-3">
+                    <div className="text-[10px] uppercase tracking-wider text-slate-500">Avg WPM</div>
+                    <div className="text-xl font-mono text-cyan-300">{sessionInsights.avgWpm}</div>
+                </div>
+                <div className="bg-slate-900/50 border border-slate-700/80 rounded-xl p-3">
+                    <div className="text-[10px] uppercase tracking-wider text-slate-500">Avg Accuracy</div>
+                    <div className="text-xl font-mono text-emerald-300">{sessionInsights.avgAcc}%</div>
+                </div>
+                <div className="bg-slate-900/50 border border-slate-700/80 rounded-xl p-3">
+                    <div className="text-[10px] uppercase tracking-wider text-slate-500">Pacing Trend</div>
+                    <div className={`text-xl font-mono ${sessionInsights.trendDelta >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>
+                        {sessionInsights.trendDelta >= 0 ? '+' : ''}
+                        {sessionInsights.trendDelta}
+                    </div>
+                </div>
             </div>
-        )}
 
-        {/* Performance Charts Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 w-full mb-8">
-            
-            {/* Current Session Chart */}
             {sessionChartData.length > 2 && (
                 <div className="w-full h-80 bg-slate-800/50 rounded-2xl border border-slate-700 p-6 shadow-inner flex flex-col">
                     <h3 className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-4">Session Performance</h3>
                     <div className="flex-1 min-h-0">
                         <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={sessionChartData}>
+                            <ComposedChart data={sessionChartData} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
                                 <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
-                                <XAxis dataKey="time" stroke="#64748b" tick={{fontSize: 12}} tickLine={false} axisLine={false} />
-                                <YAxis stroke="#64748b" tick={{fontSize: 12}} tickLine={false} axisLine={false} domain={['dataMin - 10', 'auto']} />
-                                <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#475569', strokeWidth: 2 }} />
-                                <Line type="monotone" dataKey="wpm" stroke="#818cf8" strokeWidth={3} dot={false} activeDot={{ r: 6, fill: '#818cf8' }} animationDuration={1000} />
-                                <Line type="monotone" dataKey="raw" stroke="#475569" strokeWidth={2} dot={false} strokeDasharray="5 5" />
-                            </LineChart>
+                                <XAxis dataKey="time" tickFormatter={value => `${value}s`} stroke="#64748b" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
+                                <YAxis
+                                    yAxisId="speed"
+                                    stroke="#64748b"
+                                    tick={{ fontSize: 11 }}
+                                    tickLine={false}
+                                    axisLine={false}
+                                    domain={[0, (dataMax: number) => Math.max(20, Math.ceil((dataMax + 8) / 10) * 10)]}
+                                />
+                                <YAxis
+                                    yAxisId="accuracy"
+                                    orientation="right"
+                                    stroke="#34d399"
+                                    tick={{ fontSize: 11 }}
+                                    tickLine={false}
+                                    axisLine={false}
+                                    domain={[0, 100]}
+                                />
+                                <Tooltip content={<SessionTooltip />} cursor={{ stroke: '#475569', strokeWidth: 1 }} />
+                                <Area yAxisId="accuracy" type="monotone" dataKey="accuracy" stroke="#34d399" fill="#34d399" fillOpacity={0.08} />
+                                <Line yAxisId="speed" type="monotone" dataKey="wpm" stroke="#818cf8" strokeWidth={2.5} dot={false} activeDot={{ r: 5, fill: '#818cf8' }} animationDuration={1000} />
+                                <Line yAxisId="speed" type="monotone" dataKey="raw" stroke="#94a3b8" strokeWidth={1.8} dot={false} strokeDasharray="5 4" />
+                            </ComposedChart>
                         </ResponsiveContainer>
                     </div>
                 </div>
             )}
 
-            {/* Progress History Bar Chart */}
-            <ProgressChart 
-                history={history} 
-                highlightId={history[history.length - 1]?.id} 
-                className="h-80"
-            />
+            {sessionChartData.length > 2 && (
+                <div className="bg-slate-900/40 border border-slate-700/70 rounded-xl p-4 text-sm text-slate-300 flex flex-wrap gap-3">
+                    <span className="bg-slate-800/70 border border-slate-700 rounded-full px-3 py-1 text-xs">{`Stability sigma: ${sessionInsights.stability}`}</span>
+                    <span className="bg-slate-800/70 border border-slate-700 rounded-full px-3 py-1 text-xs">
+                        {sessionInsights.trendDelta >= 3 ? 'Strong finish' : sessionInsights.trendDelta <= -3 ? 'Early spike, then fade' : 'Steady pacing'}
+                    </span>
+                </div>
+            )}
         </div>
+
+        {sameTestHistory.length >= 10 && (
+            <div className="w-full mb-8 space-y-3">
+                <div className="flex items-center justify-between">
+                    <h3 className="text-slate-300 font-bold uppercase tracking-wider text-sm">This Test Performance</h3>
+                    <span className="text-xs text-slate-500">{`${sameTestHistory.length} attempts on this test`}</span>
+                </div>
+                <ProgressChart
+                    history={sameTestHistory}
+                    highlightId={sameTestHistory[sameTestHistory.length - 1]?.id}
+                    className="h-80"
+                />
+            </div>
+        )}
 
         {/* Practice Areas */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full mb-8">
@@ -337,7 +324,7 @@ export const Results: React.FC<ResultsProps> = ({ results, mode, onReset, onNewI
                         {topHardKeys.map(([key, count]) => (
                             <div key={key} className="flex items-center gap-2 bg-slate-900 px-3 py-2 rounded-lg border border-slate-700">
                                 <div className="bg-slate-700 min-w-[32px] h-8 flex items-center justify-center text-lg font-mono font-bold text-white rounded">
-                                    {key === ' ' ? '␣' : key}
+                                    {key === ' ' || key === 'Space' ? '[space]' : key}
                                 </div>
                                 <span className="text-rose-400 font-bold text-sm">x{count}</span>
                             </div>
@@ -391,7 +378,35 @@ export const Results: React.FC<ResultsProps> = ({ results, mode, onReset, onNewI
              <Button onClick={onNewImage} variant="secondary" className="w-full sm:w-auto">
                 Upload New Image
             </Button>
+            <Button
+                onClick={() => setShowAllTimeProgress(prev => !prev)}
+                variant="secondary"
+                className="w-full sm:w-auto"
+            >
+                {showAllTimeProgress ? 'Hide All-time Progress' : 'View All-time Progress'}
+            </Button>
         </div>
+
+        {showAllTimeProgress && (
+            <div className="w-full mt-8 space-y-4">
+                <div className="flex items-center justify-between">
+                    <h3 className="text-slate-300 font-bold uppercase tracking-wider text-sm">All-time Progress</h3>
+                    <span className="text-xs text-slate-500">Across all saved tests</span>
+                </div>
+
+                {allTimeHistory === null ? (
+                    <div className="w-full bg-slate-900/40 border border-slate-700/70 rounded-xl p-4 text-sm text-slate-400">
+                        Loading progress history...
+                    </div>
+                ) : allTimeHistory.length > 0 ? (
+                    <ProgressChart history={allTimeHistory} />
+                ) : (
+                    <div className="w-full bg-slate-900/40 border border-slate-700/70 rounded-xl p-4 text-sm text-slate-400">
+                        No all-time history available yet.
+                    </div>
+                )}
+            </div>
+        )}
     </div>
   );
 };

@@ -29,11 +29,18 @@ export const PhysicalTypingTest: React.FC<PhysicalTypingTestProps> = ({ ocrText,
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const mirrorRef = useRef<HTMLDivElement>(null);
   const scrollRafRef = useRef<number | null>(null);
+  const mouseMoveRafRef = useRef<number | null>(null);
+  const hasCompletedRef = useRef(false);
 
   useEffect(() => { inputRef.current = input; }, [input]);
   useEffect(() => { startTimeRef.current = startTime; }, [startTime]);
+  useEffect(() => {
+    hasCompletedRef.current = false;
+  }, [ocrText, timeLimit]);
 
   const finishTest = useCallback((finalTime?: number) => {
+      if (hasCompletedRef.current) return;
+      hasCompletedRef.current = true;
       const currentInput = inputRef.current;
       const currentStartTime = startTimeRef.current;
 
@@ -44,7 +51,8 @@ export const PhysicalTypingTest: React.FC<PhysicalTypingTestProps> = ({ ocrText,
       const cleanInput = currentInput.trim().replace(/\s+/g, ' ');
       const cleanTargetFull = ocrText.trim().replace(/\s+/g, ' ');
 
-      const compareLen = cleanInput.length;
+      const normalizedCharCount = cleanInput.length;
+      const compareLen = normalizedCharCount;
       
       if (compareLen === 0) {
           onComplete({
@@ -124,13 +132,13 @@ export const PhysicalTypingTest: React.FC<PhysicalTypingTestProps> = ({ ocrText,
 
       const truncatedOriginalRaw = ocrText.slice(0, charLimit);
 
-      const rawWpm = Math.round((currentInput.length / 5) / minutes);
-      const netWpm = Math.max(0, Math.round(((currentInput.length - errors) / 5) / minutes));
+      const rawWpm = Math.round((normalizedCharCount / 5) / minutes);
+      const netWpm = Math.max(0, Math.round(((normalizedCharCount - errors) / 5) / minutes));
       const accuracy = Math.max(0, Math.round((correctChars / cleanInput.length) * 100));
 
       const results: TestResults = {
           netWpm, rawWpm, accuracy, timeElapsed: effectiveTime,
-          totalChars: currentInput.length, correctChars, incorrectChars: errors,
+          totalChars: normalizedCharCount, correctChars, incorrectChars: errors,
           hardKeys: {}, 
           missedWords: missedWordsCount, 
           history: [],
@@ -155,7 +163,7 @@ export const PhysicalTypingTest: React.FC<PhysicalTypingTestProps> = ({ ocrText,
             clearInterval(interval);
             finishTestRef.current(diff);
         }
-      }, 100);
+      }, 500);
     }
     return () => clearInterval(interval);
   }, [startTime, timeLimit]);
@@ -166,10 +174,14 @@ export const PhysicalTypingTest: React.FC<PhysicalTypingTestProps> = ({ ocrText,
           if (scrollRafRef.current !== null) {
               cancelAnimationFrame(scrollRafRef.current);
           }
+          if (mouseMoveRafRef.current !== null) {
+              cancelAnimationFrame(mouseMoveRafRef.current);
+          }
       };
   }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    if (hasCompletedRef.current) return;
     if (!startTime) setStartTime(Date.now());
     const val = e.target.value;
     setInput(val);
@@ -193,12 +205,21 @@ export const PhysicalTypingTest: React.FC<PhysicalTypingTestProps> = ({ ocrText,
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
-      if (imageContainerRef.current) {
+      if (!imageContainerRef.current || zoomLevel <= 1.01) return;
+      if (mouseMoveRafRef.current !== null) return;
+
+      const { clientX, clientY } = e;
+      mouseMoveRafRef.current = requestAnimationFrame(() => {
+          if (!imageContainerRef.current) {
+              mouseMoveRafRef.current = null;
+              return;
+          }
           const rect = imageContainerRef.current.getBoundingClientRect();
-          const x = ((e.clientX - rect.left) / rect.width) * 100;
-          const y = ((e.clientY - rect.top) / rect.height) * 100;
+          const x = ((clientX - rect.left) / rect.width) * 100;
+          const y = ((clientY - rect.top) / rect.height) * 100;
           setMousePos({ x, y });
-      }
+          mouseMoveRafRef.current = null;
+      });
   };
 
   const formatTime = (secs: number) => {
@@ -249,6 +270,12 @@ export const PhysicalTypingTest: React.FC<PhysicalTypingTestProps> = ({ ocrText,
                         ref={imageContainerRef}
                         className="flex-1 overflow-hidden relative cursor-crosshair bg-black/20"
                         onMouseMove={handleMouseMove}
+                        onMouseLeave={() => {
+                            if (mouseMoveRafRef.current !== null) {
+                                cancelAnimationFrame(mouseMoveRafRef.current);
+                                mouseMoveRafRef.current = null;
+                            }
+                        }}
                         onMouseEnter={() => setZoomLevel(prev => Math.max(prev, 1.01))} // Hint activation
                     >
                         <div className="absolute inset-0 flex items-center justify-center p-4">
