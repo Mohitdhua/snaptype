@@ -16,13 +16,33 @@ export const extractTextFromImage = async (base64Image: string, mimeType: string
     });
 
     if (!response.ok) {
-      throw new Error(`API request failed with status ${response.status}`);
+      let message = `OCR request failed (${response.status}).`;
+      try {
+        const data = (await response.json()) as { error?: string };
+        if (data?.error) {
+          message = data.error;
+        }
+      } catch {
+        // Ignore parse errors and keep fallback message.
+      }
+      throw new Error(message);
     }
 
-    const data = (await response.json()) as { text?: string };
+    const contentType = response.headers.get("content-type") || "";
+    if (!contentType.includes("application/json")) {
+      throw new Error("OCR API returned an unexpected response. If running locally, use `vercel dev` for API routes.");
+    }
+
+    const data = (await response.json()) as { text?: string; error?: string };
+    if (data.error) {
+      throw new Error(data.error);
+    }
     return data.text?.trim() || "No text could be extracted.";
   } catch (error) {
     console.error("Error extracting text:", error);
+    if (error instanceof Error) {
+      throw error;
+    }
     throw new Error("Failed to extract text from image.");
   } finally {
     clearTimeout(timeoutId);

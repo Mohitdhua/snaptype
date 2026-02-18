@@ -18,14 +18,15 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageSelect, onT
   const [timeLimit, setTimeLimit] = useState<TimeLimit>(0);
   const [isSSCMode, setIsSSCMode] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const supportedImageTypes = new Set(['image/png', 'image/jpeg', 'image/jpg', 'image/webp']);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     // Validate type
-    if (!file.type.startsWith('image/')) {
-      setError('Please upload a valid image file.');
+    if (!supportedImageTypes.has(file.type)) {
+      setError('Please upload PNG, JPG, or WEBP images only.');
       setPreview(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
       return;

@@ -193,7 +193,8 @@ const App: React.FC = () => {
         testId: savedTest.id,
       });
     } catch (error) {
-      alert('Failed to read image. Please try again.');
+      const message = error instanceof Error ? error.message : 'Failed to read image. Please try again.';
+      alert(message);
     } finally {
       setIsProcessing(false);
     }

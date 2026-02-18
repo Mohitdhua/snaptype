@@ -19,6 +19,13 @@ type ApiResponse = {
 };
 
 let aiClient: GoogleGenAI | null = null;
+const OCR_MODELS = ["gemini-2.5-flash", "gemini-2.0-flash"] as const;
+const SUPPORTED_MIME_TYPES = new Set(["image/png", "image/jpeg", "image/jpg", "image/webp"]);
+
+type ApiErrorLike = {
+  status?: number;
+  message?: string;
+};
 
 function getClient() {
   if (!aiClient) {
@@ -30,6 +37,23 @@ function getClient() {
   }
   return aiClient;
 }
+
+function parseApiError(error: unknown): { status?: number; message: string } {
+  const fallback = "Failed to extract text from image.";
+  if (!error || typeof error !== "object") {
+    return { message: fallback };
+  }
+
+  const candidate = error as ApiErrorLike;
+  return {
+    status: typeof candidate.status === "number" ? candidate.status : undefined,
+    message: typeof candidate.message === "string" ? candidate.message : fallback,
+  };
+}
+
+const isRetryableStatus = (status?: number) => status === 429 || status === 503;
+
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 function parseBody(body: unknown): ExtractTextRequest {
   if (!body) return {};
@@ -57,8 +81,8 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     if (typeof base64Image !== "string" || typeof mimeType !== "string") {
       return res.status(400).json({ error: "base64Image and mimeType are required." });
     }
-    if (!mimeType.startsWith("image/")) {
-      return res.status(400).json({ error: "mimeType must be an image/* type." });
+    if (!SUPPORTED_MIME_TYPES.has(mimeType)) {
+      return res.status(400).json({ error: "Unsupported image type. Please use PNG, JPG, or WEBP." });
     }
 
     const base64Data = base64Image.split(",")[1] || base64Image;
@@ -66,25 +90,64 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       return res.status(413).json({ error: "Image payload is too large." });
     }
     const client = getClient();
-    const response = await client.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: {
-        parts: [
-          {
-            inlineData: {
-              mimeType,
-              data: base64Data,
-            },
-          },
-          { text: PROMPT },
-        ],
+    const parts = [
+      {
+        inlineData: {
+          mimeType,
+          data: base64Data,
+        },
       },
-    });
+      { text: PROMPT },
+    ];
+
+    let response: Awaited<ReturnType<typeof client.models.generateContent>> | null = null;
+    let lastError: { status?: number; message: string } | null = null;
+
+    for (const model of OCR_MODELS) {
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          response = await client.models.generateContent({
+            model,
+            contents: { parts },
+          });
+          break;
+        } catch (error) {
+          const parsed = parseApiError(error);
+          lastError = parsed;
+          if (isRetryableStatus(parsed.status) && attempt === 0) {
+            await sleep(500);
+            continue;
+          }
+          if (!isRetryableStatus(parsed.status)) {
+            throw error;
+          }
+        }
+      }
+      if (response) break;
+    }
+
+    if (!response) {
+      const status = lastError?.status ?? 500;
+      if (status === 429 || status === 503) {
+        return res.status(503).json({ error: "OCR service is busy right now. Please retry in a few seconds." });
+      }
+      throw new Error(lastError?.message || "Failed to extract text from image.");
+    }
 
     const text = response.text?.trim() || "No text could be extracted.";
     return res.status(200).json({ text });
   } catch (error) {
     console.error("extract-text error:", error);
+    const parsed = parseApiError(error);
+    if (parsed.message.includes("Missing GEMINI_API_KEY")) {
+      return res.status(500).json({ error: "Server OCR is not configured. Add GEMINI_API_KEY in environment variables." });
+    }
+    if (parsed.status === 400) {
+      return res.status(400).json({ error: "Unable to process this image. Try a clear PNG/JPG/WEBP image." });
+    }
+    if (parsed.status === 429 || parsed.status === 503) {
+      return res.status(503).json({ error: "OCR service is busy right now. Please retry in a few seconds." });
+    }
     return res.status(500).json({ error: "Failed to extract text from image." });
   }
 }
