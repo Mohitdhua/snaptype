@@ -20,6 +20,12 @@ const HOME_TABS: { id: HomeTab; label: string }[] = [
 const getRouteKey = (nextGameState: GameState, nextHomeTab: HomeTab) =>
   nextGameState === GameState.UPLOAD ? `${nextGameState}:${nextHomeTab}` : nextGameState;
 
+const normalizeHardKey = (key: string) => {
+  if (key === '\n' || key === 'Enter') return 'Enter';
+  if (key === ' ' || key === 'Space') return 'Space';
+  return key;
+};
+
 const ImageUploader = lazy(() => import('./components/ImageUploader').then(module => ({ default: module.ImageUploader })));
 const PhysicalTypingTest = lazy(() => import('./components/PhysicalTypingTest').then(module => ({ default: module.PhysicalTypingTest })));
 const ProgressChart = lazy(() => import('./components/ProgressChart').then(module => ({ default: module.ProgressChart })));
@@ -287,7 +293,13 @@ const App: React.FC = () => {
       }
       practiceText = repeatedWords.join(' ');
     } else {
-      const hardKeys = Object.entries(results.hardKeys)
+      const normalizedHardKeys: Record<string, number> = {};
+      for (const [key, count] of Object.entries(results.hardKeys)) {
+        const normalizedKey = normalizeHardKey(key);
+        normalizedHardKeys[normalizedKey] = (normalizedHardKeys[normalizedKey] || 0) + (count as number);
+      }
+
+      const hardKeys = Object.entries(normalizedHardKeys)
         .sort((a, b) => (b[1] as number) - (a[1] as number))
         .map(entry => entry[0])
         .slice(0, 5);
@@ -295,7 +307,9 @@ const App: React.FC = () => {
       if (hardKeys.length === 0) return;
 
       const allWords = originalText.split(/\s+/);
-      const searchableKeys = hardKeys.filter(key => key !== 'Space').map(escapeRegExp);
+      const searchableKeys = hardKeys
+        .filter(key => key !== 'Space' && key !== 'Enter')
+        .map(escapeRegExp);
       const hardKeyRegex = searchableKeys.length > 0 ? new RegExp(searchableKeys.join('|')) : null;
       const relevantWords = hardKeyRegex ? allWords.filter(word => hardKeyRegex.test(word)) : allWords;
       const sourceWords = relevantWords.length > 5 ? relevantWords : allWords;

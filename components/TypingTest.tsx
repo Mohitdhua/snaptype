@@ -9,6 +9,7 @@ import { playSound } from '../services/soundService';
 const TYPING_TEXT_SCALE_KEY = 'snaptype_typing_text_scale_v1';
 const WINDOW_PRE_CHARS = 900;
 const WINDOW_POST_CHARS = 1800;
+const ENTER_SYMBOL = '\u23CE';
 
 const countLinearMismatches = (typed: string, expected: string): number => {
   let mismatches = 0;
@@ -60,6 +61,7 @@ interface CharItemProps {
 }
 
 const CharItemBase: React.FC<CharItemProps> = ({ char, status, index }) => {
+    const isNewline = char === '\n';
     let className = "relative font-mono transition-colors duration-75 inline-block ";
     
     if (status === 'pending') className += "text-slate-500";
@@ -68,8 +70,8 @@ const CharItemBase: React.FC<CharItemProps> = ({ char, status, index }) => {
 
     return (
         <span data-char-idx={index} className={className}>
-            {char === '\n' ? '\u00A0' : char}
-            {char === '\n' && <br/>}
+            {isNewline ? <span className="text-cyan-400/80">{ENTER_SYMBOL}</span> : char}
+            {isNewline && <br/>}
         </span>
     );
 };
@@ -473,7 +475,11 @@ export const TypingTest: React.FC<TypingTestProps> = ({ text, timeLimit, onCompl
             if (typedChar !== expectedChar) {
                 if (soundEnabled) playSound('error');
                 setHardKeys(prev => {
-                    const key = expectedChar === ' ' ? 'Space' : expectedChar;
+                    const key = expectedChar === ' '
+                      ? 'Space'
+                      : expectedChar === '\n'
+                        ? 'Enter'
+                        : expectedChar;
                     return { ...prev, [key]: (prev[key] || 0) + 1 };
                 });
             } else {

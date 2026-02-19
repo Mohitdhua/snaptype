@@ -32,6 +32,18 @@ const downsampleSeries = <T,>(series: T[], maxPoints: number): T[] => {
   return reduced;
 };
 
+const normalizeHardKey = (key: string) => {
+  if (key === '\n' || key === 'Enter') return 'Enter';
+  if (key === ' ' || key === 'Space') return 'Space';
+  return key;
+};
+
+const formatHardKeyLabel = (key: string) => {
+  if (key === 'Space') return '[space]';
+  if (key === 'Enter') return '[enter]';
+  return key;
+};
+
 const SessionTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     const point = payload[0]?.payload;
@@ -57,10 +69,17 @@ export const Results: React.FC<ResultsProps> = ({ results, onReset, onNewImage, 
   }, [results]);
 
   const topHardKeys = useMemo(
-    () =>
-      Object.entries(results.hardKeys)
+    () => {
+      const normalized: Record<string, number> = {};
+      for (const [key, count] of Object.entries(results.hardKeys)) {
+        const normalizedKey = normalizeHardKey(key);
+        normalized[normalizedKey] = (normalized[normalizedKey] || 0) + (count as number);
+      }
+
+      return Object.entries(normalized)
         .sort((a, b) => (b[1] as number) - (a[1] as number))
-        .slice(0, 8),
+        .slice(0, 8);
+    },
     [results.hardKeys]
   );
 
@@ -313,7 +332,7 @@ export const Results: React.FC<ResultsProps> = ({ results, onReset, onNewImage, 
                         {topHardKeys.map(([key, count]) => (
                             <div key={key} className="flex items-center gap-2 bg-slate-900 px-3 py-2 rounded-lg border border-slate-700">
                                 <div className="bg-slate-700 min-w-[32px] h-8 flex items-center justify-center text-lg font-mono font-bold text-white rounded">
-                                    {key === ' ' || key === 'Space' ? '[space]' : key}
+                                    {formatHardKeyLabel(key)}
                                 </div>
                                 <span className="text-rose-400 font-bold text-sm">x{count}</span>
                             </div>
