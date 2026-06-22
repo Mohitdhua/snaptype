@@ -143,7 +143,19 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageSelect, onT
         <div className="w-full space-y-4 animate-fade-in">
              
              {/* SSC Mode Toggle */}
-             <div className="w-full bg-slate-800/80 p-4 rounded-xl border border-slate-700 flex items-center justify-between cursor-pointer hover:bg-slate-800 transition-colors" onClick={toggleSSC}>
+             <div
+                 role="switch"
+                 aria-checked={isSSCMode}
+                 tabIndex={0}
+                 className="w-full bg-slate-800/80 p-4 rounded-xl border border-slate-700 flex items-center justify-between cursor-pointer hover:bg-slate-800 transition-colors focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:outline-none"
+                 onClick={toggleSSC}
+                 onKeyDown={(e) => {
+                     if (e.key === 'Enter' || e.key === ' ') {
+                         e.preventDefault();
+                         toggleSSC();
+                     }
+                 }}
+             >
                  <div className="flex flex-col">
                      <span className="text-white font-bold flex items-center gap-2">
                         SSC Exam Mode
