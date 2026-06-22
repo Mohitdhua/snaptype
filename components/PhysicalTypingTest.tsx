@@ -281,6 +281,8 @@ export const PhysicalTypingTest: React.FC<PhysicalTypingTestProps> = ({ ocrText,
                         <button 
                             onClick={() => setShowReference(false)}
                             className="text-slate-400 hover:text-white"
+                            aria-label={`Close ${referenceLabel}`}
+                            title={`Close ${referenceLabel}`}
                         >
                             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                         </button>

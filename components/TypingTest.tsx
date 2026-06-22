@@ -566,6 +566,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({ text, timeLimit, onCompl
              <button 
                 onClick={(e) => { e.stopPropagation(); setSoundEnabled(!soundEnabled); }}
                 className={`p-2 rounded-full transition-colors ${soundEnabled ? 'text-indigo-400 bg-indigo-500/10' : 'text-slate-600'}`}
+                aria-label="Toggle Sound"
                 title="Toggle Sound"
              >
                  {soundEnabled ? (
