@@ -24,12 +24,12 @@ const ProgressTooltip = ({ active, payload }: any) => {
   if (!active || !payload || payload.length === 0) return null;
   const data = payload[0].payload;
   return (
-    <div className="bg-slate-800 border border-slate-700 p-3 rounded-lg shadow-xl z-50">
-      <p className="text-slate-400 text-xs font-bold mb-1">{data.dateLabel}</p>
-      <p className="text-indigo-300 text-sm font-bold">{`WPM: ${data.netWpm}`}</p>
-      <p className="text-emerald-300 text-xs">{`Accuracy: ${data.accuracy}%`}</p>
-      <p className="text-slate-500 text-xs">{`Trend: ${data.trendWpm} WPM / ${data.trendAcc}%`}</p>
-      <p className="text-slate-500 text-[10px] uppercase mt-1">{data.mode}</p>
+    <div className="bento-card p-3 shadow-xl z-50 bg-black/80">
+      <p className="text-stitch-muted text-xs font-bold mb-1">{data.dateLabel}</p>
+      <p className="text-white text-sm font-bold">{`WPM: ${data.netWpm}`}</p>
+      <p className="text-emerald-400 text-xs">{`Accuracy: ${data.accuracy}%`}</p>
+      <p className="text-stitch-muted text-xs">{`Trend: ${data.trendWpm} WPM / ${data.trendAcc}%`}</p>
+      <p className="text-stitch-muted text-[10px] uppercase mt-1">{data.mode}</p>
     </div>
   );
 };
@@ -81,21 +81,21 @@ export const ProgressChart: React.FC<ProgressChartProps> = ({ history, className
   if (history.length === 0) return null;
 
   return (
-    <div className={`w-full h-64 bg-slate-800/50 rounded-2xl border border-slate-700 p-4 md:p-5 shadow-inner flex flex-col ${className}`}>
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-        <h3 className="text-slate-400 text-xs font-bold uppercase tracking-wider flex items-center gap-2">
+    <div className={`w-full h-64 bento-card p-4 md:p-6 flex flex-col ${className}`}>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <h3 className="text-stitch-muted text-xs font-bold uppercase tracking-wider flex items-center gap-2">
           <span>Your Progress</span>
-          <span className="text-[10px] bg-slate-700 px-2 py-0.5 rounded text-slate-300">{`Last ${history.length} tests`}</span>
+          <span className="text-[10px] bg-white/10 px-2 py-0.5 rounded text-white">{`Last ${history.length} tests`}</span>
         </h3>
 
-        <div className="flex items-center gap-1 bg-slate-900/70 border border-slate-700 rounded-lg p-1">
+        <div className="flex items-center gap-1 bg-white/5 border border-white/10 rounded-lg p-1">
           {(Object.keys(METRIC_CONFIG) as MetricKey[]).map(metricKey => (
             <button
               key={metricKey}
               type="button"
               onClick={() => setMetric(metricKey)}
-              className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-colors ${
-                metric === metricKey ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-slate-200'
+              className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${
+                metric === metricKey ? 'bg-white text-black' : 'text-stitch-muted hover:text-white'
               }`}
             >
               {METRIC_CONFIG[metricKey].label}
@@ -104,24 +104,24 @@ export const ProgressChart: React.FC<ProgressChartProps> = ({ history, className
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-2 mb-3 text-[11px]">
-        <div className="bg-slate-900/50 rounded-lg border border-slate-700/60 px-2 py-1.5">
-          <div className="text-slate-500 uppercase">Average</div>
-          <div className="text-slate-100 font-semibold">
+      <div className="grid grid-cols-3 gap-2 mb-4 text-xs">
+        <div className="bg-white/5 rounded-xl border border-white/10 px-3 py-2 flex flex-col items-center">
+          <div className="text-stitch-muted uppercase tracking-wider text-[10px]">Average</div>
+          <div className="text-stitch-accent font-bold mt-1">
             {stats.average}
             {METRIC_CONFIG[metric].suffix}
           </div>
         </div>
-        <div className="bg-slate-900/50 rounded-lg border border-slate-700/60 px-2 py-1.5">
-          <div className="text-slate-500 uppercase">Best</div>
-          <div className="text-slate-100 font-semibold">
+        <div className="bg-white/5 rounded-xl border border-white/10 px-3 py-2 flex flex-col items-center">
+          <div className="text-stitch-muted uppercase tracking-wider text-[10px]">Best</div>
+          <div className="text-stitch-accent font-bold mt-1">
             {stats.best}
             {METRIC_CONFIG[metric].suffix}
           </div>
         </div>
-        <div className="bg-slate-900/50 rounded-lg border border-slate-700/60 px-2 py-1.5">
-          <div className="text-slate-500 uppercase">Trend</div>
-          <div className={`font-semibold ${stats.trendDelta >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>
+        <div className="bg-white/5 rounded-xl border border-white/10 px-3 py-2 flex flex-col items-center">
+          <div className="text-stitch-muted uppercase tracking-wider text-[10px]">Trend</div>
+          <div className={`font-bold mt-1 ${stats.trendDelta >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
             {stats.trendDelta >= 0 ? '+' : ''}
             {stats.trendDelta}
             {METRIC_CONFIG[metric].suffix}

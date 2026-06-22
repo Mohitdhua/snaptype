@@ -14,12 +14,12 @@ export const Button: React.FC<ButtonProps> = ({
   ...props 
 }) => {
   const baseStyles =
-    "inline-flex items-center justify-center gap-2 rounded-xl px-6 py-3 font-semibold tracking-wide transition-all duration-200 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900";
+    "inline-flex items-center justify-center gap-2 rounded-[2rem] px-8 py-4 font-medium tracking-wide transition-all duration-300 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:ring-offset-2 focus-visible:ring-offset-stitch-dark";
   
   const variants = {
-    primary: "bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white shadow-lg shadow-cyan-900/30 border border-cyan-400/20",
-    secondary: "bg-slate-800/90 hover:bg-slate-700 text-slate-200 border border-slate-600/70 shadow-lg shadow-slate-950/20",
-    danger: "bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-500 hover:to-pink-500 text-white border border-rose-400/30 shadow-lg shadow-rose-950/30"
+    primary: "bg-white hover:bg-white/90 text-black shadow-lg shadow-white/10",
+    secondary: "bg-white/5 hover:bg-white/10 text-white border border-white/10 backdrop-blur-md",
+    danger: "bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 backdrop-blur-md"
   };
 
   return (
