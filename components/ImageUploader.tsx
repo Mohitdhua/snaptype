@@ -69,26 +69,26 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageSelect, onT
   const activeTimeLimit = isSSCMode ? 600 : timeLimit;
 
   return (
-    <div className="w-full max-w-2xl mx-auto flex flex-col items-center gap-6 animate-fade-in">
+    <div className="w-full max-w-2xl mx-auto flex flex-col items-center gap-8 animate-fade-in">
       
       {/* Input Source Switcher */}
-      <div className="bg-slate-800 p-1 rounded-xl flex gap-1 shadow-lg border border-slate-700">
+      <div className="bg-white/5 p-1 rounded-full flex gap-1 border border-white/10">
         <button
             onClick={() => setInputMode('image')}
-            className={`px-6 py-2 rounded-lg text-sm font-semibold transition-all ${
+            className={`px-6 py-2 rounded-full text-sm font-medium transition-all ${
                 inputMode === 'image' 
-                ? 'bg-indigo-600 text-white shadow-md' 
-                : 'text-slate-400 hover:text-slate-200'
+                ? 'bg-white text-black shadow-md'
+                : 'text-stitch-muted hover:text-white'
             }`}
         >
             Upload Image
         </button>
         <button
             onClick={() => setInputMode('text')}
-            className={`px-6 py-2 rounded-lg text-sm font-semibold transition-all ${
+            className={`px-6 py-2 rounded-full text-sm font-medium transition-all ${
                 inputMode === 'text' 
-                ? 'bg-indigo-600 text-white shadow-md' 
-                : 'text-slate-400 hover:text-slate-200'
+                ? 'bg-white text-black shadow-md'
+                : 'text-stitch-muted hover:text-white'
             }`}
         >
             Paste Text
@@ -98,7 +98,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageSelect, onT
       <div className="w-full relative">
         {inputMode === 'image' ? (
             <div 
-                className={`w-full h-80 border-4 border-dashed rounded-3xl flex flex-col items-center justify-center relative overflow-hidden transition-colors ${preview ? 'border-indigo-500/50 bg-slate-800/50' : 'border-slate-600 hover:border-slate-400 bg-slate-800'}`}
+                className={`w-full h-80 border-2 border-dashed rounded-[2rem] flex flex-col items-center justify-center relative overflow-hidden transition-all duration-300 ${preview ? 'border-white/20 bg-white/5' : 'border-white/10 hover:border-white/30 bg-transparent'}`}
             >
                 <input
                 ref={fileInputRef}
@@ -118,14 +118,16 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageSelect, onT
                     className="w-full h-full object-contain p-4"
                 />
                 ) : (
-                <div className="text-center p-6 pointer-events-none">
-                    <div className="w-20 h-20 bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-400">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-10 h-10">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+                <div className="text-center p-6 pointer-events-none flex flex-col items-center gap-4">
+                    <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center text-stitch-muted border border-white/10">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-8 h-8">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
                     </svg>
                     </div>
-                    <h3 className="text-xl font-bold text-slate-200 mb-2">Drop your image here</h3>
-                    <p className="text-slate-400">or click to browse</p>
+                    <div>
+                      <h3 className="text-lg font-medium text-stitch-accent">Drop your image here</h3>
+                      <p className="text-sm text-stitch-muted mt-1">or click to browse files</p>
+                    </div>
                 </div>
                 )}
             </div>
@@ -134,22 +136,22 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageSelect, onT
                 value={customText}
                 onChange={(e) => setCustomText(e.target.value)}
                 placeholder="Paste your text here to create a custom typing test..."
-                className="w-full h-80 bg-slate-800 border-2 border-slate-700 rounded-3xl p-6 text-slate-200 placeholder-slate-500 focus:border-indigo-500 focus:outline-none resize-none transition-colors scrollbar-thin scrollbar-thumb-slate-600"
+                className="w-full h-80 bg-white/5 border border-white/10 rounded-[2rem] p-6 text-stitch-accent placeholder-stitch-muted focus:border-white/30 focus:outline-none resize-none transition-colors scrollbar-thin scrollbar-thumb-slate-600"
             />
         )}
       </div>
 
-      {error && inputMode === 'image' && <p className="text-rose-400 font-medium">{error}</p>}
+      {error && inputMode === 'image' && <p className="text-red-400 font-medium">{error}</p>}
 
       {hasContent && (
-        <div className="w-full space-y-4 animate-fade-in">
+        <div className="w-full space-y-4 animate-fade-in flex flex-col gap-2">
              
              {/* SSC Mode Toggle */}
              <div
                  role="switch"
                  aria-checked={isSSCMode}
                  tabIndex={0}
-                 className="w-full bg-slate-800/80 p-4 rounded-xl border border-slate-700 flex items-center justify-between cursor-pointer hover:bg-slate-800 transition-colors focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:outline-none"
+                 className="w-full bento-card p-4 flex items-center justify-between cursor-pointer hover:bg-white/10 transition-colors focus-visible:ring-2 focus-visible:ring-white focus-visible:outline-none"
                  onClick={toggleSSC}
                  onKeyDown={(e) => {
                      if (e.key === 'Enter' || e.key === ' ') {
@@ -159,67 +161,67 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageSelect, onT
                  }}
              >
                  <div className="flex flex-col">
-                     <span className="text-white font-bold flex items-center gap-2">
+                     <span className="text-stitch-accent font-medium flex items-center gap-2">
                         SSC Exam Mode
-                        <span className="text-[10px] bg-rose-500 text-white px-2 py-0.5 rounded-full uppercase">Strict</span>
+                        <span className="text-[10px] bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full uppercase font-bold tracking-wide border border-red-500/30">Strict</span>
                      </span>
-                     <span className="text-xs text-slate-400 mt-1">10 min duration. 1 WPM penalty per mistake.</span>
+                     <span className="text-xs text-stitch-muted mt-1">10 min duration. 1 WPM penalty per mistake.</span>
                  </div>
-                 <div className={`w-12 h-6 rounded-full p-1 transition-colors ${isSSCMode ? 'bg-indigo-500' : 'bg-slate-700'}`}>
-                     <div className={`w-4 h-4 bg-white rounded-full shadow-md transform transition-transform ${isSSCMode ? 'translate-x-6' : 'translate-x-0'}`}></div>
-                 </div>
-             </div>
-
-             <div className="w-full bg-slate-800/50 p-4 rounded-xl border border-slate-700">
-                 <label className="block text-slate-400 text-sm font-bold mb-3 uppercase tracking-wider text-center">Typing Mode</label>
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                     <button
-                         onClick={() => setGameMode('DIGITAL')}
-                         className={`p-4 rounded-xl border-2 text-left transition-all ${
-                             gameMode === 'DIGITAL'
-                             ? 'border-indigo-500 bg-indigo-500/10'
-                             : 'border-slate-700 hover:border-slate-600 bg-slate-800'
-                         }`}
-                     >
-                         <div className={`font-bold mb-1 ${gameMode === 'DIGITAL' ? 'text-indigo-400' : 'text-slate-300'}`}>Digital Mode</div>
-                         <div className="text-xs text-slate-500">Type while reading on-screen text.</div>
-                     </button>
-
-                     <button
-                         onClick={() => setGameMode('PHYSICAL')}
-                         className={`p-4 rounded-xl border-2 text-left transition-all ${
-                             gameMode === 'PHYSICAL'
-                             ? 'border-indigo-500 bg-indigo-500/10'
-                             : 'border-slate-700 hover:border-slate-600 bg-slate-800'
-                         }`}
-                     >
-                         <div className={`font-bold mb-1 ${gameMode === 'PHYSICAL' ? 'text-indigo-400' : 'text-slate-300'}`}>Paper Mode</div>
-                         <div className="text-xs text-slate-500">Type in a separate panel and analyze after finishing.</div>
-                     </button>
+                 <div className={`w-11 h-6 rounded-full p-1 transition-colors ${isSSCMode ? 'bg-white' : 'bg-white/10 border border-white/20'}`}>
+                     <div className={`w-4 h-4 bg-black rounded-full shadow-md transform transition-transform ${isSSCMode ? 'translate-x-5' : 'translate-x-0 bg-stitch-muted'}`}></div>
                  </div>
              </div>
 
-             <div className="w-full bg-slate-800/50 p-4 rounded-xl border border-slate-700">
-                 <label className="block text-slate-400 text-sm font-bold mb-3 uppercase tracking-wider text-center">
-                   Time Limit {isSSCMode ? '(Fixed 10m)' : ''}
-                 </label>
-                 <div className="flex flex-wrap gap-2 justify-center">
-                     {timeOptions.map((option) => (
-                     <button
-                         key={option.value}
-                         onClick={() => {
-                           if (!isSSCMode) setTimeLimit(option.value);
-                         }}
-                         disabled={isSSCMode}
-                         className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
-                         activeTimeLimit === option.value
-                             ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30'
-                             : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-                         } ${isSSCMode ? 'opacity-70 cursor-not-allowed' : ''}`}
-                     >
-                         {option.label}
-                     </button>
-                     ))}
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                 <div className="bento-card p-4 flex flex-col gap-3">
+                     <label className="text-xs font-bold uppercase tracking-wider text-stitch-muted">Typing Mode</label>
+                     <div className="flex flex-col gap-2">
+                         <button
+                             onClick={() => setGameMode('DIGITAL')}
+                             className={`p-3 rounded-xl border text-left transition-all ${
+                                 gameMode === 'DIGITAL'
+                                 ? 'border-white bg-white text-black'
+                                 : 'border-white/10 hover:border-white/30 text-stitch-muted hover:text-stitch-accent'
+                             }`}
+                         >
+                             <div className="font-medium text-sm">Digital Mode</div>
+                         </button>
+
+                         <button
+                             onClick={() => setGameMode('PHYSICAL')}
+                             className={`p-3 rounded-xl border text-left transition-all ${
+                                 gameMode === 'PHYSICAL'
+                                 ? 'border-white bg-white text-black'
+                                 : 'border-white/10 hover:border-white/30 text-stitch-muted hover:text-stitch-accent'
+                             }`}
+                         >
+                             <div className="font-medium text-sm">Paper Mode</div>
+                         </button>
+                     </div>
+                 </div>
+
+                 <div className="bento-card p-4 flex flex-col gap-3">
+                     <label className="text-xs font-bold uppercase tracking-wider text-stitch-muted">
+                       Time Limit {isSSCMode ? '(Fixed 10m)' : ''}
+                     </label>
+                     <div className="flex flex-wrap gap-2">
+                         {timeOptions.map((option) => (
+                         <button
+                             key={option.value}
+                             onClick={() => {
+                               if (!isSSCMode) setTimeLimit(option.value);
+                             }}
+                             disabled={isSSCMode}
+                             className={`px-3 py-2 rounded-xl text-xs font-medium transition-all flex-1 text-center border ${
+                             activeTimeLimit === option.value
+                                 ? 'bg-white text-black border-white'
+                                 : 'bg-transparent text-stitch-muted border-white/10 hover:border-white/30 hover:text-stitch-accent'
+                             } ${isSSCMode ? 'opacity-50 cursor-not-allowed' : ''}`}
+                         >
+                             {option.label}
+                         </button>
+                         ))}
+                     </div>
                  </div>
              </div>
         </div>
@@ -229,7 +231,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageSelect, onT
         onClick={handleStart} 
         disabled={!hasContent || isProcessing}
         isLoading={isProcessing && inputMode === 'image'}
-        className="w-full sm:w-auto min-w-[200px]"
+        className="w-full"
       >
         {isSSCMode ? 'Start SSC Exam (10 Min)' : (inputMode === 'image' ? 'Generate Test with AI' : 'Start Typing Test')}
       </Button>

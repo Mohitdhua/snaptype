@@ -130,26 +130,26 @@ export const Results: React.FC<ResultsProps> = ({ results, onReset, onNewImage, 
 
   return (
     <div className="w-full max-w-6xl mx-auto flex flex-col items-center animate-scale-in pb-12">
-        <h2 className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-cyan-400 mb-8">
+        <h2 className="text-4xl font-extrabold text-stitch-accent mb-8">
             Session Report
         </h2>
 
         {/* Badge / XP Notification */}
         {(results.badgesUnlocked && results.badgesUnlocked.length > 0) || results.xpGained ? (
-            <div className="w-full mb-8 bg-indigo-500/10 border border-indigo-500/30 p-4 rounded-xl flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="w-full mb-8 bento-card border border-white/20 p-4 rounded-xl flex flex-col md:flex-row items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
-                    <span className="text-2xl">*</span>
+                    <span className="text-2xl text-white">*</span>
                     <div>
-                        <div className="text-indigo-300 font-bold">Session Complete!</div>
-                        <div className="text-indigo-200 text-sm">You earned <span className="font-bold text-white">+{results.xpGained || 0} XP</span></div>
+                        <div className="text-white font-bold">Session Complete!</div>
+                        <div className="text-stitch-muted text-sm">You earned <span className="font-bold text-white">+{results.xpGained || 0} XP</span></div>
                     </div>
                 </div>
                 {results.badgesUnlocked && results.badgesUnlocked.length > 0 && (
                      <div className="flex gap-2">
                         {results.badgesUnlocked.map(badge => (
-                            <div key={badge.id} className="flex items-center gap-2 bg-indigo-600 px-3 py-1.5 rounded-full shadow-lg animate-pulse">
+                            <div key={badge.id} className="flex items-center gap-2 bg-white text-black px-3 py-1.5 rounded-full shadow-lg animate-pulse">
                                 <span className="text-lg">{badge.icon}</span>
-                                <span className="text-white font-bold text-sm">{badge.name} Unlocked!</span>
+                                <span className="font-bold text-sm">{badge.name} Unlocked!</span>
                             </div>
                         ))}
                     </div>
@@ -159,63 +159,60 @@ export const Results: React.FC<ResultsProps> = ({ results, onReset, onNewImage, 
         
         {/* SSC Mode Scorecard */}
         {results.isSSC && (
-            <div className="w-full bg-slate-800 border border-slate-700 rounded-2xl p-6 mb-8 relative overflow-hidden">
-                <div className="absolute top-0 right-0 bg-rose-600 text-white text-xs font-bold px-3 py-1 rounded-bl-lg">SSC MODE</div>
+            <div className="w-full bento-card p-6 mb-8 relative overflow-hidden">
+                <div className="absolute top-0 right-0 bg-red-600 text-white text-xs font-bold px-3 py-1 rounded-bl-lg">SSC MODE</div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="flex flex-col items-center justify-center p-4 bg-slate-900/50 rounded-xl">
-                        <div className="text-xs text-slate-500 uppercase font-bold mb-1">Total Strokes</div>
+                    <div className="flex flex-col items-center justify-center p-4 bg-white/5 rounded-xl border border-white/10">
+                        <div className="text-xs text-stitch-muted uppercase font-bold mb-1">Total Strokes</div>
                         <div className="text-3xl font-mono text-white">{results.totalChars}</div>
-                        <div className="text-xs text-slate-500 mt-1">Words: {Math.round(results.totalChars / 5)}</div>
+                        <div className="text-xs text-stitch-muted mt-1">Words: {Math.round(results.totalChars / 5)}</div>
                     </div>
-                    <div className="flex flex-col items-center justify-center p-4 bg-slate-900/50 rounded-xl">
-                        <div className="text-xs text-slate-500 uppercase font-bold mb-1">Mistakes Penalty</div>
-                        <div className="text-3xl font-mono text-rose-400">-{results.incorrectChars} <span className="text-sm">WPM</span></div>
-                        <div className="text-xs text-slate-500 mt-1">1 WPM per mistake</div>
+                    <div className="flex flex-col items-center justify-center p-4 bg-white/5 rounded-xl border border-white/10">
+                        <div className="text-xs text-stitch-muted uppercase font-bold mb-1">Mistakes Penalty</div>
+                        <div className="text-3xl font-mono text-red-400">-{results.incorrectChars} <span className="text-sm">WPM</span></div>
+                        <div className="text-xs text-stitch-muted mt-1">1 WPM per mistake</div>
                     </div>
-                     <div className="flex flex-col items-center justify-center p-4 bg-slate-900/50 rounded-xl border-2 border-indigo-500/30">
-                        <div className="text-xs text-indigo-400 uppercase font-bold mb-1">Marks Obtained</div>
-                        <div className="text-4xl font-mono font-black text-white">{results.sscMarks || 0}<span className="text-lg text-slate-500 font-normal">/25</span></div>
-                        <div className={`text-xs font-bold mt-1 px-2 py-0.5 rounded ${results.netWpm >= 30 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}`}>
+                     <div className="flex flex-col items-center justify-center p-4 bg-white/5 rounded-xl border border-white/20">
+                        <div className="text-xs text-white uppercase font-bold mb-1">Marks Obtained</div>
+                        <div className="text-4xl font-mono font-black text-white">{results.sscMarks || 0}<span className="text-lg text-stitch-muted font-normal">/25</span></div>
+                        <div className={`text-xs font-bold mt-1 px-2 py-0.5 rounded ${results.netWpm >= 30 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
                             {results.netWpm >= 30 ? 'QUALIFIED' : 'DISQUALIFIED'}
                         </div>
                     </div>
                 </div>
-                <div className="mt-4 text-center text-xs text-slate-500">
+                <div className="mt-4 text-center text-xs text-stitch-muted">
                     Formula: (Strokes / 5) / Time - Mistakes = Net Speed
                 </div>
             </div>
         )}
 
-        {/* Main Stats (Standard view, hidden details in SSC mode if cleaner look desired, but kept for consistency) */}
+        {/* Main Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 w-full mb-8">
-            <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 flex flex-col items-center justify-center py-8 shadow-lg relative overflow-hidden group">
-                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                    <svg className="w-16 h-16" fill="currentColor" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
-                </div>
-                <span className="text-indigo-400 font-black text-6xl mb-1">{results.netWpm}</span>
-                <span className="text-slate-400 font-bold uppercase tracking-widest text-xs">{results.isSSC ? 'Actual Speed' : 'Net WPM'}</span>
-                <span className="text-slate-500 text-xs mt-2">{results.isSSC ? 'After penalty' : 'Adjusted speed'}</span>
+            <div className="bento-card flex flex-col items-center justify-center py-8 shadow-lg relative overflow-hidden group">
+                <span className="text-white font-black text-6xl mb-1">{results.netWpm}</span>
+                <span className="text-stitch-muted font-bold uppercase tracking-widest text-xs">{results.isSSC ? 'Actual Speed' : 'Net WPM'}</span>
+                <span className="text-stitch-muted text-xs mt-2">{results.isSSC ? 'After penalty' : 'Adjusted speed'}</span>
             </div>
 
-            <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 flex flex-col items-center justify-center py-8 shadow-lg">
-                <span className="text-slate-300 font-bold text-4xl mb-2">{results.rawWpm}</span>
-                <span className="text-slate-400 font-bold uppercase tracking-widest text-xs">{results.isSSC ? 'Tentative Speed' : 'Raw WPM'}</span>
-                 <span className="text-slate-500 text-xs mt-2">Uncorrected speed</span>
+            <div className="bento-card flex flex-col items-center justify-center py-8 shadow-lg">
+                <span className="text-stitch-accent font-bold text-4xl mb-2">{results.rawWpm}</span>
+                <span className="text-stitch-muted font-bold uppercase tracking-widest text-xs">{results.isSSC ? 'Tentative Speed' : 'Raw WPM'}</span>
+                 <span className="text-stitch-muted text-xs mt-2">Uncorrected speed</span>
             </div>
 
-             <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 flex flex-col items-center justify-center py-8 shadow-lg">
+             <div className="bento-card flex flex-col items-center justify-center py-8 shadow-lg">
                 <span className={`${results.accuracy > 95 ? 'text-emerald-400' : 'text-amber-400'} font-bold text-4xl mb-2`}>{results.accuracy}%</span>
-                <span className="text-slate-400 font-bold uppercase tracking-widest text-xs">Accuracy</span>
-                 <span className="text-slate-500 text-xs mt-2">{results.incorrectChars} errors</span>
+                <span className="text-stitch-muted font-bold uppercase tracking-widest text-xs">Accuracy</span>
+                 <span className="text-stitch-muted text-xs mt-2">{results.incorrectChars} errors</span>
             </div>
 
-             <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 flex flex-col items-center justify-center py-8 shadow-lg">
+             <div className="bento-card flex flex-col items-center justify-center py-8 shadow-lg">
                 <div className="flex gap-4 items-end mb-2">
                     <div className="flex flex-col items-center">
                          <span className="text-emerald-400 font-bold text-2xl">{results.correctChars}</span>
-                         <span className="text-[10px] text-slate-500 uppercase">Correct</span>
+                         <span className="text-[10px] text-stitch-muted uppercase">Correct</span>
                     </div>
-                    <div className="h-8 w-px bg-slate-700"></div>
+                    <div className="h-8 w-px bg-white/20"></div>
                      <div className="flex flex-col items-center">
                          <span className="text-rose-400 font-bold text-2xl">{results.incorrectChars}</span>
                          <span className="text-[10px] text-slate-500 uppercase">Incorrect</span>

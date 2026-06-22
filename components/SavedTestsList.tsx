@@ -44,35 +44,35 @@ export const SavedTestsList: React.FC<SavedTestsListProps> = ({ tests, onPlay, o
 
   return (
     <div className="w-full max-w-4xl mx-auto mt-12 animate-fade-in">
-        <h3 className="text-slate-400 text-sm font-bold uppercase tracking-wider mb-4 flex justify-between items-center px-2">
+        <h3 className="text-stitch-muted text-sm font-bold uppercase tracking-wider mb-4 flex justify-between items-center px-2">
             <span>Saved Tests library</span>
-            <span className="text-xs bg-slate-800 px-2 py-1 rounded-full text-slate-500">{tests.length} tests</span>
+            <span className="text-xs bg-white/10 px-2 py-1 rounded-full text-white">{tests.length} tests</span>
         </h3>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {tests.map(test => {
               const selected = getOptions(test);
               return (
-                <div key={test.id} className="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden group hover:border-indigo-500/50 transition-all shadow-lg hover:shadow-indigo-500/10 flex flex-col text-left">
+                <div key={test.id} className="bento-card overflow-hidden group hover:border-white/30 transition-all flex flex-col text-left">
                     {/* Preview Header */}
-                    <div className="h-32 bg-slate-900 relative overflow-hidden">
+                    <div className="h-32 bg-black/40 relative overflow-hidden">
                         {test.imageSrc ? (
                             <img src={test.imageSrc} alt="Test Preview" className="w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity" />
                         ) : (
-                            <div className="w-full h-full flex items-center justify-center bg-slate-800 text-slate-600">
-                                <svg className="w-12 h-12" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                            <div className="w-full h-full flex items-center justify-center bg-white/5 text-stitch-muted border-b border-white/5">
+                                <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                             </div>
                         )}
-                        <div className="absolute inset-0 bg-gradient-to-t from-slate-900 to-transparent"></div>
+                        <div className="absolute inset-0 bg-gradient-to-t from-black to-transparent"></div>
                         <div className="absolute bottom-3 left-3 right-3">
                             <h4 className="font-bold text-white text-sm truncate" title={test.title}>{test.title}</h4>
-                            <p className="text-xs text-slate-400">{new Date(test.createdAt).toLocaleDateString()}</p>
+                            <p className="text-xs text-stitch-muted">{new Date(test.createdAt).toLocaleDateString()}</p>
                         </div>
                     </div>
 
                     {/* Content Snippet */}
                     <div className="p-4 flex-1">
-                        <p className="text-xs text-slate-400 line-clamp-3 font-mono leading-relaxed mb-4">
+                        <p className="text-xs text-stitch-muted line-clamp-3 font-mono leading-relaxed mb-4">
                             {test.text}
                         </p>
                         <div className="space-y-3">
@@ -85,8 +85,8 @@ export const SavedTestsList: React.FC<SavedTestsListProps> = ({ tests, onPlay, o
                                     }}
                                     className={`min-w-0 truncate whitespace-nowrap text-xs font-semibold rounded-md px-2 py-1.5 border transition-colors ${
                                       selected.mode === 'DIGITAL'
-                                        ? 'border-indigo-500 bg-indigo-500/20 text-indigo-300'
-                                        : 'border-slate-700 text-slate-400 hover:text-slate-200'
+                                        ? 'border-white bg-white text-black'
+                                        : 'border-white/10 text-stitch-muted hover:text-white'
                                     }`}
                                 >
                                     Digital
@@ -99,8 +99,8 @@ export const SavedTestsList: React.FC<SavedTestsListProps> = ({ tests, onPlay, o
                                     }}
                                     className={`min-w-0 truncate whitespace-nowrap text-xs font-semibold rounded-md px-2 py-1.5 border transition-colors ${
                                       selected.mode === 'PHYSICAL'
-                                        ? 'border-indigo-500 bg-indigo-500/20 text-indigo-300'
-                                        : 'border-slate-700 text-slate-400 hover:text-slate-200'
+                                        ? 'border-white bg-white text-black'
+                                        : 'border-white/10 text-stitch-muted hover:text-white'
                                     }`}
                                 >
                                     Paper
@@ -113,15 +113,15 @@ export const SavedTestsList: React.FC<SavedTestsListProps> = ({ tests, onPlay, o
                                     }}
                                     className={`min-w-0 truncate whitespace-nowrap text-xs font-semibold rounded-md px-2 py-1.5 border transition-colors ${
                                       selected.isSSC
-                                        ? 'border-rose-500 bg-rose-500/20 text-rose-300'
-                                        : 'border-slate-700 text-slate-400 hover:text-slate-200'
+                                        ? 'border-red-500 bg-red-500/20 text-red-300'
+                                        : 'border-white/10 text-stitch-muted hover:text-white'
                                     }`}
                                 >
                                     SSC
                                 </button>
                             </div>
                             <div>
-                                <label className="text-[10px] uppercase tracking-wider text-slate-500 mb-1 block">
+                                <label className="text-[10px] uppercase tracking-wider text-stitch-muted mb-1 block">
                                   Time {selected.isSSC ? '(Fixed 10m)' : ''}
                                 </label>
                                 <select
@@ -130,10 +130,10 @@ export const SavedTestsList: React.FC<SavedTestsListProps> = ({ tests, onPlay, o
                                       updateOptions(test, { timeLimit: Number(e.target.value) as TimeLimit })
                                     }
                                     disabled={selected.isSSC}
-                                    className="w-full bg-slate-900 border border-slate-700 rounded-md px-2 py-1.5 text-xs text-slate-300 focus:outline-none focus:border-indigo-500"
+                                    className="w-full bg-white/5 border border-white/10 rounded-md px-2 py-1.5 text-xs text-white focus:outline-none focus:border-white/30"
                                 >
                                     {timeOptions.map(option => (
-                                      <option key={option.value} value={option.value}>
+                                      <option key={option.value} value={option.value} className="bg-stitch-dark text-white">
                                         {option.label}
                                       </option>
                                     ))}
@@ -143,7 +143,7 @@ export const SavedTestsList: React.FC<SavedTestsListProps> = ({ tests, onPlay, o
                     </div>
 
                     {/* Actions */}
-                    <div className="p-3 bg-slate-900/50 border-t border-slate-700 flex gap-2 justify-between">
+                    <div className="p-3 bg-white/5 border-t border-white/10 flex gap-2 justify-between">
                          <div className="flex gap-2 w-full">
                             <button 
                                 type="button"
@@ -151,7 +151,7 @@ export const SavedTestsList: React.FC<SavedTestsListProps> = ({ tests, onPlay, o
                                     e.stopPropagation();
                                     onPlay(test, selected.isSSC ? 600 : selected.timeLimit, selected.mode, selected.isSSC);
                                 }} 
-                                className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold py-2 rounded-lg transition-colors flex items-center justify-center gap-1"
+                                className="flex-1 bg-white hover:bg-white/90 text-black text-xs font-bold py-2 rounded-lg transition-colors flex items-center justify-center gap-1"
                             >
                                 <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" /></svg>
                                 Play
@@ -162,7 +162,7 @@ export const SavedTestsList: React.FC<SavedTestsListProps> = ({ tests, onPlay, o
                                     e.stopPropagation();
                                     onDelete(test.id);
                                 }} 
-                                className="p-2 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors"
+                                className="p-2 text-stitch-muted hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
                                 aria-label="Delete Test"
                                 title="Delete Test"
                             >

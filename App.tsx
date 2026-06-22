@@ -342,16 +342,16 @@ const App: React.FC = () => {
     if (homeTab === 'CREATE') {
       return (
         <div className="text-center w-full flex flex-col items-center">
-          <h1 className="text-4xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-cyan-400 mb-6 pb-2">
+          <h1 className="text-4xl md:text-5xl font-extrabold text-stitch-accent mb-6 pb-2">
             Train Faster, Type Smarter
           </h1>
-          <p className="text-lg text-slate-300/90 mb-10 max-w-xl mx-auto">
+          <p className="text-lg text-stitch-muted mb-10 max-w-xl mx-auto">
             Upload an image or paste your own text.
             <br />
             Turn any content into a guided typing session.
           </p>
 
-          <div className="w-full max-w-5xl rounded-3xl border border-slate-700/70 bg-slate-900/45 backdrop-blur-xl p-4 md:p-8 shadow-[0_30px_60px_rgba(2,6,23,0.45)]">
+          <div className="w-full max-w-5xl bento-card p-4 md:p-8">
             <Suspense fallback={<SectionLoader />}>
               <ImageUploader onImageSelect={handleImageSelect} onTextSelect={handleTextSelect} isProcessing={isProcessing} />
             </Suspense>
@@ -364,18 +364,18 @@ const App: React.FC = () => {
       return (
         <div className="w-full max-w-5xl animate-fade-in">
           <div className="text-center mb-8">
-            <h2 className="text-3xl font-bold text-white">Saved Test Library</h2>
-            <p className="text-slate-300/90 mt-2">Choose mode and timer per test, then launch instantly.</p>
+            <h2 className="text-3xl font-bold text-stitch-accent">Saved Test Library</h2>
+            <p className="text-stitch-muted mt-2">Choose mode and timer per test, then launch instantly.</p>
           </div>
           {savedTests.length > 0 ? (
-            <div className="rounded-3xl border border-slate-700/70 bg-slate-900/45 backdrop-blur-xl p-4 md:p-6">
+            <div className="bento-card p-4 md:p-6">
               <Suspense fallback={<SectionLoader />}>
                 <SavedTestsList tests={savedTests} onPlay={handlePlaySavedTest} onDelete={handleDeleteSavedTest} />
               </Suspense>
             </div>
           ) : (
-            <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-8 text-center">
-              <p className="text-slate-300 mb-4">No saved tests yet. Create one from image or text.</p>
+            <div className="bento-card p-8 text-center flex flex-col items-center">
+              <p className="text-stitch-muted mb-4">No saved tests yet. Create one from image or text.</p>
               <Button onClick={() => setHomeTab('CREATE')}>Create First Test</Button>
             </div>
           )}
@@ -386,22 +386,22 @@ const App: React.FC = () => {
     return (
       <div className="w-full max-w-5xl animate-fade-in space-y-8">
         <div className="text-center">
-          <h2 className="text-3xl font-bold text-white">Performance Dashboard</h2>
-          <p className="text-slate-300/90 mt-2">Track speed, accuracy, and consistency over time.</p>
+          <h2 className="text-3xl font-bold text-stitch-accent">Performance Dashboard</h2>
+          <p className="text-stitch-muted mt-2">Track speed, accuracy, and consistency over time.</p>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="bg-slate-900/55 border border-slate-700/80 rounded-xl p-5 backdrop-blur">
-            <div className="text-xs uppercase tracking-wider text-slate-500 mb-1">Tests</div>
-            <div className="text-3xl font-mono text-indigo-300">{history.length}</div>
+          <div className="bento-card p-5">
+            <div className="text-xs uppercase tracking-wider text-stitch-muted mb-1">Tests</div>
+            <div className="text-3xl font-mono text-stitch-accent">{history.length}</div>
           </div>
-          <div className="bg-slate-900/55 border border-slate-700/80 rounded-xl p-5 backdrop-blur">
-            <div className="text-xs uppercase tracking-wider text-slate-500 mb-1">Average WPM</div>
-            <div className="text-3xl font-mono text-cyan-300">{averageWpm}</div>
+          <div className="bento-card p-5">
+            <div className="text-xs uppercase tracking-wider text-stitch-muted mb-1">Average WPM</div>
+            <div className="text-3xl font-mono text-stitch-accent">{averageWpm}</div>
           </div>
-          <div className="bg-slate-900/55 border border-slate-700/80 rounded-xl p-5 backdrop-blur">
-            <div className="text-xs uppercase tracking-wider text-slate-500 mb-1">Best WPM</div>
-            <div className="text-3xl font-mono text-emerald-300">{userStats?.bestWpm || 0}</div>
+          <div className="bento-card p-5">
+            <div className="text-xs uppercase tracking-wider text-stitch-muted mb-1">Best WPM</div>
+            <div className="text-3xl font-mono text-stitch-accent">{userStats?.bestWpm || 0}</div>
           </div>
         </div>
 
@@ -410,8 +410,8 @@ const App: React.FC = () => {
             <ProgressChart history={history} className="h-80" />
           </Suspense>
         ) : (
-          <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-8 text-center">
-            <p className="text-slate-300 mb-4">No attempts yet. Complete one session to populate charts.</p>
+          <div className="bento-card p-8 text-center flex flex-col items-center">
+            <p className="text-stitch-muted mb-4">No attempts yet. Complete one session to populate charts.</p>
             <Button onClick={() => setHomeTab('CREATE')}>Start a Session</Button>
           </div>
         )}
@@ -420,59 +420,79 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-200 font-sans selection:bg-cyan-500/25 relative overflow-hidden">
-      <div className="pointer-events-none fixed inset-0 z-0">
-        <div className="absolute -top-28 -left-20 h-72 w-72 rounded-full bg-cyan-500/15 blur-3xl" />
-        <div className="absolute top-40 -right-16 h-72 w-72 rounded-full bg-blue-500/15 blur-3xl" />
-        <div className="absolute -bottom-24 left-1/3 h-80 w-80 rounded-full bg-teal-500/10 blur-3xl" />
-      </div>
+    <div className="min-h-screen bg-stitch-dark text-stitch-accent font-sans relative overflow-hidden">
+      <div className="mesh-bg" />
 
-      <header className="fixed top-0 left-0 right-0 p-3 md:p-5 z-50 pointer-events-none">
-        <div className="max-w-7xl mx-auto flex flex-col gap-3 pointer-events-auto">
-          <div className="flex justify-between items-center gap-3 rounded-2xl border border-slate-700/70 bg-slate-900/75 backdrop-blur-xl px-3 md:px-4 py-3 shadow-[0_20px_40px_rgba(2,6,23,0.45)]">
+      <header className="fixed top-0 left-0 right-0 p-4 md:p-6 z-50 pointer-events-none">
+        <div className="max-w-7xl mx-auto flex flex-col gap-4 pointer-events-auto items-center">
+
+          {/* Main Top Nav */}
+          <div className="flex items-center justify-between w-full max-w-3xl px-6 py-3 rounded-full bento-card">
             <button
               type="button"
-              className="flex items-center gap-2 hover:opacity-90 transition-opacity"
+              className="flex items-center gap-2 hover:opacity-80 transition-opacity"
               onClick={goHomeCreate}
               title="Go to Home"
             >
-              <img src="/logo-mark.svg" alt="SnapType logo" className="w-9 h-9 rounded-xl shadow-lg shadow-cyan-900/30" />
-              <h1 className="text-xl font-extrabold tracking-tight text-white">SnapType</h1>
+              <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center">
+                <span className="text-black font-bold text-lg leading-none">S</span>
+              </div>
+              <h1 className="text-xl font-bold tracking-tight text-stitch-accent">SnapType</h1>
             </button>
-            <div className="flex items-center gap-2">
+
+            {gameState === GameState.UPLOAD && (
+              <nav className="hidden sm:flex items-center gap-1 bg-white/5 rounded-full p-1 border border-white/10">
+                {HOME_TABS.map(tab => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setHomeTab(tab.id)}
+                    className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
+                      homeTab === tab.id ? 'bg-white text-black shadow-md' : 'text-stitch-muted hover:text-white'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </nav>
+            )}
+
+            <div className="flex items-center gap-3">
               {gameState !== GameState.UPLOAD && (
                 <button
                   type="button"
                   onClick={goHomeCreate}
-                  className="text-xs font-semibold bg-slate-800/90 border border-slate-700 text-slate-200 px-3 py-1.5 rounded-full hover:bg-slate-700 transition-colors"
+                  className="text-xs font-semibold px-4 py-2 rounded-full bento-card hover:bg-white/10 transition-colors text-stitch-accent"
                 >
-                  Home
+                  Close
                 </button>
               )}
               {userStats && (
-              <div className="flex gap-4 text-xs font-bold text-slate-300 bg-slate-800/85 px-4 py-2 rounded-full border border-slate-700 backdrop-blur-sm">
-                <div className="flex items-center gap-1" title="Daily Streak">
-                  <span className="text-amber-300">Streak</span>
-                  <span className="text-white">{userStats.currentStreak}</span>
+                <div className="flex items-center gap-3 text-xs font-medium text-stitch-muted">
+                  <div className="flex items-center gap-1.5" title="Daily Streak">
+                    <span className="w-2 h-2 rounded-full bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.8)]"></span>
+                    <span className="text-stitch-accent">{userStats.currentStreak}</span>
+                  </div>
+                  <div className="w-px h-3 bg-white/20"></div>
+                  <div className="flex items-center gap-1.5" title="Total XP">
+                    <span>XP</span>
+                    <span className="text-stitch-accent font-bold">{userStats.xp}</span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-1" title="Total XP">
-                  <span className="text-cyan-300">XP</span>
-                  <span className="text-white">{userStats.xp}</span>
-                </div>
-              </div>
               )}
             </div>
           </div>
 
+          {/* Mobile Nav */}
           {gameState === GameState.UPLOAD && (
-            <nav className="bg-slate-900/70 border border-slate-700/70 rounded-xl p-1 flex gap-1 w-full sm:w-fit overflow-x-auto backdrop-blur-xl">
+             <nav className="flex sm:hidden items-center gap-1 bg-white/5 rounded-full p-1 border border-white/10 w-fit">
               {HOME_TABS.map(tab => (
                 <button
                   key={tab.id}
                   type="button"
                   onClick={() => setHomeTab(tab.id)}
-                  className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors whitespace-nowrap ${
-                    homeTab === tab.id ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white' : 'text-slate-300 hover:bg-slate-700'
+                  className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
+                    homeTab === tab.id ? 'bg-white text-black shadow-md' : 'text-stitch-muted hover:text-white'
                   }`}
                 >
                   {tab.label}
@@ -480,6 +500,7 @@ const App: React.FC = () => {
               ))}
             </nav>
           )}
+
         </div>
       </header>
 
