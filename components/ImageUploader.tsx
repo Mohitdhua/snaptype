@@ -107,6 +107,8 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageSelect, onT
                 onChange={handleFileChange}
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                 disabled={isProcessing}
+                aria-label="Upload image file"
+                title="Upload image file"
                 />
                 
                 {preview ? (
