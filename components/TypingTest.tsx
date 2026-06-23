@@ -547,7 +547,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({ text, timeLimit, onCompl
                   e.stopPropagation();
                   setTextScale(prev => Math.max(20, prev - 2));
                 }}
-                className="px-2 py-1 rounded bg-slate-800 text-slate-300 text-xs font-semibold hover:bg-slate-700"
+                className="px-2 py-1 rounded bg-slate-800 text-slate-300 text-xs font-semibold hover:bg-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
                 title="Decrease text size"
              >
                 A-
@@ -558,14 +558,14 @@ export const TypingTest: React.FC<TypingTestProps> = ({ text, timeLimit, onCompl
                   e.stopPropagation();
                   setTextScale(prev => Math.min(46, prev + 2));
                 }}
-                className="px-2 py-1 rounded bg-slate-800 text-slate-300 text-xs font-semibold hover:bg-slate-700"
+                className="px-2 py-1 rounded bg-slate-800 text-slate-300 text-xs font-semibold hover:bg-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
                 title="Increase text size"
              >
                 A+
              </button>
              <button 
                 onClick={(e) => { e.stopPropagation(); setSoundEnabled(!soundEnabled); }}
-                className={`p-2 rounded-full transition-colors ${soundEnabled ? 'text-indigo-400 bg-indigo-500/10' : 'text-slate-600'}`}
+                className={`p-2 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 ${soundEnabled ? 'text-indigo-400 bg-indigo-500/10' : 'text-slate-600'}`}
                 aria-label="Toggle Sound"
                 title="Toggle Sound"
              >
@@ -581,13 +581,19 @@ export const TypingTest: React.FC<TypingTestProps> = ({ text, timeLimit, onCompl
                   finishTestRef.current?.();
                 }}
                 variant="primary"
-                className="!py-2 !px-4 text-xs font-bold uppercase tracking-wide"
+                className="!py-2 !px-4 text-xs font-bold uppercase tracking-wide flex items-center gap-2"
                 disabled={!startTime && input.length === 0}
             >
-                Submit
+                <span>Submit</span>
+                <span className="hidden sm:inline-flex items-center gap-0.5 text-[9px] text-slate-500 bg-white/10 px-1.5 py-0.5 rounded">
+                   <kbd>Ctrl</kbd>+<kbd>Enter</kbd>
+                </span>
             </Button>
-            <Button onClick={(e) => { e.stopPropagation(); onRestart(); }} variant="secondary" className="!py-2 !px-4 text-xs font-bold uppercase tracking-wide">
-                Back
+            <Button onClick={(e) => { e.stopPropagation(); onRestart(); }} variant="secondary" className="!py-2 !px-4 text-xs font-bold uppercase tracking-wide flex items-center gap-2">
+                <span>Back</span>
+                <span className="hidden sm:inline-flex items-center text-[9px] text-slate-500 bg-white/10 px-1.5 py-0.5 rounded">
+                   <kbd>Esc</kbd>
+                </span>
             </Button>
         </div>
       </div>
