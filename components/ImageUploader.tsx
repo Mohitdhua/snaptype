@@ -75,7 +75,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageSelect, onT
       <div className="bg-white/5 p-1 rounded-full flex gap-1 border border-white/10">
         <button
             onClick={() => setInputMode('image')}
-            className={`px-6 py-2 rounded-full text-sm font-medium transition-all ${
+            className={`px-6 py-2 rounded-full text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:ring-offset-2 focus-visible:ring-offset-stitch-dark ${
                 inputMode === 'image' 
                 ? 'bg-white text-black shadow-md'
                 : 'text-stitch-muted hover:text-white'
@@ -85,7 +85,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageSelect, onT
         </button>
         <button
             onClick={() => setInputMode('text')}
-            className={`px-6 py-2 rounded-full text-sm font-medium transition-all ${
+            className={`px-6 py-2 rounded-full text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:ring-offset-2 focus-visible:ring-offset-stitch-dark ${
                 inputMode === 'text' 
                 ? 'bg-white text-black shadow-md'
                 : 'text-stitch-muted hover:text-white'
@@ -98,7 +98,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageSelect, onT
       <div className="w-full relative">
         {inputMode === 'image' ? (
             <div 
-                className={`w-full h-80 border-2 border-dashed rounded-[2rem] flex flex-col items-center justify-center relative overflow-hidden transition-all duration-300 ${preview ? 'border-white/20 bg-white/5' : 'border-white/10 hover:border-white/30 bg-transparent'}`}
+                className={`w-full h-80 border-2 border-dashed rounded-[2rem] flex flex-col items-center justify-center relative overflow-hidden transition-all duration-300 focus-within:ring-2 focus-within:ring-white/50 focus-within:ring-offset-2 focus-within:ring-offset-stitch-dark ${preview ? 'border-white/20 bg-white/5' : 'border-white/10 hover:border-white/30 bg-transparent'}`}
             >
                 <input
                 ref={fileInputRef}
@@ -136,7 +136,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageSelect, onT
                 value={customText}
                 onChange={(e) => setCustomText(e.target.value)}
                 placeholder="Paste your text here to create a custom typing test..."
-                className="w-full h-80 bg-white/5 border border-white/10 rounded-[2rem] p-6 text-stitch-accent placeholder-stitch-muted focus:border-white/30 focus:outline-none resize-none transition-colors scrollbar-thin scrollbar-thumb-slate-600"
+                className="w-full h-80 bg-white/5 border border-white/10 rounded-[2rem] p-6 text-stitch-accent placeholder-stitch-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:ring-offset-2 focus-visible:ring-offset-stitch-dark resize-none transition-colors scrollbar-thin scrollbar-thumb-slate-600"
             />
         )}
       </div>
@@ -178,7 +178,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageSelect, onT
                      <div className="flex flex-col gap-2">
                          <button
                              onClick={() => setGameMode('DIGITAL')}
-                             className={`p-3 rounded-xl border text-left transition-all ${
+                             className={`p-3 rounded-xl border text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:ring-offset-2 focus-visible:ring-offset-stitch-dark ${
                                  gameMode === 'DIGITAL'
                                  ? 'border-white bg-white text-black'
                                  : 'border-white/10 hover:border-white/30 text-stitch-muted hover:text-stitch-accent'
@@ -189,7 +189,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageSelect, onT
 
                          <button
                              onClick={() => setGameMode('PHYSICAL')}
-                             className={`p-3 rounded-xl border text-left transition-all ${
+                             className={`p-3 rounded-xl border text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:ring-offset-2 focus-visible:ring-offset-stitch-dark ${
                                  gameMode === 'PHYSICAL'
                                  ? 'border-white bg-white text-black'
                                  : 'border-white/10 hover:border-white/30 text-stitch-muted hover:text-stitch-accent'
@@ -212,7 +212,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageSelect, onT
                                if (!isSSCMode) setTimeLimit(option.value);
                              }}
                              disabled={isSSCMode}
-                             className={`px-3 py-2 rounded-xl text-xs font-medium transition-all flex-1 text-center border ${
+                             className={`px-3 py-2 rounded-xl text-xs font-medium transition-all flex-1 text-center border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:ring-offset-2 focus-visible:ring-offset-stitch-dark ${
                              activeTimeLimit === option.value
                                  ? 'bg-white text-black border-white'
                                  : 'bg-transparent text-stitch-muted border-white/10 hover:border-white/30 hover:text-stitch-accent'
