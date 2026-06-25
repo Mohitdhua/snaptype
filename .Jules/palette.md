@@ -5,3 +5,7 @@
 ## 2024-05-18 - Make Power-User Features Discoverable
 **Learning:** Found existing keyboard shortcuts (Ctrl+Enter, Esc) in the TypingTest component that were completely invisible to users. Power-user features only provide UX value if users know they exist.
 **Action:** Added subtle visual `<kbd>` hints directly into the relevant action buttons ("Submit" and "Back"). Next time, ensure keyboard shortcuts are visibly documented in the UI as they are implemented, especially for frequent/core interaction loops like completing a typing test.
+
+## 2024-05-19 - Visual Focus States for Opacity-0 Inputs
+**Learning:** Found an `input type="file"` in the `ImageUploader` component that was styled with `opacity-0` to act as a hidden dropzone over a custom styled area. Since the actual input element receives focus during keyboard navigation, making it transparent effectively hides the focus ring from users relying on keyboards to navigate. This is a crucial accessibility issue for any "hidden but interactive" component.
+**Action:** When implementing hidden or opacity-0 inputs (like file dropzones), always apply `:focus-within` styles (e.g., `focus-within:ring-2`) to the visible parent container to maintain keyboard focus visibility.
