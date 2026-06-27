@@ -98,7 +98,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageSelect, onT
       <div className="w-full relative">
         {inputMode === 'image' ? (
             <div 
-                className={`w-full h-80 border-2 border-dashed rounded-[2rem] flex flex-col items-center justify-center relative overflow-hidden transition-all duration-300 ${preview ? 'border-white/20 bg-white/5' : 'border-white/10 hover:border-white/30 bg-transparent'}`}
+                className={`w-full h-80 border-2 border-dashed rounded-[2rem] flex flex-col items-center justify-center relative overflow-hidden transition-all duration-300 focus-within:outline-none focus-within:ring-2 focus-within:ring-white/50 focus-within:ring-offset-2 focus-within:ring-offset-stitch-dark ${preview ? 'border-white/20 bg-white/5' : 'border-white/10 hover:border-white/30 bg-transparent'}`}
             >
                 <input
                 ref={fileInputRef}
