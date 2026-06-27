@@ -601,7 +601,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({ text, timeLimit, onCompl
       {/* Typing Container */}
       <div 
         ref={containerRef}
-        className="w-full flex-1 min-h-0 relative bg-slate-800/30 rounded-2xl p-5 md:p-6 shadow-inner overflow-y-auto border border-slate-700/50"
+        className="w-full flex-1 min-h-0 relative bg-slate-800/30 rounded-2xl p-5 md:p-6 shadow-inner overflow-y-auto border border-slate-700/50 focus-within:outline-none focus-within:ring-2 focus-within:ring-white/50 focus-within:ring-offset-2 focus-within:ring-offset-stitch-dark"
         style={{
           perspective: '1000px',
         }}
