@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useRef } from 'react';
 import { GameMode, SavedTest, TimeLimit } from '../types';
 
 interface SavedTestsListProps {
@@ -9,6 +9,8 @@ interface SavedTestsListProps {
 
 export const SavedTestsList: React.FC<SavedTestsListProps> = ({ tests, onPlay, onDelete }) => {
   const [playOptions, setPlayOptions] = useState<Record<string, { timeLimit: TimeLimit; mode: GameMode; isSSC: boolean }>>({});
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const timeOptions = useMemo(
     () => [
@@ -38,6 +40,20 @@ export const SavedTestsList: React.FC<SavedTestsListProps> = ({ tests, onPlay, o
         ...next,
       },
     }));
+  };
+
+  const handleDeleteClick = (id: string) => {
+    if (confirmingId === id) {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      setConfirmingId(null);
+      onDelete(id);
+    } else {
+      setConfirmingId(id);
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      timeoutRef.current = setTimeout(() => {
+        setConfirmingId(null);
+      }, 3000);
+    }
   };
 
   if (tests.length === 0) return null;
@@ -160,13 +176,21 @@ export const SavedTestsList: React.FC<SavedTestsListProps> = ({ tests, onPlay, o
                                 type="button"
                                 onClick={(e) => {
                                     e.stopPropagation();
-                                    onDelete(test.id);
+                                    handleDeleteClick(test.id);
                                 }} 
-                                className="p-2 text-stitch-muted hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
-                                aria-label="Delete Test"
-                                title="Delete Test"
+                                className={`p-2 rounded-lg transition-colors flex items-center justify-center focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:ring-offset-2 focus-visible:ring-offset-stitch-dark focus-visible:outline-none ${
+                                    confirmingId === test.id
+                                      ? 'bg-red-500 text-white hover:bg-red-600 px-3'
+                                      : 'text-stitch-muted hover:text-red-400 hover:bg-red-500/10'
+                                }`}
+                                aria-label={confirmingId === test.id ? "Confirm delete test" : "Delete Test"}
+                                title={confirmingId === test.id ? "Confirm delete test" : "Delete Test"}
                             >
-                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                {confirmingId === test.id ? (
+                                    <span className="text-xs font-bold whitespace-nowrap">Sure?</span>
+                                ) : (
+                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                )}
                             </button>
                          </div>
                     </div>
