@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { GameMode, SavedTest, TimeLimit } from '../types';
 
 interface SavedTestsListProps {
@@ -9,6 +9,16 @@ interface SavedTestsListProps {
 
 export const SavedTestsList: React.FC<SavedTestsListProps> = ({ tests, onPlay, onDelete }) => {
   const [playOptions, setPlayOptions] = useState<Record<string, { timeLimit: TimeLimit; mode: GameMode; isSSC: boolean }>>({});
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const deleteTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (deleteTimeoutRef.current) {
+        clearTimeout(deleteTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const timeOptions = useMemo(
     () => [
@@ -83,7 +93,7 @@ export const SavedTestsList: React.FC<SavedTestsListProps> = ({ tests, onPlay, o
                                       e.stopPropagation();
                                       updateOptions(test, { mode: 'DIGITAL' });
                                     }}
-                                    className={`min-w-0 truncate whitespace-nowrap text-xs font-semibold rounded-md px-2 py-1.5 border transition-colors ${
+                                    className={`focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:ring-offset-2 focus-visible:ring-offset-stitch-dark min-w-0 truncate whitespace-nowrap text-xs font-semibold rounded-md px-2 py-1.5 border transition-colors ${
                                       selected.mode === 'DIGITAL'
                                         ? 'border-white bg-white text-black'
                                         : 'border-white/10 text-stitch-muted hover:text-white'
@@ -97,7 +107,7 @@ export const SavedTestsList: React.FC<SavedTestsListProps> = ({ tests, onPlay, o
                                       e.stopPropagation();
                                       updateOptions(test, { mode: 'PHYSICAL' });
                                     }}
-                                    className={`min-w-0 truncate whitespace-nowrap text-xs font-semibold rounded-md px-2 py-1.5 border transition-colors ${
+                                    className={`focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:ring-offset-2 focus-visible:ring-offset-stitch-dark min-w-0 truncate whitespace-nowrap text-xs font-semibold rounded-md px-2 py-1.5 border transition-colors ${
                                       selected.mode === 'PHYSICAL'
                                         ? 'border-white bg-white text-black'
                                         : 'border-white/10 text-stitch-muted hover:text-white'
@@ -111,7 +121,7 @@ export const SavedTestsList: React.FC<SavedTestsListProps> = ({ tests, onPlay, o
                                       e.stopPropagation();
                                       updateOptions(test, { isSSC: !selected.isSSC });
                                     }}
-                                    className={`min-w-0 truncate whitespace-nowrap text-xs font-semibold rounded-md px-2 py-1.5 border transition-colors ${
+                                    className={`focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:ring-offset-2 focus-visible:ring-offset-stitch-dark min-w-0 truncate whitespace-nowrap text-xs font-semibold rounded-md px-2 py-1.5 border transition-colors ${
                                       selected.isSSC
                                         ? 'border-red-500 bg-red-500/20 text-red-300'
                                         : 'border-white/10 text-stitch-muted hover:text-white'
@@ -130,7 +140,7 @@ export const SavedTestsList: React.FC<SavedTestsListProps> = ({ tests, onPlay, o
                                       updateOptions(test, { timeLimit: Number(e.target.value) as TimeLimit })
                                     }
                                     disabled={selected.isSSC}
-                                    className="w-full bg-white/5 border border-white/10 rounded-md px-2 py-1.5 text-xs text-white focus:outline-none focus:border-white/30"
+                                    className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:ring-offset-2 focus-visible:ring-offset-stitch-dark w-full bg-white/5 border border-white/10 rounded-md px-2 py-1.5 text-xs text-white focus:outline-none focus:border-white/30"
                                 >
                                     {timeOptions.map(option => (
                                       <option key={option.value} value={option.value} className="bg-stitch-dark text-white">
@@ -151,7 +161,7 @@ export const SavedTestsList: React.FC<SavedTestsListProps> = ({ tests, onPlay, o
                                     e.stopPropagation();
                                     onPlay(test, selected.isSSC ? 600 : selected.timeLimit, selected.mode, selected.isSSC);
                                 }} 
-                                className="flex-1 bg-white hover:bg-white/90 text-black text-xs font-bold py-2 rounded-lg transition-colors flex items-center justify-center gap-1"
+                                className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:ring-offset-2 focus-visible:ring-offset-stitch-dark flex-1 bg-white hover:bg-white/90 text-black text-xs font-bold py-2 rounded-lg transition-colors flex items-center justify-center gap-1"
                             >
                                 <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" /></svg>
                                 Play
@@ -160,13 +170,27 @@ export const SavedTestsList: React.FC<SavedTestsListProps> = ({ tests, onPlay, o
                                 type="button"
                                 onClick={(e) => {
                                     e.stopPropagation();
-                                    onDelete(test.id);
+                                    if (deletingId === test.id) {
+                                      if (deleteTimeoutRef.current) clearTimeout(deleteTimeoutRef.current);
+                                      setDeletingId(null);
+                                      onDelete(test.id);
+                                    } else {
+                                      setDeletingId(test.id);
+                                      if (deleteTimeoutRef.current) clearTimeout(deleteTimeoutRef.current);
+                                      deleteTimeoutRef.current = setTimeout(() => {
+                                        setDeletingId(null);
+                                      }, 3000);
+                                    }
                                 }} 
-                                className="p-2 text-stitch-muted hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                                className={`focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:ring-offset-2 focus-visible:ring-offset-stitch-dark p-2 rounded-lg transition-colors ${deletingId === test.id ? 'text-red-400 bg-red-500/20 font-bold text-xs px-3' : 'text-stitch-muted hover:text-red-400 hover:bg-red-500/10'}`}
                                 aria-label="Delete Test"
                                 title="Delete Test"
                             >
-                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                {deletingId === test.id ? (
+                                    "Sure?"
+                                ) : (
+                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                )}
                             </button>
                          </div>
                     </div>
