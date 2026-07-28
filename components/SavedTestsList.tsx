@@ -1,5 +1,51 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { GameMode, SavedTest, TimeLimit } from '../types';
+
+const DeleteButton: React.FC<{ onDelete: () => void }> = ({ onDelete }) => {
+  const [isConfirming, setIsConfirming] = useState(false);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, []);
+
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isConfirming) {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      onDelete();
+    } else {
+      setIsConfirming(true);
+      timeoutRef.current = setTimeout(() => {
+        setIsConfirming(false);
+      }, 3000);
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      className={`p-2 rounded-lg transition-colors text-sm font-bold flex items-center justify-center min-w-[32px] ${
+        isConfirming
+          ? 'bg-red-500 text-white hover:bg-red-600'
+          : 'text-stitch-muted hover:text-red-400 hover:bg-red-500/10'
+      }`}
+      aria-label={isConfirming ? "Confirm Delete" : "Delete Test"}
+      title={isConfirming ? "Confirm Delete" : "Delete Test"}
+    >
+      {isConfirming ? (
+        <span className="px-1 text-xs">Sure?</span>
+      ) : (
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+        </svg>
+      )}
+    </button>
+  );
+};
 
 interface SavedTestsListProps {
   tests: SavedTest[];
@@ -156,18 +202,7 @@ export const SavedTestsList: React.FC<SavedTestsListProps> = ({ tests, onPlay, o
                                 <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" /></svg>
                                 Play
                             </button>
-                            <button 
-                                type="button"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    onDelete(test.id);
-                                }} 
-                                className="p-2 text-stitch-muted hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
-                                aria-label="Delete Test"
-                                title="Delete Test"
-                            >
-                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                            </button>
+                            <DeleteButton onDelete={() => onDelete(test.id)} />
                          </div>
                     </div>
                 </div>
