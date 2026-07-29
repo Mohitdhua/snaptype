@@ -265,9 +265,7 @@ const App: React.FC = () => {
   };
 
   const handleDeleteSavedTest = (id: string) => {
-    if (window.confirm('Are you sure you want to delete this test?')) {
-      setSavedTests(deleteSavedTest(id));
-    }
+    setSavedTests(deleteSavedTest(id));
   };
 
   const handlePractice = (type: 'words' | 'keys') => {
