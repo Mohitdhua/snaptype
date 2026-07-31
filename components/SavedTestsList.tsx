@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { GameMode, SavedTest, TimeLimit } from '../types';
 
 interface SavedTestsListProps {
@@ -9,6 +9,29 @@ interface SavedTestsListProps {
 
 export const SavedTestsList: React.FC<SavedTestsListProps> = ({ tests, onPlay, onDelete }) => {
   const [playOptions, setPlayOptions] = useState<Record<string, { timeLimit: TimeLimit; mode: GameMode; isSSC: boolean }>>({});
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const deleteTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (deleteTimeoutRef.current) clearTimeout(deleteTimeoutRef.current);
+    };
+  }, []);
+
+  const handleDeleteClick = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    if (deletingId === id) {
+      if (deleteTimeoutRef.current) clearTimeout(deleteTimeoutRef.current);
+      setDeletingId(null);
+      onDelete(id);
+    } else {
+      setDeletingId(id);
+      if (deleteTimeoutRef.current) clearTimeout(deleteTimeoutRef.current);
+      deleteTimeoutRef.current = setTimeout(() => {
+        setDeletingId(null);
+      }, 3000);
+    }
+  };
 
   const timeOptions = useMemo(
     () => [
@@ -158,15 +181,16 @@ export const SavedTestsList: React.FC<SavedTestsListProps> = ({ tests, onPlay, o
                             </button>
                             <button 
                                 type="button"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    onDelete(test.id);
-                                }} 
-                                className="p-2 text-stitch-muted hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
-                                aria-label="Delete Test"
-                                title="Delete Test"
+                                onClick={(e) => handleDeleteClick(e, test.id)}
+                                className={`px-3 py-2 text-xs font-bold rounded-lg transition-colors flex items-center justify-center ${
+                                    deletingId === test.id
+                                      ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30 min-w-[60px]'
+                                      : 'text-stitch-muted hover:text-red-400 hover:bg-red-500/10 p-2'
+                                }`}
+                                aria-label={deletingId === test.id ? "Confirm Delete" : "Delete Test"}
+                                title={deletingId === test.id ? "Confirm Delete" : "Delete Test"}
                             >
-                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                {deletingId === test.id ? 'Sure?' : <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>}
                             </button>
                          </div>
                     </div>
