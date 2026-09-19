@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
-import { LESSONS, MASTERY_PLAN, DayPlan } from '../data/lessonsData';
+import { LESSONS, MASTERY_PLAN } from '../data/lessonsData';
 import { PRACTICE_LIBRARY } from '../data/practiceLibrary';
-import { Lesson, LessonProgress, LessonProgressMap, FingerId, PracticePassage } from '../types';
+import { Lesson, LessonProgress, LessonProgressMap, FingerId } from '../types';
 import {
   getLessonProgress,
   getAdaptiveProfile,
@@ -94,7 +94,7 @@ export const LessonsView: React.FC<LessonsViewProps> = ({ progress: propProgress
     return (
       <div className="flex gap-0.5 text-xs text-amber-400">
         {[1, 2, 3].map(s => (
-          <span key={s} className={s <= stars ? 'opacity-100 drop-shadow-[0_0_6px_rgba(251,191,36,0.6)]' : 'opacity-20'}>
+          <span key={s} className={s <= stars ? 'opacity-100' : 'opacity-20'}>
             ★
           </span>
         ))}
@@ -104,130 +104,318 @@ export const LessonsView: React.FC<LessonsViewProps> = ({ progress: propProgress
 
   return (
     <div className="w-full max-w-6xl mx-auto flex flex-col gap-6 animate-fade-in pb-16">
-      {/* Top Header Banner */}
-      <div className="bento-card p-6 md:p-8 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 bg-gradient-to-r from-neutral-950 via-neutral-900 to-neutral-950 border border-white/10 shadow-2xl rounded-3xl relative overflow-hidden">
-        <div className="relative z-10">
-          <div className="flex flex-wrap items-center gap-2 mb-2">
+      {/* 1. Sleek Compact Header */}
+      <div className="p-6 md:p-7 rounded-2xl bg-neutral-900/60 border border-white/10 backdrop-blur-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-5 shadow-xl">
+        <div>
+          <div className="flex items-center gap-2 mb-1.5">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="text-xs font-mono uppercase tracking-widest text-emerald-400 font-bold">
-              Typing Master AI Academy
+            <span className="text-[11px] font-mono uppercase tracking-widest text-emerald-400 font-bold">
+              Touch Typing Academy
             </span>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-              0 → 40+ WPM in 10 Days
-            </span>
+            <span className="text-[10px] font-mono text-neutral-500">•</span>
+            <span className="text-[11px] font-mono text-neutral-400">0 → 40+ WPM in 10 Days</span>
           </div>
-          <h2 className="text-2xl md:text-4xl font-extrabold text-white tracking-tight">
-            Finger Biomechanics & Touch Typing Curriculum
+          <h2 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight">
+            Finger Biomechanics & Touch Typing
           </h2>
-          <p className="text-neutral-400 text-sm mt-1.5 max-w-2xl leading-relaxed">
-            Progressive blind typing drills calibrated for Indian competitive exams (SSC, High Court, Clerk) with real-time finger error tracking.
+          <p className="text-neutral-400 text-xs md:text-sm mt-1 max-w-xl leading-relaxed">
+            Calibrated for SSC, High Court, and State Clerk skill tests with real-time finger latency tracking.
           </p>
         </div>
 
-        {/* Course Progress & Day Stat */}
-        <div className="flex flex-col sm:flex-row lg:flex-col gap-3 shrink-0 w-full lg:w-auto relative z-10">
-          <div className="p-4 rounded-2xl bg-white/5 border border-white/10 flex flex-col gap-2">
-            <div className="flex items-center justify-between gap-6 text-xs text-neutral-400 font-mono">
-              <span>Academy Progress</span>
-              <span className="text-white font-bold">{completedLessons} / {totalLessons} Lessons</span>
+        {/* Minimalist Progress & Target Stat */}
+        <div className="flex items-center gap-3 shrink-0 w-full md:w-auto">
+          <div className="p-3 px-4 rounded-xl bg-white/5 border border-white/10 flex flex-col gap-1.5 flex-1 md:flex-initial">
+            <div className="flex items-center justify-between gap-4 text-xs font-mono text-neutral-400">
+              <span>Progress</span>
+              <span className="text-white font-bold">{completedLessons}/{totalLessons}</span>
             </div>
-            <div className="w-full sm:w-56 h-2.5 bg-white/10 rounded-full overflow-hidden">
+            <div className="w-28 sm:w-36 h-1.5 bg-white/10 rounded-full overflow-hidden">
               <div
-                className="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-emerald-400 transition-all duration-500 rounded-full"
+                className="h-full bg-gradient-to-r from-indigo-500 via-cyan-400 to-emerald-400 rounded-full transition-all duration-500"
                 style={{ width: `${overallPercentage}%` }}
               />
             </div>
           </div>
 
-          <div className="flex items-center justify-between p-3 px-4 rounded-2xl bg-indigo-950/40 border border-indigo-500/30 text-xs font-mono">
-            <div className="flex items-center gap-2 text-indigo-300">
-              <span className="text-base">📅</span>
-              <span>Day {dayProgress.currentDay} Target</span>
-            </div>
-            <span className="font-bold text-white bg-indigo-500/30 px-2 py-0.5 rounded-md">
-              {MASTERY_PLAN[dayProgress.currentDay - 1]?.targetWpm || 40} WPM Goal
+          <div className="p-3 px-4 rounded-xl bg-white/5 border border-white/10 flex flex-col text-xs font-mono flex-1 md:flex-initial">
+            <span className="text-neutral-400 text-[10px] uppercase font-semibold">Day {dayProgress.currentDay} Target</span>
+            <span className="text-indigo-300 font-bold text-sm mt-0.5">
+              {MASTERY_PLAN[dayProgress.currentDay - 1]?.targetWpm || 40} WPM
             </span>
           </div>
         </div>
       </div>
 
-      {/* Navigation Mode Tabs */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-4">
-        <div className="flex flex-wrap gap-2">
+      {/* 2. Unified Clean Navigation Bar */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+        {/* Navigation Tabs */}
+        <div className="flex items-center p-1 bg-neutral-900/80 border border-white/10 rounded-xl overflow-x-auto scrollbar-none gap-1">
           <button
             onClick={() => { setActiveTab('curriculum'); setSelectedDayNumber(null); }}
-            className={`px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-2 ${
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
               activeTab === 'curriculum'
-                ? 'bg-white text-black shadow-lg shadow-white/10'
-                : 'bg-neutral-900/80 text-neutral-400 hover:text-white border border-white/5'
+                ? 'bg-white text-black shadow-sm'
+                : 'text-neutral-400 hover:text-white'
             }`}
           >
-            <span>📚 Stage Curriculum</span>
-            <span className="text-[10px] opacity-70">({LESSONS.length})</span>
+            Curriculum ({LESSONS.length})
           </button>
 
           <button
             onClick={() => setActiveTab('roadmap')}
-            className={`px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-2 ${
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
               activeTab === 'roadmap'
-                ? 'bg-white text-black shadow-lg shadow-white/10'
-                : 'bg-neutral-900/80 text-neutral-400 hover:text-white border border-white/5'
+                ? 'bg-white text-black shadow-sm'
+                : 'text-neutral-400 hover:text-white'
             }`}
           >
-            <span>🎯 10-Day Mastery Plan</span>
-            <span className="px-1.5 py-0.2 rounded bg-indigo-500/30 text-indigo-200 text-[10px]">Bootcamp</span>
+            10-Day Plan
           </button>
 
           <button
             onClick={() => setActiveTab('collision')}
-            className={`px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-2 ${
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
               activeTab === 'collision'
-                ? 'bg-cyan-400 text-black shadow-lg shadow-cyan-400/20'
-                : 'bg-neutral-900/80 text-cyan-300 hover:text-white border border-cyan-500/20'
+                ? 'bg-white text-black shadow-sm'
+                : 'text-neutral-400 hover:text-white'
             }`}
           >
-            <span>⚡ Finger Collision Fix (उंगली भ्रम)</span>
-            <span className="px-1.5 py-0.2 rounded bg-cyan-500/30 text-cyan-900 font-black text-[9px]">HOT</span>
+            Finger Decoupling
           </button>
 
           <button
             onClick={() => setActiveTab('weakness')}
-            className={`px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-2 ${
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
               activeTab === 'weakness'
-                ? 'bg-white text-black shadow-lg shadow-white/10'
-                : 'bg-neutral-900/80 text-neutral-400 hover:text-white border border-white/5'
+                ? 'bg-white text-black shadow-sm'
+                : 'text-neutral-400 hover:text-white'
             }`}
           >
-            <span>🦾 Finger Radar</span>
-            {adaptiveProfile.weakestKeys.length > 0 && (
-              <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
-            )}
+            Finger Radar
           </button>
         </div>
 
-        {/* Quick Launch Targeted Weakness Drill */}
+        {/* Quick Launch AI Weakness Drill */}
         <button
           onClick={handleStartWeaknessDrill}
-          className="px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider bg-gradient-to-r from-amber-500 to-rose-500 hover:from-amber-400 hover:to-rose-400 text-black shadow-lg shadow-amber-500/20 transition-all flex items-center gap-2"
+          className="px-4 py-2 rounded-xl text-xs font-semibold bg-white/10 hover:bg-white/15 text-white border border-white/15 transition-all flex items-center justify-center gap-2 shrink-0 font-mono shadow-sm"
         >
-          <span>⚡ AI Weakness Drill</span>
-          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
-          </svg>
+          <span>⚡ Launch AI Drill</span>
+          <span className="text-neutral-400 text-[10px]">→</span>
         </button>
       </div>
 
+      {/* ================= CURRICULUM VIEW ================= */}
+      {activeTab === 'curriculum' && (
+        <div className="flex flex-col gap-5 animate-fade-in">
+          {/* Slim Recommendation Bar */}
+          {recommendedLesson && selectedDayNumber === null && (
+            <div className="px-4 py-2.5 rounded-xl bg-indigo-950/40 border border-indigo-500/30 flex items-center justify-between gap-3 text-xs">
+              <div className="flex items-center gap-2 truncate">
+                <span className="text-indigo-400">🎯</span>
+                <span className="text-neutral-400 font-mono">Next:</span>
+                <span className="text-white font-semibold truncate">
+                  {recommendedLesson.stageTitle} — {recommendedLesson.title}
+                </span>
+              </div>
+              <button
+                onClick={() => {
+                  setActiveLesson(recommendedLesson);
+                  setSelectedStage(recommendedLesson.stage);
+                }}
+                className="text-xs font-mono font-bold text-indigo-300 hover:text-white transition-colors shrink-0"
+              >
+                Jump to Lesson →
+              </button>
+            </div>
+          )}
+
+          {/* Minimalist Stage Pills */}
+          {selectedDayNumber === null ? (
+            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+              {stages.map(st => {
+                const isSelected = selectedStage === st.num;
+                const stageLessonList = LESSONS.filter(l => l.stage === st.num);
+                const stageDone = stageLessonList.filter(l => progress[l.id]?.completed).length;
+
+                return (
+                  <button
+                    key={st.num}
+                    onClick={() => {
+                      setSelectedStage(st.num);
+                      const firstInStage = LESSONS.find(l => l.stage === st.num);
+                      if (firstInStage) setActiveLesson(firstInStage);
+                    }}
+                    className={`px-3.5 py-2 rounded-xl flex items-center gap-2.5 text-left shrink-0 transition-all border text-xs ${
+                      isSelected
+                        ? 'bg-white text-black border-white shadow-sm font-bold'
+                        : 'bg-neutral-900/60 hover:bg-neutral-800 text-neutral-300 border-white/5 font-medium'
+                    }`}
+                  >
+                    <span>{st.title}</span>
+                    <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-md ${
+                      isSelected ? 'bg-black/10 text-black' : 'bg-white/10 text-neutral-400'
+                    }`}>
+                      {stageDone}/{stageLessonList.length}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="flex items-center justify-between p-3 rounded-xl bg-neutral-900/80 border border-white/10 text-xs">
+              <span className="text-neutral-300 font-mono">
+                Showing drills for <strong className="text-indigo-400">Day {selectedDayNumber}: {MASTERY_PLAN.find(d => d.day === selectedDayNumber)?.title}</strong>
+              </span>
+              <button
+                onClick={() => setSelectedDayNumber(null)}
+                className="font-mono text-neutral-400 hover:text-white underline text-[11px]"
+              >
+                Show All Stages
+              </button>
+            </div>
+          )}
+
+          {/* Main Grid: Lessons List + Active Lesson Details */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+            {/* Left Column: Stage Lessons List */}
+            <div className="flex flex-col gap-2.5">
+              {stageLessons.map(lesson => {
+                const isSelected = activeLesson.id === lesson.id;
+                const p = progress[lesson.id];
+                const isDone = p?.completed;
+                const unlocked = isLessonUnlocked(lesson.id);
+
+                return (
+                  <div
+                    key={lesson.id}
+                    onClick={() => setActiveLesson(lesson)}
+                    className={`p-3.5 rounded-xl border cursor-pointer transition-all ${
+                      isSelected
+                        ? 'bg-neutral-900 border-white/25 shadow-md'
+                        : 'bg-neutral-900/40 hover:bg-neutral-900/80 border-white/5'
+                    }`}
+                  >
+                    <div className="flex justify-between items-center mb-1">
+                      <div className="flex items-center gap-1.5">
+                        {lesson.targetKeys.slice(0, 4).map(k => (
+                          <span key={k} className="px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-[10px] font-mono text-neutral-300 font-bold uppercase">
+                            {k === ' ' ? 'Space' : k}
+                          </span>
+                        ))}
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        {!unlocked && <span className="text-[10px] text-amber-400">🔒</span>}
+                        {isDone ? renderStars(p.stars || 1) : <span className="text-[10px] font-mono text-neutral-500">Pending</span>}
+                      </div>
+                    </div>
+                    <h4 className="text-xs font-bold text-white mt-1.5">{lesson.title}</h4>
+                    <p className="text-[11px] text-neutral-400 line-clamp-1 mt-0.5">{lesson.description}</p>
+                    
+                    <div className="flex items-center justify-between mt-2 pt-2 border-t border-white/5 text-[10px] font-mono text-neutral-500">
+                      <span>Target: {lesson.minWpm} WPM</span>
+                      <span>{lesson.exercises.length} Drills</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Right 2 Columns: Active Lesson Interactive Panel */}
+            <div className="lg:col-span-2 p-6 rounded-2xl bg-neutral-900/60 border border-white/10 backdrop-blur-xl flex flex-col justify-between gap-5">
+              <div>
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-4 mb-4">
+                  <div>
+                    <span className="text-[10px] font-mono text-neutral-400 uppercase tracking-widest font-semibold">
+                      {activeLesson.stageTitle}
+                    </span>
+                    <h3 className="text-xl font-bold text-white mt-0.5">{activeLesson.title}</h3>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-mono px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-neutral-300 font-semibold">
+                      {activeLesson.minWpm} WPM • {activeLesson.minAccuracy}% Acc
+                    </span>
+                  </div>
+                </div>
+
+                <p className="text-neutral-300 text-xs leading-relaxed mb-4">{activeLesson.description}</p>
+
+                {/* Target Keys Tags */}
+                <div className="mb-5">
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-neutral-400 block mb-1.5">
+                    Target Keycaps
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {activeLesson.targetKeys.map(k => (
+                      <span
+                        key={k}
+                        className="px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-white font-mono text-xs font-bold"
+                      >
+                        {k === ' ' ? 'Space' : k.toUpperCase()}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Exercises in this lesson */}
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-[10px] uppercase font-bold tracking-wider text-neutral-400">
+                      Lesson Drills & Exercises
+                    </span>
+                    <span className="text-[10px] font-mono text-neutral-500">
+                      {activeLesson.exercises.length} Drills (~350–500 chars each)
+                    </span>
+                  </div>
+
+                  <div className="flex flex-col gap-2.5">
+                    {activeLesson.exercises.map((ex, idx) => (
+                      <div
+                        key={ex.id}
+                        className="p-3.5 rounded-xl bg-white/5 border border-white/10 hover:border-white/20 transition-all flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-white/10 text-neutral-300 font-bold uppercase">
+                              {ex.type} • Part {idx + 1}
+                            </span>
+                            <h5 className="text-xs font-bold text-white truncate">{ex.title}</h5>
+                            <span className="text-[10px] font-mono text-neutral-500">
+                              ({ex.text.length} chars)
+                            </span>
+                          </div>
+                          <p className="text-[11px] font-mono text-neutral-400 truncate mt-1">"{ex.text}"</p>
+                        </div>
+
+                        <button
+                          onClick={() => onSelectExercise(ex.text, activeLesson.id, `${activeLesson.title} - ${ex.title}`)}
+                          className="px-3.5 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider bg-white text-black hover:bg-neutral-200 transition-all shrink-0 flex items-center gap-1.5 shadow-sm"
+                        >
+                          <span>Start</span>
+                          <span className="text-[10px]">→</span>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ================= 10-DAY ROADMAP VIEW ================= */}
       {activeTab === 'roadmap' && (
-        <div className="flex flex-col gap-6 animate-fade-in">
-          <div className="bento-card p-6 bg-neutral-950/70 border border-white/10 rounded-3xl">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+        <div className="flex flex-col gap-5 animate-fade-in">
+          <div className="p-6 md:p-7 rounded-2xl bg-neutral-900/60 border border-white/10 backdrop-blur-xl">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 mb-6">
               <div>
-                <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                  <span>🚀 10-Day Touch Typing Speed Blueprint</span>
+                <h3 className="text-lg font-bold text-white">
+                  10-Day Speed Mastery Plan
                 </h3>
-                <p className="text-neutral-400 text-xs mt-1">
-                  Follow this daily structured training regimen. Complete minimum sessions each day to lock in finger muscle memory.
+                <p className="text-neutral-400 text-xs mt-0.5">
+                  Follow this daily structured regimen to progress from beginners to 40+ WPM.
                 </p>
               </div>
               <div className="text-xs font-mono text-neutral-400">
@@ -235,13 +423,12 @@ export const LessonsView: React.FC<LessonsViewProps> = ({ progress: propProgress
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
               {MASTERY_PLAN.map(dp => {
                 const isCurrent = dp.day === dayProgress.currentDay;
                 const isPast = dp.day < dayProgress.currentDay;
                 const isSelected = selectedDayNumber === dp.day;
 
-                // Check completion of this day's lessons
                 const dayLessons = LESSONS.filter(l => dp.lessonIds.includes(l.id));
                 const completedCount = dayLessons.filter(l => progress[l.id]?.completed).length;
                 const isAllDone = completedCount === dayLessons.length && dayLessons.length > 0;
@@ -255,14 +442,14 @@ export const LessonsView: React.FC<LessonsViewProps> = ({ progress: propProgress
                       if (firstLesson) setActiveLesson(firstLesson);
                       setActiveTab('curriculum');
                     }}
-                    className={`p-4 rounded-2xl border cursor-pointer transition-all flex flex-col justify-between gap-3 ${
+                    className={`p-4 rounded-xl border cursor-pointer transition-all flex flex-col justify-between gap-3 ${
                       isSelected
-                        ? 'bg-indigo-950/80 border-indigo-400 shadow-lg shadow-indigo-500/20'
+                        ? 'bg-neutral-900 border-indigo-400 shadow-md'
                         : isCurrent
-                          ? 'bg-neutral-900/90 border-amber-400/80 shadow-md ring-1 ring-amber-400/30'
+                          ? 'bg-neutral-900/90 border-amber-400/60'
                           : isPast
-                            ? 'bg-neutral-950/60 border-white/10 hover:border-white/20'
-                            : 'bg-neutral-950/30 border-white/5 hover:border-white/10'
+                            ? 'bg-neutral-900/30 border-white/10 hover:border-white/20'
+                            : 'bg-neutral-900/20 border-white/5 hover:border-white/10'
                     }`}
                   >
                     <div>
@@ -275,16 +462,16 @@ export const LessonsView: React.FC<LessonsViewProps> = ({ progress: propProgress
                         {isAllDone ? (
                           <span className="text-emerald-400 text-xs">✓ Done</span>
                         ) : (
-                          <span className="text-[10px] font-mono text-neutral-400">{completedCount}/{dayLessons.length}</span>
+                          <span className="text-[10px] font-mono text-neutral-500">{completedCount}/{dayLessons.length}</span>
                         )}
                       </div>
-                      <h4 className="text-sm font-bold text-white mt-2 leading-tight">{dp.title}</h4>
+                      <h4 className="text-xs font-bold text-white mt-2 leading-tight">{dp.title}</h4>
                       <p className="text-[11px] font-mono text-indigo-300 mt-1">Target: {dp.targetWpm} WPM</p>
                     </div>
 
-                    <div className="pt-2 border-t border-white/5 flex items-center justify-between text-[10px] text-neutral-400">
+                    <div className="pt-2 border-t border-white/5 flex items-center justify-between text-[10px] text-neutral-500 font-mono">
                       <span>{dp.minSessions} Sessions</span>
-                      <span className="text-indigo-400 hover:underline">View Drills →</span>
+                      <span className="text-neutral-300 hover:text-white">View →</span>
                     </div>
                   </div>
                 );
@@ -294,156 +481,138 @@ export const LessonsView: React.FC<LessonsViewProps> = ({ progress: propProgress
         </div>
       )}
 
-      {/* ================= FINGER COLLISION & NEIGHBOR DISCRIMINATOR VIEW ================= */}
+      {/* ================= FINGER DECOUPLING (COLLISION FIX) VIEW ================= */}
       {activeTab === 'collision' && (
-        <div className="flex flex-col gap-6 animate-fade-in">
-          {/* Main Collision Diagnostic Bento */}
-          <div className="bento-card p-6 md:p-8 bg-gradient-to-br from-neutral-950 via-cyan-950/20 to-neutral-950 border border-cyan-500/30 rounded-3xl relative overflow-hidden">
-            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 mb-8 relative z-10">
+        <div className="flex flex-col gap-5 animate-fade-in">
+          <div className="p-6 md:p-7 rounded-2xl bg-neutral-900/60 border border-white/10 backdrop-blur-xl">
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6">
               <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse" />
-                  <span className="text-xs font-mono uppercase tracking-widest text-cyan-300 font-bold">
-                    Biomechanical Neuro-Muscular Calibration
-                  </span>
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-200 border border-cyan-500/30">
-                    Same-Finger Reach & Neighbor Tendon Disentangler
-                  </span>
-                </div>
-                <h3 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight">
-                  Adjacent Finger Confusion & Reach Mastery Mode
+                <h3 className="text-lg font-bold text-white">
+                  Finger Decoupling & Neighbor Isolation
                 </h3>
-                <p className="text-neutral-400 text-xs md:text-sm mt-1.5 max-w-2xl leading-relaxed">
-                  Eliminates <strong className="text-cyan-300">Intra-Finger Reach Errors</strong> (Index & Pinky overshooting across 6-8 keys) and <strong className="text-cyan-300">Neighbor Tendon Interference</strong> (Ring & Middle fingers accidentally co-firing due to linked extensor tendons).
+                <p className="text-neutral-400 text-xs mt-0.5 max-w-2xl leading-relaxed">
+                  Eliminates Same-Finger Reach overshoots (Index/Pinky reach errors) and Neighbor Tendon crosstalk (Ring vs Middle co-firing).
                 </p>
               </div>
 
               <button
                 onClick={() => handleStartCollisionDrill()}
-                className="px-6 py-3 rounded-2xl text-xs font-bold uppercase tracking-wider bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-300 hover:to-blue-400 text-black shadow-xl shadow-cyan-500/20 transition-all flex items-center gap-2 shrink-0 font-mono"
+                className="px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider bg-white text-black hover:bg-neutral-200 transition-all flex items-center gap-2 shrink-0 font-mono shadow-sm"
               >
-                <span>🚀 Launch AI Disentangler Drill</span>
+                <span>Launch Disentangler Drill</span>
                 <span>→</span>
               </button>
             </div>
 
             {/* Diagnostic Collision Metric Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-              <div className="p-4 rounded-2xl bg-neutral-900/60 border border-white/10 flex flex-col justify-between">
-                <span className="text-[10px] uppercase font-mono font-bold text-neutral-400">Total Analyzed Mistypes</span>
-                <div className="text-2xl font-bold font-mono text-white mt-1">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+              <div className="p-3.5 rounded-xl bg-white/5 border border-white/10 flex flex-col justify-between">
+                <span className="text-[10px] uppercase font-mono font-semibold text-neutral-400">Total Analyzed Misclicks</span>
+                <div className="text-xl font-bold font-mono text-white mt-1">
                   {adaptiveProfile.collisionStats?.totalErrors || 0}
                 </div>
-                <span className="text-[10px] text-neutral-500 mt-1 font-mono">Keystroke position audits</span>
+                <span className="text-[10px] text-neutral-500 font-mono mt-0.5">Keystroke audits</span>
               </div>
 
-              <div className="p-4 rounded-2xl bg-cyan-950/30 border border-cyan-500/30 flex flex-col justify-between">
+              <div className="p-3.5 rounded-xl bg-white/5 border border-white/10 flex flex-col justify-between">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] uppercase font-mono font-bold text-cyan-300">Same-Finger Reach Errors</span>
+                  <span className="text-[10px] uppercase font-mono font-semibold text-cyan-300">Same-Finger Reach Errors</span>
                   <span className="text-xs font-mono font-bold text-cyan-400">
                     {adaptiveProfile.collisionStats?.sameFingerRatio || 0}%
                   </span>
                 </div>
-                <div className="text-2xl font-bold font-mono text-cyan-200 mt-1">
-                  {adaptiveProfile.collisionStats?.sameFingerErrors || 0} <span className="text-xs font-normal text-cyan-400">misreaches</span>
+                <div className="text-xl font-bold font-mono text-cyan-200 mt-1">
+                  {adaptiveProfile.collisionStats?.sameFingerErrors || 0} <span className="text-xs font-normal text-neutral-400">misreaches</span>
                 </div>
-                <span className="text-[10px] text-cyan-400/70 mt-1 font-mono">e.g. Index R↔T, F↔G, V↔B</span>
+                <span className="text-[10px] text-neutral-500 font-mono mt-0.5">e.g. Index R↔T, F↔G, V↔B</span>
               </div>
 
-              <div className="p-4 rounded-2xl bg-indigo-950/30 border border-indigo-500/30 flex flex-col justify-between">
+              <div className="p-3.5 rounded-xl bg-white/5 border border-white/10 flex flex-col justify-between">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] uppercase font-mono font-bold text-indigo-300">Neighbor Finger Crosstalk</span>
+                  <span className="text-[10px] uppercase font-mono font-semibold text-indigo-300">Neighbor Finger Crosstalk</span>
                   <span className="text-xs font-mono font-bold text-indigo-400">
                     {adaptiveProfile.collisionStats?.neighborRatio || 0}%
                   </span>
                 </div>
-                <div className="text-2xl font-bold font-mono text-indigo-200 mt-1">
-                  {adaptiveProfile.collisionStats?.neighborErrors || 0} <span className="text-xs font-normal text-indigo-400">collisions</span>
+                <div className="text-xl font-bold font-mono text-indigo-200 mt-1">
+                  {adaptiveProfile.collisionStats?.neighborErrors || 0} <span className="text-xs font-normal text-neutral-400">collisions</span>
                 </div>
-                <span className="text-[10px] text-indigo-400/70 mt-1 font-mono">e.g. Ring vs Middle W↔E, S↔D</span>
+                <span className="text-[10px] text-neutral-500 font-mono mt-0.5">e.g. Ring vs Middle W↔E, S↔D</span>
               </div>
             </div>
 
             {/* Active Conflict Pairs Hotlist */}
-            <div className="mb-8 p-5 rounded-2xl bg-neutral-900/80 border border-white/10">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-bold uppercase tracking-wider text-neutral-300 flex items-center gap-2">
-                  <span>⚡ Active Biomechanical Conflict Pairs</span>
-                  <span className="text-[10px] text-neutral-500 font-normal">(Click any chip to practice that exact pair)</span>
-                </span>
-              </div>
+            <div className="mb-6 p-4 rounded-xl bg-white/5 border border-white/10">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 block mb-2.5">
+                Active Conflict Pairs (Click to Practice)
+              </span>
 
               {adaptiveProfile.collisionStats?.topConflicts && adaptiveProfile.collisionStats.topConflicts.length > 0 ? (
-                <div className="flex flex-wrap gap-2.5">
+                <div className="flex flex-wrap gap-2">
                   {adaptiveProfile.collisionStats.topConflicts.map((c, idx) => (
                     <button
                       key={idx}
                       onClick={() => handleStartCollisionDrill(`${c.expected}-${c.typed}`)}
-                      className="px-3.5 py-2 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 hover:border-cyan-400 flex items-center gap-2.5 transition-all text-left group"
+                      className="px-3 py-1.5 rounded-lg bg-neutral-900 hover:bg-neutral-800 border border-white/10 flex items-center gap-2 transition-all text-xs font-mono"
                     >
-                      <span className="font-mono font-black text-cyan-300 text-sm uppercase group-hover:text-white">
+                      <span className="font-bold text-cyan-300 uppercase">
                         {c.expected} ↔ {c.typed}
                       </span>
-                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-200 font-bold">
-                        {c.count} misclicks
-                      </span>
-                      <span className="text-[10px] font-mono text-neutral-400 group-hover:text-cyan-300">
-                        {c.type === 'SAME_FINGER_REACH' ? 'Reach' : 'Neighbor'} →
+                      <span className="text-[10px] text-neutral-400">
+                        {c.count} errors
                       </span>
                     </button>
                   ))}
                 </div>
               ) : (
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-1.5">
                   {['r-t', 'f-g', 'v-b', 'w-e', 's-d', 'u-y', 'i-o', 'k-l'].map(pair => (
                     <button
                       key={pair}
                       onClick={() => handleStartCollisionDrill(pair)}
-                      className="px-3.5 py-2 rounded-xl bg-neutral-800 hover:bg-neutral-700 border border-white/10 flex items-center gap-2 text-xs font-mono text-neutral-300 hover:text-white transition-all"
+                      className="px-2.5 py-1 rounded-lg bg-neutral-900 hover:bg-neutral-800 border border-white/10 text-xs font-mono text-neutral-300 hover:text-white transition-all uppercase"
                     >
-                      <span className="font-bold uppercase text-cyan-400">{pair.toUpperCase()}</span>
-                      <span>Disentangle →</span>
+                      {pair} →
                     </button>
                   ))}
                 </div>
               )}
             </div>
 
-            {/* 6 Curated Biomechanical Isolation Passages Grid */}
-            <h4 className="text-sm font-bold uppercase tracking-wider text-neutral-300 mb-4 flex items-center gap-2">
-              <span>🎯 6 Master Finger Decoupling & Isolation Passages</span>
-              <span className="text-xs text-neutral-500 font-normal">(1,000–1,500+ Chars per session)</span>
+            {/* Curated Biomechanical Isolation Passages Grid */}
+            <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-400 mb-3">
+              Curated Finger Decoupling Passages (1,000+ Chars)
             </h4>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {collisionPassages.map(p => (
                 <div
                   key={p.id}
-                  className="p-5 rounded-2xl bg-neutral-900/60 border border-white/10 hover:border-cyan-500/40 transition-all flex flex-col justify-between group"
+                  className="p-4 rounded-xl bg-white/5 border border-white/10 hover:border-white/20 transition-all flex flex-col justify-between"
                 >
                   <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-[9px] font-mono font-bold uppercase px-1.5 py-0.5 rounded bg-white/10 text-neutral-300">
                         {p.difficulty}
                       </span>
-                      <span className="text-[10px] font-mono text-neutral-400">
-                        ~{p.wordCount} Words
+                      <span className="text-[10px] font-mono text-neutral-500">
+                        ~{p.wordCount} words
                       </span>
                     </div>
 
-                    <h5 className="text-sm font-bold text-white group-hover:text-cyan-300 transition-colors leading-snug">
+                    <h5 className="text-xs font-bold text-white leading-snug">
                       {p.title}
                     </h5>
-                    <p className="text-[11px] text-neutral-400 mt-2 leading-relaxed">
+                    <p className="text-[11px] text-neutral-400 mt-1 line-clamp-2">
                       {p.description}
                     </p>
                   </div>
 
                   <button
                     onClick={() => onSelectExercise(p.text, p.id, p.title)}
-                    className="mt-4 w-full py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider bg-white/10 hover:bg-cyan-400 hover:text-black text-white transition-all flex items-center justify-center gap-2 font-mono"
+                    className="mt-3 w-full py-1.5 rounded-lg text-xs font-semibold bg-white/10 hover:bg-white text-white hover:text-black transition-all flex items-center justify-center gap-1.5 font-mono"
                   >
-                    <span>Start Isolation Drill</span>
+                    <span>Start Drill</span>
                     <span>→</span>
                   </button>
                 </div>
@@ -453,34 +622,31 @@ export const LessonsView: React.FC<LessonsViewProps> = ({ progress: propProgress
         </div>
       )}
 
-      {/* ================= FINGER BIOMECHANICS & RADAR VIEW ================= */}
+      {/* ================= FINGER RADAR VIEW ================= */}
       {activeTab === 'weakness' && (
-        <div className="flex flex-col gap-6 animate-fade-in">
-          <div className="bento-card p-6 md:p-8 bg-neutral-950/80 border border-white/10 rounded-3xl">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+        <div className="flex flex-col gap-5 animate-fade-in">
+          <div className="p-6 md:p-7 rounded-2xl bg-neutral-900/60 border border-white/10 backdrop-blur-xl">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 mb-6">
               <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-base">🦾</span>
-                  <h3 className="text-xl font-bold text-white">Finger Accuracy & Biomechanical Analysis</h3>
-                </div>
-                <p className="text-neutral-400 text-xs max-w-xl">
-                  SnapType monitors individual finger impact velocity, misclicks, and anchor drift. Weaker fingers receive higher drill weight.
+                <h3 className="text-lg font-bold text-white">9-Finger Biomechanical Radar</h3>
+                <p className="text-neutral-400 text-xs mt-0.5 max-w-xl">
+                  SnapType monitors individual finger impact velocity, misclicks, and anchor drift.
                 </p>
               </div>
 
               <button
                 onClick={handleStartWeaknessDrill}
-                className="px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider bg-white text-black hover:bg-neutral-200 transition-all flex items-center gap-2 shadow-lg"
+                className="px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider bg-white text-black hover:bg-neutral-200 transition-all flex items-center gap-2 shadow-sm font-mono"
               >
-                <span>Launch Targeted Repair Drill</span>
+                <span>Repair Weak Fingers</span>
                 <span>→</span>
               </button>
             </div>
 
             {/* Error-Prone Keys Highlight Chips */}
-            <div className="mb-6 p-4 rounded-2xl bg-neutral-900/60 border border-white/10">
-              <span className="text-xs font-bold uppercase tracking-wider text-neutral-400 block mb-2">
-                Top Error-Prone Letters & Hard Keys
+            <div className="mb-6 p-4 rounded-xl bg-white/5 border border-white/10">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 block mb-2">
+                Identified Error-Prone Keycaps
               </span>
               {adaptiveProfile.weakestKeys.length > 0 ? (
                 <div className="flex flex-wrap gap-2">
@@ -490,13 +656,13 @@ export const LessonsView: React.FC<LessonsViewProps> = ({ progress: propProgress
                     return (
                       <div
                         key={k}
-                        className="px-3 py-1.5 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-center gap-2"
+                        className="px-2.5 py-1 rounded-lg bg-rose-500/10 border border-rose-500/30 flex items-center gap-1.5"
                       >
-                        <span className="font-mono font-bold text-white text-sm uppercase">
+                        <span className="font-mono font-bold text-white text-xs uppercase">
                           {k === ' ' ? 'Space' : k}
                         </span>
                         <span className="text-[10px] font-mono text-rose-300 font-semibold">
-                          {errRate}% error
+                          {errRate}% err
                         </span>
                       </div>
                     );
@@ -510,7 +676,7 @@ export const LessonsView: React.FC<LessonsViewProps> = ({ progress: propProgress
             </div>
 
             {/* 9-Finger Accuracy Bars Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {ORDERED_FINGERS.map(fingerId => {
                 const meta = FINGER_META[fingerId];
                 const stats = adaptiveProfile.fingerStats[fingerId];
@@ -529,10 +695,10 @@ export const LessonsView: React.FC<LessonsViewProps> = ({ progress: propProgress
                 return (
                   <div
                     key={fingerId}
-                    className={`p-4 rounded-2xl border transition-all ${
+                    className={`p-3.5 rounded-xl border transition-all ${
                       isWeak
-                        ? 'bg-rose-950/20 border-rose-500/40 shadow-sm'
-                        : 'bg-neutral-900/40 border-white/5'
+                        ? 'bg-rose-950/20 border-rose-500/40'
+                        : 'bg-white/5 border-white/10'
                     }`}
                   >
                     <div className="flex justify-between items-start mb-2">
@@ -540,252 +706,29 @@ export const LessonsView: React.FC<LessonsViewProps> = ({ progress: propProgress
                         <div className="flex items-center gap-1.5">
                           <span className="text-xs font-bold text-white">{meta.label}</span>
                           {isWeak && (
-                            <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-rose-500/30 text-rose-200 border border-rose-500/40">
-                              Needs Drill
+                            <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-rose-500/30 text-rose-200">
+                              Drill
                             </span>
                           )}
                         </div>
                         <span className="text-[10px] font-mono text-neutral-400">{meta.defaultKeys}</span>
                       </div>
                       <div className="text-right">
-                        <span className="text-sm font-mono font-bold text-white">{accuracy}%</span>
-                        <div className="text-[9px] font-mono text-neutral-400">{attempts} hits</div>
+                        <span className="text-xs font-mono font-bold text-white">{accuracy}%</span>
+                        <div className="text-[9px] font-mono text-neutral-500">{attempts} hits</div>
                       </div>
                     </div>
 
                     {/* Accuracy Bar */}
-                    <div className="w-full h-2 bg-neutral-800 rounded-full overflow-hidden mb-2">
+                    <div className="w-full h-1.5 bg-neutral-800 rounded-full overflow-hidden">
                       <div
                         className={`h-full ${colorClass} transition-all duration-300 rounded-full`}
                         style={{ width: `${accuracy}%` }}
                       />
                     </div>
-
-                    {/* Weakest keys for this finger */}
-                    {stats?.weakKeys && stats.weakKeys.length > 0 && (
-                      <div className="text-[10px] font-mono text-neutral-400 flex items-center gap-1 mt-1">
-                        <span>Frequent errors:</span>
-                        <span className="text-rose-300 font-bold uppercase">{stats.weakKeys.join(', ')}</span>
-                      </div>
-                    )}
                   </div>
                 );
               })}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ================= CURRICULUM VIEW ================= */}
-      {activeTab === 'curriculum' && (
-        <div className="flex flex-col gap-6 animate-fade-in">
-          {/* Smart Recommendation Banner if available */}
-          {recommendedLesson && (
-            <div className="p-4 rounded-2xl bg-gradient-to-r from-indigo-950/60 via-purple-950/40 to-neutral-900 border border-indigo-500/30 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-300 shrink-0">
-                  🎯
-                </div>
-                <div>
-                  <span className="text-[10px] font-mono uppercase tracking-wider text-indigo-300 font-bold">
-                    Recommended Next Mastery Step
-                  </span>
-                  <h4 className="text-sm font-bold text-white">
-                    {recommendedLesson.stageTitle} — {recommendedLesson.title}
-                  </h4>
-                </div>
-              </div>
-
-              <button
-                onClick={() => {
-                  setActiveLesson(recommendedLesson);
-                  setSelectedStage(recommendedLesson.stage);
-                  setSelectedDayNumber(null);
-                }}
-                className="px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider bg-indigo-500 hover:bg-indigo-400 text-white transition-all shrink-0"
-              >
-                Jump to Lesson →
-              </button>
-            </div>
-          )}
-
-          {/* Stage Selector Pills (if not filtering by day) */}
-          {selectedDayNumber === null ? (
-            <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin">
-              {stages.map(st => {
-                const isSelected = selectedStage === st.num;
-                const stageLessonList = LESSONS.filter(l => l.stage === st.num);
-                const stageDone = stageLessonList.filter(l => progress[l.id]?.completed).length;
-
-                return (
-                  <button
-                    key={st.num}
-                    onClick={() => {
-                      setSelectedStage(st.num);
-                      const firstInStage = LESSONS.find(l => l.stage === st.num);
-                      if (firstInStage) setActiveLesson(firstInStage);
-                    }}
-                    className={`px-4 py-3 rounded-2xl flex flex-col text-left shrink-0 transition-all border ${
-                      isSelected
-                        ? 'bg-white text-black border-white shadow-lg'
-                        : 'bg-neutral-900/80 hover:bg-neutral-800 text-neutral-400 border-white/5'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between gap-4">
-                      <span className={`text-[10px] font-bold uppercase tracking-wider ${isSelected ? 'text-neutral-600' : 'text-neutral-500'}`}>
-                        Stage {st.num}
-                      </span>
-                      <span className={`text-[9px] font-mono ${isSelected ? 'text-neutral-700' : 'text-neutral-400'}`}>
-                        {stageDone}/{stageLessonList.length}
-                      </span>
-                    </div>
-                    <span className={`text-sm font-bold mt-0.5 ${isSelected ? 'text-black' : 'text-neutral-200'}`}>
-                      {st.title}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="flex items-center justify-between p-3 rounded-2xl bg-indigo-950/40 border border-indigo-500/30">
-              <span className="text-xs font-mono text-indigo-300 font-bold">
-                Filtering by Day {selectedDayNumber}: {MASTERY_PLAN.find(d => d.day === selectedDayNumber)?.title}
-              </span>
-              <button
-                onClick={() => setSelectedDayNumber(null)}
-                className="text-xs font-mono text-neutral-400 hover:text-white underline"
-              >
-                Show All Stages
-              </button>
-            </div>
-          )}
-
-          {/* Main Grid: Lessons List + Active Lesson Details */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Left Column: Stage Lessons List */}
-            <div className="flex flex-col gap-3">
-              {stageLessons.map(lesson => {
-                const isSelected = activeLesson.id === lesson.id;
-                const p = progress[lesson.id];
-                const isDone = p?.completed;
-                const unlocked = isLessonUnlocked(lesson.id);
-
-                return (
-                  <div
-                    key={lesson.id}
-                    onClick={() => setActiveLesson(lesson)}
-                    className={`p-4 rounded-2xl border cursor-pointer transition-all ${
-                      isSelected
-                        ? 'bg-neutral-900/90 border-indigo-500/60 shadow-lg'
-                        : 'bg-neutral-950/60 hover:bg-neutral-900/60 border-white/5'
-                    }`}
-                  >
-                    <div className="flex justify-between items-start">
-                      <span className="text-[10px] font-mono uppercase tracking-wider text-neutral-400">
-                        {lesson.targetKeys.slice(0, 5).join('  ')}
-                      </span>
-                      <div className="flex items-center gap-1.5">
-                        {!unlocked && (
-                          <span className="text-[10px] font-mono text-amber-400/80">🔒</span>
-                        )}
-                        {isDone ? renderStars(p.stars || 1) : <span className="text-[10px] font-mono text-neutral-500">Pending</span>}
-                      </div>
-                    </div>
-                    <h4 className="text-sm font-bold text-white mt-1">{lesson.title}</h4>
-                    <p className="text-xs text-neutral-400 line-clamp-2 mt-1">{lesson.description}</p>
-                    
-                    <div className="flex items-center justify-between mt-2 pt-2 border-t border-white/5 text-[10px] font-mono text-neutral-400">
-                      <span>Target: {lesson.minWpm} WPM</span>
-                      <span>{lesson.exercises.length} Exercises</span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Right 2 Columns: Active Lesson Interactive Panel */}
-            <div className="md:col-span-2 bento-card p-6 md:p-8 flex flex-col justify-between gap-6 bg-neutral-950/80 border border-white/10 rounded-3xl">
-              <div>
-                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-4 mb-4">
-                  <div>
-                    <span className="text-xs font-mono text-indigo-400 uppercase tracking-widest font-bold">
-                      {activeLesson.stageTitle}
-                    </span>
-                    <h3 className="text-2xl font-bold text-white mt-1">{activeLesson.title}</h3>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="text-right">
-                      <div className="text-[10px] uppercase font-bold text-neutral-500">Grading Target</div>
-                      <div className="text-sm font-mono font-bold text-neutral-300">
-                        {activeLesson.minWpm} WPM / {activeLesson.minAccuracy}% Acc
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <p className="text-neutral-300 text-sm leading-relaxed mb-6">{activeLesson.description}</p>
-
-                {/* Target Keys Tags */}
-                <div className="mb-6">
-                  <span className="text-xs uppercase font-bold tracking-wider text-neutral-400 block mb-2">
-                    Keycap Focus Area
-                  </span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {activeLesson.targetKeys.map(k => (
-                      <span
-                        key={k}
-                        className="px-3 py-1.5 rounded-lg bg-neutral-900 border border-white/10 text-white font-mono text-xs font-bold shadow-sm"
-                      >
-                        {k === ' ' ? 'Space' : k.toUpperCase()}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Exercises in this lesson */}
-                <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-xs uppercase font-bold tracking-wider text-neutral-400">
-                      Lesson Exercises & Deep Drills
-                    </span>
-                    <span className="text-[11px] font-mono text-neutral-500">
-                      {activeLesson.exercises.length} Progressive Drills (~350–450 chars each)
-                    </span>
-                  </div>
-
-                  <div className="flex flex-col gap-3">
-                    {activeLesson.exercises.map((ex, idx) => (
-                      <div
-                        key={ex.id}
-                        className="p-4 rounded-2xl bg-white/5 border border-white/10 hover:border-indigo-500/50 transition-all flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4"
-                      >
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-white/10 text-neutral-300 font-bold uppercase">
-                              {ex.type} • Part {idx + 1}
-                            </span>
-                            <h5 className="text-sm font-bold text-white truncate">{ex.title}</h5>
-                            <span className="text-[10px] font-mono text-neutral-400">
-                              ({ex.text.length} chars)
-                            </span>
-                          </div>
-                          <p className="text-xs font-mono text-neutral-400 truncate mt-1.5">"{ex.text}"</p>
-                        </div>
-
-                        <button
-                          onClick={() => onSelectExercise(ex.text, activeLesson.id, `${activeLesson.title} - ${ex.title}`)}
-                          className="px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider bg-white text-black hover:bg-neutral-200 transition-all shrink-0 flex items-center gap-1.5 shadow-[0_0_15px_rgba(255,255,255,0.2)]"
-                        >
-                          <span>Start Drill</span>
-                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                          </svg>
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
         </div>

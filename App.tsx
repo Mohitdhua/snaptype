@@ -12,12 +12,12 @@ type AppHistoryState = {
   homeTab: HomeTab;
 };
 
-const HOME_TABS: { id: HomeTab; label: string; icon: string; badge?: string }[] = [
-  { id: 'LESSONS', label: 'Lessons', icon: '🎓', badge: '10-Day' },
-  { id: 'PRACTICE', label: 'Passages', icon: '📖', badge: 'Exam' },
+const HOME_TABS: { id: HomeTab; label: string; icon: string }[] = [
+  { id: 'LESSONS', label: 'Lessons', icon: '🎓' },
+  { id: 'PRACTICE', label: 'Passages', icon: '📖' },
   { id: 'CREATE', label: 'Custom / OCR', icon: '⚡' },
   { id: 'SAVED', label: 'Saved Vault', icon: '📁' },
-  { id: 'PROGRESS', label: 'Analytics', icon: '📊', badge: 'Live' },
+  { id: 'PROGRESS', label: 'Analytics', icon: '📊' },
 ];
 
 const getRouteKey = (nextGameState: GameState, nextHomeTab: HomeTab) =>
@@ -516,13 +516,6 @@ const App: React.FC = () => {
                     >
                       <span>{tab.icon}</span>
                       <span>{tab.label}</span>
-                      {tab.badge && (
-                        <span className={`text-[9px] font-mono px-1.5 py-0.2 rounded-full font-bold ${
-                          isActive ? 'bg-black/10 text-black' : 'bg-white/10 text-neutral-300'
-                        }`}>
-                          {tab.badge}
-                        </span>
-                      )}
                     </button>
                   );
                 })}
