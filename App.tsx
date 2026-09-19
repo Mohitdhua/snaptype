@@ -1,20 +1,23 @@
 import React, { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from './components/Button';
 import { extractTextFromImage } from './services/geminiService';
-import { deleteSavedTest, getHistory, getSavedTests, getUserStats, saveResult, saveTest } from './services/storageService';
-import { GameMode, GameState, SavedTest, StoredResult, TestResults, TimeLimit, UserStats } from './types';
+import { deleteSavedTest, getHistory, getSavedTests, getUserStats, saveLessonProgress, saveResult, saveTest, updateAdaptiveProfile } from './services/storageService';
+import { GameMode, GameState, PracticePassage, SavedTest, StoredResult, TestResults, TimeLimit, UserStats } from './types';
+import { LESSONS } from './data/lessonsData';
 
-type HomeTab = 'CREATE' | 'SAVED' | 'PROGRESS';
+type HomeTab = 'LESSONS' | 'PRACTICE' | 'CREATE' | 'SAVED' | 'PROGRESS';
 type AppHistoryState = {
   __snaptype: true;
   gameState: GameState;
   homeTab: HomeTab;
 };
 
-const HOME_TABS: { id: HomeTab; label: string }[] = [
-  { id: 'CREATE', label: 'Create' },
-  { id: 'SAVED', label: 'Library' },
-  { id: 'PROGRESS', label: 'Progress' },
+const HOME_TABS: { id: HomeTab; label: string; icon: string; badge?: string }[] = [
+  { id: 'LESSONS', label: 'Lessons', icon: '🎓', badge: '10-Day' },
+  { id: 'PRACTICE', label: 'Passages', icon: '📖', badge: 'Exam' },
+  { id: 'CREATE', label: 'Custom / OCR', icon: '⚡' },
+  { id: 'SAVED', label: 'Saved Vault', icon: '📁' },
+  { id: 'PROGRESS', label: 'Analytics', icon: '📊', badge: 'Live' },
 ];
 
 const getRouteKey = (nextGameState: GameState, nextHomeTab: HomeTab) =>
@@ -26,6 +29,9 @@ const normalizeHardKey = (key: string) => {
   return key;
 };
 
+const LessonsView = lazy(() => import('./components/LessonsView').then(module => ({ default: module.LessonsView })));
+const PracticeLibraryView = lazy(() => import('./components/PracticeLibraryView').then(module => ({ default: module.PracticeLibraryView })));
+const AnalyticsDashboard = lazy(() => import('./components/AnalyticsDashboard').then(module => ({ default: module.AnalyticsDashboard })));
 const ImageUploader = lazy(() => import('./components/ImageUploader').then(module => ({ default: module.ImageUploader })));
 const PhysicalTypingTest = lazy(() => import('./components/PhysicalTypingTest').then(module => ({ default: module.PhysicalTypingTest })));
 const ProgressChart = lazy(() => import('./components/ProgressChart').then(module => ({ default: module.ProgressChart })));
@@ -43,7 +49,7 @@ const SectionLoader: React.FC = () => (
 
 const App: React.FC = () => {
   const [gameState, setGameState] = useState<GameState>(GameState.UPLOAD);
-  const [homeTab, setHomeTab] = useState<HomeTab>('CREATE');
+  const [homeTab, setHomeTab] = useState<HomeTab>('LESSONS');
   const [gameMode, setGameMode] = useState<GameMode>('DIGITAL');
   const [text, setText] = useState('');
   const [originalText, setOriginalText] = useState('');
@@ -56,6 +62,7 @@ const App: React.FC = () => {
   const [savedTests, setSavedTests] = useState<SavedTest[]>([]);
   const [isSSCMode, setIsSSCMode] = useState(false);
   const [activeTestId, setActiveTestId] = useState<string | null>(null);
+  const [activeLessonId, setActiveLessonId] = useState<string | null>(null);
   const isRestoringFromHistoryRef = useRef(false);
   const hasInitializedHistoryRef = useRef(false);
   const lastRouteKeyRef = useRef('');
@@ -136,6 +143,7 @@ const App: React.FC = () => {
     selectedTimeLimit,
     sscEnabled,
     testId,
+    lessonId,
   }: {
     rawText: string;
     imageSrc: string | null;
@@ -143,6 +151,7 @@ const App: React.FC = () => {
     selectedTimeLimit: TimeLimit;
     sscEnabled: boolean;
     testId: string | null;
+    lessonId?: string | null;
   }) => {
     const gameText = prepareTextForGame(rawText, selectedTimeLimit);
     setOriginalText(rawText);
@@ -152,12 +161,12 @@ const App: React.FC = () => {
     setGameMode(mode);
     setIsSSCMode(sscEnabled);
     setActiveTestId(testId);
+    setActiveLessonId(lessonId || null);
     setGameState(GameState.PLAYING);
   };
 
   const goHomeCreate = () => {
     setGameState(GameState.UPLOAD);
-    setHomeTab('CREATE');
     setIsProcessing(false);
     setResults(null);
     setTimeLimit(0);
@@ -166,6 +175,7 @@ const App: React.FC = () => {
     setImagePreview(null);
     setIsSSCMode(false);
     setActiveTestId(null);
+    setActiveLessonId(null);
   };
 
   const handleImageSelect = async (
@@ -229,6 +239,23 @@ const App: React.FC = () => {
   };
 
   const handleComplete = (res: TestResults) => {
+    if (activeLessonId) {
+      const lesson = LESSONS.find(l => l.id === activeLessonId);
+      const minAcc = lesson?.minAccuracy ?? 90;
+      const minWpm = lesson?.minWpm ?? 15;
+      
+      let stars = 1;
+      if (res.accuracy >= minAcc + 4 && res.netWpm >= minWpm + 5) {
+        stars = 3;
+      } else if (res.accuracy >= minAcc && res.netWpm >= minWpm) {
+        stars = 2;
+      }
+      saveLessonProgress(activeLessonId, res.netWpm, res.accuracy, stars);
+    }
+
+    // Update adaptive learning algorithm profile across all sessions
+    updateAdaptiveProfile(res);
+
     const { updatedHistory, updatedStats, newBadges, xpGained } = saveResult(res, gameMode, {
       testId: activeTestId ?? undefined,
     });
@@ -239,8 +266,34 @@ const App: React.FC = () => {
       badgesUnlocked: newBadges,
       xpGained,
       testId: activeTestId ?? undefined,
+      lessonId: activeLessonId ?? undefined,
     });
     setGameState(GameState.RESULTS);
+  };
+
+  const handleSelectLessonExercise = (exerciseText: string, lessonId: string, title: string) => {
+    startGame({
+      rawText: exerciseText,
+      imageSrc: null,
+      mode: 'DIGITAL',
+      selectedTimeLimit: 0,
+      sscEnabled: false,
+      testId: null,
+      lessonId,
+    });
+  };
+
+  const handleStartPassage = (passage: PracticePassage, mode: GameMode, selectedTimeLimit: TimeLimit) => {
+    const isSSC = passage.category === 'ssc' || passage.category === 'legal';
+    startGame({
+      rawText: passage.text,
+      imageSrc: null,
+      mode,
+      selectedTimeLimit,
+      sscEnabled: isSSC,
+      testId: passage.id,
+      lessonId: null,
+    });
   };
 
   const handleRetry = () => {
@@ -339,6 +392,26 @@ const App: React.FC = () => {
   }, [history]);
 
   const renderUploadTab = () => {
+    if (homeTab === 'LESSONS') {
+      return (
+        <div className="w-full max-w-6xl animate-fade-in">
+          <Suspense fallback={<SectionLoader />}>
+            <LessonsView onSelectExercise={handleSelectLessonExercise} />
+          </Suspense>
+        </div>
+      );
+    }
+
+    if (homeTab === 'PRACTICE') {
+      return (
+        <div className="w-full max-w-6xl animate-fade-in">
+          <Suspense fallback={<SectionLoader />}>
+            <PracticeLibraryView onStartPassage={handleStartPassage} />
+          </Suspense>
+        </div>
+      );
+    }
+
     if (homeTab === 'CREATE') {
       return (
         <div className="text-center w-full flex flex-col items-center">
@@ -383,119 +456,129 @@ const App: React.FC = () => {
       );
     }
 
-    return (
-      <div className="w-full max-w-5xl animate-fade-in space-y-8">
-        <div className="text-center">
-          <h2 className="text-3xl font-bold text-stitch-accent">Performance Dashboard</h2>
-          <p className="text-stitch-muted mt-2">Track speed, accuracy, and consistency over time.</p>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="bento-card p-5">
-            <div className="text-xs uppercase tracking-wider text-stitch-muted mb-1">Tests</div>
-            <div className="text-3xl font-mono text-stitch-accent">{history.length}</div>
-          </div>
-          <div className="bento-card p-5">
-            <div className="text-xs uppercase tracking-wider text-stitch-muted mb-1">Average WPM</div>
-            <div className="text-3xl font-mono text-stitch-accent">{averageWpm}</div>
-          </div>
-          <div className="bento-card p-5">
-            <div className="text-xs uppercase tracking-wider text-stitch-muted mb-1">Best WPM</div>
-            <div className="text-3xl font-mono text-stitch-accent">{userStats?.bestWpm || 0}</div>
-          </div>
-        </div>
-
-        {history.length > 0 ? (
+    if (homeTab === 'PROGRESS') {
+      return (
+        <div className="w-full max-w-6xl animate-fade-in">
           <Suspense fallback={<SectionLoader />}>
-            <ProgressChart history={history} className="h-80" />
+            <AnalyticsDashboard
+              history={history}
+              stats={userStats}
+              onLaunchDrill={handleSelectLessonExercise}
+              onNavigateTab={(tab) => setHomeTab(tab)}
+            />
           </Suspense>
-        ) : (
-          <div className="bento-card p-8 text-center flex flex-col items-center">
-            <p className="text-stitch-muted mb-4">No attempts yet. Complete one session to populate charts.</p>
-            <Button onClick={() => setHomeTab('CREATE')}>Start a Session</Button>
-          </div>
-        )}
-      </div>
-    );
+        </div>
+      );
+    }
+
+    return null;
   };
 
   return (
     <div className="min-h-screen bg-stitch-dark text-stitch-accent font-sans relative overflow-hidden">
       <div className="mesh-bg" />
 
-      <header className="fixed top-0 left-0 right-0 p-4 md:p-6 z-50 pointer-events-none">
-        <div className="max-w-7xl mx-auto flex flex-col gap-4 pointer-events-auto items-center">
+      <header className="fixed top-0 left-0 right-0 p-3 md:p-4 z-50 pointer-events-none">
+        <div className="max-w-7xl mx-auto flex flex-col gap-2 pointer-events-auto items-center">
 
-          {/* Main Top Nav */}
-          <div className="flex items-center justify-between w-full max-w-3xl px-6 py-3 rounded-full bento-card">
+          {/* Main Top Nav Bar */}
+          <div className="flex items-center justify-between w-full max-w-5xl px-4 md:px-6 py-2.5 rounded-2xl md:rounded-full bg-neutral-950/80 backdrop-blur-xl border border-white/10 shadow-2xl">
             <button
               type="button"
-              className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+              className="flex items-center gap-2.5 hover:opacity-85 transition-opacity shrink-0"
               onClick={goHomeCreate}
-              title="Go to Home"
+              title="SnapType Typing Master Home"
             >
-              <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center">
-                <span className="text-black font-bold text-lg leading-none">S</span>
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-500 to-cyan-400 flex items-center justify-center shadow-md">
+                <span className="text-white font-black text-base leading-none">S</span>
               </div>
-              <h1 className="text-xl font-bold tracking-tight text-stitch-accent">SnapType</h1>
+              <div className="text-left hidden sm:block">
+                <div className="text-sm font-extrabold tracking-tight text-white leading-tight">SnapType</div>
+                <div className="text-[9px] font-mono text-cyan-400 leading-none">Blind Typing Pro</div>
+              </div>
             </button>
 
+            {/* Desktop Navigation Tabs */}
             {gameState === GameState.UPLOAD && (
-              <nav className="hidden sm:flex items-center gap-1 bg-white/5 rounded-full p-1 border border-white/10">
-                {HOME_TABS.map(tab => (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    onClick={() => setHomeTab(tab.id)}
-                    className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
-                      homeTab === tab.id ? 'bg-white text-black shadow-md' : 'text-stitch-muted hover:text-white'
-                    }`}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
+              <nav className="hidden md:flex items-center gap-1 bg-white/5 rounded-full p-1 border border-white/10">
+                {HOME_TABS.map(tab => {
+                  const isActive = homeTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => setHomeTab(tab.id)}
+                      className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 ${
+                        isActive
+                          ? 'bg-white text-black shadow-lg shadow-white/10'
+                          : 'text-neutral-400 hover:text-white hover:bg-white/5'
+                      }`}
+                    >
+                      <span>{tab.icon}</span>
+                      <span>{tab.label}</span>
+                      {tab.badge && (
+                        <span className={`text-[9px] font-mono px-1.5 py-0.2 rounded-full font-bold ${
+                          isActive ? 'bg-black/10 text-black' : 'bg-white/10 text-neutral-300'
+                        }`}>
+                          {tab.badge}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
               </nav>
             )}
 
-            <div className="flex items-center gap-3">
+            {/* Gamification Cockpit & Close Button */}
+            <div className="flex items-center gap-3 shrink-0">
               {gameState !== GameState.UPLOAD && (
                 <button
                   type="button"
                   onClick={goHomeCreate}
-                  className="text-xs font-semibold px-4 py-2 rounded-full bento-card hover:bg-white/10 transition-colors text-stitch-accent"
+                  className="text-xs font-bold px-4 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 transition-all text-white border border-white/10"
                 >
-                  Close
+                  ✕ Exit Test
                 </button>
               )}
               {userStats && (
-                <div className="flex items-center gap-3 text-xs font-medium text-stitch-muted">
-                  <div className="flex items-center gap-1.5" title="Daily Streak">
-                    <span className="w-2 h-2 rounded-full bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.8)]"></span>
-                    <span className="text-stitch-accent">{userStats.currentStreak}</span>
+                <div className="flex items-center gap-2.5 text-xs font-mono bg-white/5 px-3 py-1.5 rounded-xl border border-white/10">
+                  <div className="flex items-center gap-1" title="Daily Practice Streak">
+                    <span>🔥</span>
+                    <span className="text-orange-400 font-bold">{userStats.currentStreak}d</span>
                   </div>
-                  <div className="w-px h-3 bg-white/20"></div>
-                  <div className="flex items-center gap-1.5" title="Total XP">
-                    <span>XP</span>
-                    <span className="text-stitch-accent font-bold">{userStats.xp}</span>
+                  <div className="w-px h-3 bg-white/20" />
+                  <div className="flex items-center gap-1" title="Earned XP">
+                    <span className="text-amber-400">⭐</span>
+                    <span className="text-white font-bold">{userStats.xp}</span>
                   </div>
+                  {userStats.bestWpm > 0 && (
+                    <>
+                      <div className="w-px h-3 bg-white/20 hidden sm:block" />
+                      <div className="hidden sm:flex items-center gap-1 text-cyan-300 font-bold" title="Personal Best WPM">
+                        <span>⚡</span>
+                        <span>{userStats.bestWpm} WPM</span>
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
             </div>
           </div>
 
-          {/* Mobile Nav */}
+          {/* Mobile Nav Bar */}
           {gameState === GameState.UPLOAD && (
-             <nav className="flex sm:hidden items-center gap-1 bg-white/5 rounded-full p-1 border border-white/10 w-fit">
+            <nav className="flex md:hidden items-center gap-1 bg-neutral-950/90 backdrop-blur-md rounded-2xl p-1 border border-white/10 w-fit max-w-full overflow-x-auto px-2 scrollbar-none shadow-lg">
               {HOME_TABS.map(tab => (
                 <button
                   key={tab.id}
                   type="button"
                   onClick={() => setHomeTab(tab.id)}
-                  className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
-                    homeTab === tab.id ? 'bg-white text-black shadow-md' : 'text-stitch-muted hover:text-white'
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1 ${
+                    homeTab === tab.id ? 'bg-white text-black shadow-md' : 'text-neutral-400 hover:text-white'
                   }`}
                 >
-                  {tab.label}
+                  <span>{tab.icon}</span>
+                  <span>{tab.label}</span>
                 </button>
               ))}
             </nav>
@@ -507,9 +590,9 @@ const App: React.FC = () => {
       <main
         className={
           gameState === GameState.PLAYING
-            ? 'container relative z-10 mx-auto px-3 md:px-4 pt-20 pb-3 h-screen overflow-hidden flex flex-col items-center'
-            : `container mx-auto px-4 pb-12 min-h-screen flex flex-col items-center justify-center ${
-                gameState === GameState.UPLOAD ? 'pt-40 md:pt-44 relative z-10' : 'pt-24 relative z-10'
+            ? 'container relative z-10 mx-auto px-3 md:px-4 pt-16 pb-3 h-screen overflow-hidden flex flex-col items-center'
+            : `container mx-auto px-4 pb-12 min-h-screen flex flex-col items-center justify-start ${
+                gameState === GameState.UPLOAD ? 'pt-24 md:pt-28 relative z-10' : 'pt-20 relative z-10'
               }`
         }
       >
@@ -518,7 +601,7 @@ const App: React.FC = () => {
         <Suspense fallback={<SectionLoader />}>
           {gameState === GameState.PLAYING &&
             (gameMode === 'DIGITAL' ? (
-              <TypingTest text={text} timeLimit={timeLimit} onComplete={handleComplete} onRestart={goHomeCreate} isSSC={isSSCMode} />
+              <TypingTest text={text} timeLimit={timeLimit} onComplete={handleComplete} onRestart={goHomeCreate} isSSC={isSSCMode} lessonId={activeLessonId || undefined} />
             ) : (
               <PhysicalTypingTest
                 ocrText={text}
@@ -537,9 +620,12 @@ const App: React.FC = () => {
         </Suspense>
       </main>
 
-      <footer className="fixed bottom-4 right-4 text-xs text-slate-500 pointer-events-none">Powered by Gemini</footer>
+      <footer className="fixed bottom-3 right-4 text-[10px] font-mono text-neutral-500 pointer-events-none">
+        SnapType Touch Typing Engine • AI Calibrated
+      </footer>
     </div>
   );
 };
 
 export default App;
+

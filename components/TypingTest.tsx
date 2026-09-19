@@ -1,10 +1,11 @@
-
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Button } from './Button';
-import { TestResults, TimeLimit } from '../types';
+import { HardcoreMode, TestResults, TimeLimit, GhostPacerMode } from '../types';
 import { levenshteinDistance } from '../utils/stringUtils';
 import { VirtualKeyboard } from './VirtualKeyboard';
-import { playSound } from '../services/soundService';
+import { HandsGuide } from './HandsGuide';
+import { playSound, playKeystrokeSound, getSoundProfile, setSoundProfile, SoundProfile, startMetronome, stopMetronome } from '../services/soundService';
+import { getUserStats } from '../services/storageService';
 
 const TYPING_TEXT_SCALE_KEY = 'snaptype_typing_text_scale_v1';
 const WINDOW_PRE_CHARS = 900;
@@ -38,6 +39,8 @@ interface TypingTestProps {
   onComplete: (results: TestResults) => void;
   onRestart: () => void;
   isSSC?: boolean;
+  lessonId?: string;
+  initialHardcoreMode?: HardcoreMode;
 }
 
 type CharStatus = 'pending' | 'correct' | 'incorrect';
@@ -64,13 +67,21 @@ const CharItemBase: React.FC<CharItemProps> = ({ char, status, index }) => {
     const isNewline = char === '\n';
     let className = "relative font-mono transition-colors duration-75 inline-block ";
     
-    if (status === 'pending') className += "text-slate-500";
-    else if (status === 'correct') className += "text-emerald-400";
-    else if (status === 'incorrect') className += "text-rose-500 bg-rose-500/20 rounded";
+    if (status === 'pending') {
+      className += "text-neutral-500/85";
+    } else if (status === 'correct') {
+      className += "text-neutral-100 font-medium";
+    } else if (status === 'incorrect') {
+      className += "text-rose-400 bg-rose-500/20 border-b-2 border-rose-500/90 rounded-[2px]";
+    }
 
     return (
         <span data-char-idx={index} className={className}>
-            {isNewline ? <span className="text-cyan-400/80">{ENTER_SYMBOL}</span> : char}
+            {isNewline ? (
+              <span className={status === 'pending' ? "text-neutral-600/70 font-sans text-[0.8em]" : "text-indigo-400 font-sans text-[0.8em]"}>
+                {ENTER_SYMBOL}
+              </span>
+            ) : char}
             {isNewline && <br/>}
         </span>
     );
@@ -107,7 +118,7 @@ const TokenItemBase: React.FC<TokenItemProps> = ({ token, input }) => {
   });
 
   if (token.isWord) {
-    return <span className="inline-block align-top">{renderedChars}</span>;
+    return <span className="inline-block whitespace-nowrap">{renderedChars}</span>;
   }
   return <>{renderedChars}</>;
 };
@@ -133,14 +144,37 @@ const TokenItem = React.memo(TokenItemBase, (prev, next) => {
 
 TokenItemBase.displayName = 'TokenItem';
 
-export const TypingTest: React.FC<TypingTestProps> = ({ text, timeLimit, onComplete, onRestart, isSSC = false }) => {
+export const TypingTest: React.FC<TypingTestProps> = ({
+  text,
+  timeLimit,
+  onComplete,
+  onRestart,
+  isSSC = false,
+  lessonId,
+  initialHardcoreMode = 'NONE'
+}) => {
   const [input, setInput] = useState('');
   const [inputRevision, setInputRevision] = useState(0);
   const [startTime, setStartTime] = useState<number | null>(null);
   const [currIndex, setCurrIndex] = useState(0);
   const [hardKeys, setHardKeys] = useState<Record<string, number>>({});
-  const [caretPos, setCaretPos] = useState({ top: 0, left: 0, width: 12 });
-  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [caretPos, setCaretPos] = useState({ top: 0, left: 0, width: 2.5, height: 32 });
+  const [showKeyboard, setShowKeyboard] = useState(true);
+  const [showHands, setShowHands] = useState(false);
+  const [hardcoreMode, setHardcoreMode] = useState<HardcoreMode>(initialHardcoreMode);
+  const [soundProfile, setSoundProfileState] = useState<SoundProfile>(() => getSoundProfile());
+  const [caretStyle, setCaretStyle] = useState<'line' | 'block' | 'underline'>('line');
+  const [isZenMode, setIsZenMode] = useState(false);
+  const [hasErrorShake, setHasErrorShake] = useState(false);
+  const [pacerMode, setPacerMode] = useState<GhostPacerMode>('OFF');
+  const [isMetronomeOn, setIsMetronomeOn] = useState(false);
+
+  // Latency & reaction time tracking refs
+  const lastKeystrokeTimeRef = useRef<number | null>(null);
+  const keyLatenciesRef = useRef<Record<string, { totalMs: number; count: number }>>({});
+  const totalLatencyMsRef = useRef(0);
+  const latencyCountRef = useRef(0);
+  const userStatsRef = useRef(getUserStats());
   const [textScale, setTextScale] = useState<number>(() => {
     try {
       const raw = localStorage.getItem(TYPING_TEXT_SCALE_KEY);
@@ -225,11 +259,34 @@ export const TypingTest: React.FC<TypingTestProps> = ({ text, timeLimit, onCompl
     setInputRevision(0);
   }, [targetText]);
 
-  // Next expected character for Virtual Keyboard
+  // Next expected character for Virtual Keyboard & hands guide
   const nextChar = useMemo(() => {
-      if (currIndex >= targetText.length) return '';
-      return targetText[currIndex];
+    if (currIndex >= targetText.length) return '';
+    return targetText[currIndex];
   }, [currIndex, targetText]);
+
+  // Target speed for Ghost Pacer
+  const ghostTargetWpm = useMemo(() => {
+    if (pacerMode === '30_WPM') return 30;
+    if (pacerMode === '35_WPM') return 35;
+    if (pacerMode === '40_WPM') return 40;
+    if (pacerMode === '50_WPM') return 50;
+    if (pacerMode === 'PERSONAL_BEST') return Math.max(30, userStatsRef.current.bestWpm || 35);
+    return 0;
+  }, [pacerMode]);
+
+  // Metronome sync effect
+  useEffect(() => {
+    if (isMetronomeOn && startTime && !hasCompletedRef.current) {
+      const targetSpeed = ghostTargetWpm > 0 ? ghostTargetWpm : 35;
+      startMetronome(targetSpeed);
+    } else {
+      stopMetronome();
+    }
+    return () => {
+      stopMetronome();
+    };
+  }, [isMetronomeOn, startTime, ghostTargetWpm]);
 
   // Stats calculation
   const calculateStats = useCallback((useLevenshtein = false): TestResults => {
@@ -295,7 +352,25 @@ export const TypingTest: React.FC<TypingTestProps> = ({ text, timeLimit, onCompl
         }
     }
     
-    const finalResults: TestResults = { ...partialStats, missedWords: missedWordsCount };
+    stopMetronome();
+    const avgLatencyMs = latencyCountRef.current > 0
+      ? Math.round(totalLatencyMsRef.current / latencyCountRef.current)
+      : undefined;
+    const keyLatencies: Record<string, number> = {};
+    for (const [k, v] of Object.entries(keyLatenciesRef.current) as [string, { totalMs: number; count: number }][]) {
+      if (v.count >= 2) {
+        keyLatencies[k] = Math.round(v.totalMs / v.count);
+      }
+    }
+
+    const finalResults: TestResults = {
+      ...partialStats,
+      missedWords: missedWordsCount,
+      avgLatencyMs,
+      keyLatencies: Object.keys(keyLatencies).length > 0 ? keyLatencies : undefined,
+      pacerMode,
+      ghostWpm: ghostTargetWpm > 0 ? ghostTargetWpm : undefined,
+    };
 
     if (isSSC) {
         const effectiveMins = Math.max(0.001, partialStats.timeElapsed / 60);
@@ -401,48 +476,100 @@ export const TypingTest: React.FC<TypingTestProps> = ({ text, timeLimit, onCompl
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [onRestart, startTime]);
 
-  // Keep caret aligned to the active character baseline and scroll only when needed.
+  // Keep caret aligned to the active character and scroll smoothly when needed.
+  const updateCaret = useCallback(() => {
+    const container = containerRef.current;
+    if (!container || chars.length === 0) return;
+
+    const charIndexToMeasure = Math.min(currIndex, chars.length - 1);
+    const cursorEl = container.querySelector(`[data-char-idx="${charIndexToMeasure}"]`) as HTMLSpanElement | null;
+    if (!cursorEl) return;
+
+    // First check if auto-scrolling is needed to keep the cursor in view
+    const initialContainerRect = container.getBoundingClientRect();
+    const initialCursorRect = cursorEl.getBoundingClientRect();
+
+    const topMargin = 32;
+    const bottomMargin = 52;
+    const cursorTopInView = initialCursorRect.top - initialContainerRect.top;
+    const cursorBottomInView = initialCursorRect.bottom - initialContainerRect.top;
+
+    if (cursorBottomInView > container.clientHeight - bottomMargin) {
+      container.scrollTop += (cursorBottomInView - (container.clientHeight - bottomMargin));
+    } else if (cursorTopInView < topMargin) {
+      container.scrollTop -= (topMargin - cursorTopInView);
+    }
+
+    // Always re-measure fresh rects AFTER any potential scroll adjustment
+    const containerRect = container.getBoundingClientRect();
+    const cursorRect = cursorEl.getBoundingClientRect();
+
+    let newLeft = cursorRect.left - containerRect.left + container.scrollLeft;
+    if (currIndex >= chars.length) {
+      newLeft += cursorRect.width;
+    }
+
+    const caretHeight = Math.max(16, Math.round(textScale * 0.9));
+    const caretTop = cursorRect.top - containerRect.top + container.scrollTop + (cursorRect.height - caretHeight) / 2;
+
+    setCaretPos({ top: caretTop, left: newLeft, width: 2.5, height: caretHeight });
+  }, [currIndex, chars.length, textScale]);
+
   useEffect(() => {
-      const rafId = requestAnimationFrame(() => {
-          const container = containerRef.current;
-          if (!container || chars.length === 0) return;
+    const rafId = requestAnimationFrame(updateCaret);
+    return () => cancelAnimationFrame(rafId);
+  }, [updateCaret]);
 
-          const charIndexToMeasure = Math.min(currIndex, chars.length - 1);
-          const cursorEl = container.querySelector(`[data-char-idx="${charIndexToMeasure}"]`) as HTMLSpanElement | null;
-          if (!cursorEl) return;
-
-          const containerRect = container.getBoundingClientRect();
-          const cursorRect = cursorEl.getBoundingClientRect();
-
-          const topMargin = 40;
-          const bottomMargin = 56;
-          const cursorTopInView = cursorRect.top - containerRect.top;
-          const cursorBottomInView = cursorRect.bottom - containerRect.top;
-
-          if (cursorBottomInView > container.clientHeight - bottomMargin) {
-            container.scrollTop += cursorBottomInView - (container.clientHeight - bottomMargin);
-          } else if (cursorTopInView < topMargin) {
-            container.scrollTop -= topMargin - cursorTopInView;
-          }
-
-          let newLeft = cursorRect.left - containerRect.left + container.scrollLeft;
-          let newWidth = Math.max(8, Math.min(28, cursorRect.width));
-          if (currIndex >= chars.length) {
-            newLeft += cursorRect.width;
-            newWidth = Math.max(8, Math.min(20, cursorRect.width * 0.65));
-          }
-
-          const underlineTop = cursorRect.bottom - containerRect.top + container.scrollTop - 4;
-          setCaretPos({ top: underlineTop, left: newLeft, width: newWidth });
-      });
-      return () => cancelAnimationFrame(rafId);
-  }, [currIndex, chars.length]);
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    container.addEventListener('scroll', updateCaret, { passive: true });
+    return () => container.removeEventListener('scroll', updateCaret);
+  }, [updateCaret]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     if (hasCompletedRef.current) return;
     const val = e.target.value.slice(0, targetText.length);
     const prevInput = input;
     if (!startTime) setStartTime(Date.now());
+
+    // Enforce NO_BACKSPACE mode
+    if (hardcoreMode === 'NO_BACKSPACE' && val.length < prevInput.length) {
+      if (soundProfile !== 'off') playSound('error');
+      setHasErrorShake(true);
+      setTimeout(() => setHasErrorShake(false), 180);
+      return;
+    }
+
+    // Enforce STOP_ON_ERROR mode
+    if (hardcoreMode === 'STOP_ON_ERROR' && val.length > prevInput.length) {
+      const newCharIndex = val.length - 1;
+      if (newCharIndex < targetText.length && val[newCharIndex] !== targetText[newCharIndex]) {
+        if (soundProfile !== 'off') playSound('error');
+        setHasErrorShake(true);
+        setTimeout(() => setHasErrorShake(false), 180);
+        const expectedChar = targetText[newCharIndex];
+        const key = expectedChar === ' ' ? 'Space' : expectedChar === '\n' ? 'Enter' : expectedChar;
+        setHardKeys(prev => ({ ...prev, [key]: (prev[key] || 0) + 1 }));
+        return;
+      }
+    }
+
+    // Enforce SUDDEN_DEATH mode
+    if (hardcoreMode === 'SUDDEN_DEATH' && val.length > prevInput.length) {
+      const newCharIndex = val.length - 1;
+      if (newCharIndex < targetText.length && val[newCharIndex] !== targetText[newCharIndex]) {
+        if (soundProfile !== 'off') playSound('error');
+        setHasErrorShake(true);
+        setInput(val);
+        setCurrIndex(val.length);
+        setTimeout(() => {
+          finishTestRef.current?.();
+        }, 80);
+        return;
+      }
+    }
+
     const isAppend = val.length >= prevInput.length && val.startsWith(prevInput);
     const isTrim = val.length < prevInput.length && prevInput.startsWith(val);
     if (!isAppend && !isTrim) {
@@ -465,15 +592,34 @@ export const TypingTest: React.FC<TypingTestProps> = ({ text, timeLimit, onCompl
     }
     linearErrorsRef.current = nextLinearErrors;
 
-    // Sound and Logic for new keystroke
+    // Sound, latency and logic for new keystroke
     if (val.length === input.length + 1) {
         const newCharIndex = val.length - 1;
         if (newCharIndex < targetText.length) {
             const typedChar = val[newCharIndex];
             const expectedChar = targetText[newCharIndex];
+
+            // Measure inter-keystroke interval
+            const nowTime = Date.now();
+            if (lastKeystrokeTimeRef.current !== null) {
+              const delta = nowTime - lastKeystrokeTimeRef.current;
+              if (delta >= 15 && delta <= 2500) {
+                totalLatencyMsRef.current += delta;
+                latencyCountRef.current++;
+                const expectedKey = expectedChar === ' ' ? 'Space' : expectedChar.toLowerCase();
+                if (!keyLatenciesRef.current[expectedKey]) {
+                  keyLatenciesRef.current[expectedKey] = { totalMs: 0, count: 0 };
+                }
+                keyLatenciesRef.current[expectedKey].totalMs += delta;
+                keyLatenciesRef.current[expectedKey].count++;
+              }
+            }
+            lastKeystrokeTimeRef.current = nowTime;
             
             if (typedChar !== expectedChar) {
-                if (soundEnabled) playSound('error');
+                if (soundProfile !== 'off') playSound('error');
+                setHasErrorShake(true);
+                setTimeout(() => setHasErrorShake(false), 180);
                 setHardKeys(prev => {
                     const key = expectedChar === ' '
                       ? 'Space'
@@ -483,7 +629,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({ text, timeLimit, onCompl
                     return { ...prev, [key]: (prev[key] || 0) + 1 };
                 });
             } else {
-                if (soundEnabled) playSound('click');
+                if (soundProfile !== 'off') playKeystrokeSound(soundProfile, typedChar === '\n');
             }
         }
     }
@@ -496,13 +642,37 @@ export const TypingTest: React.FC<TypingTestProps> = ({ text, timeLimit, onCompl
   const stats = calculateStats(false);
   const progressPercent = targetText.length === 0 ? 0 : Math.min(100, Math.round((input.length / targetText.length) * 100));
   const lineHeight = 1.65;
-  const showVirtualKeyboard = targetText.length <= 8000;
+  const showVirtualKeyboard = showKeyboard && targetText.length <= 8000;
   
+  // Ghost Pacer tracking calculations
+  const ghostChars = useMemo(() => {
+    if (ghostTargetWpm <= 0 || !startTime) return 0;
+    const elapsedSecs = stats.timeElapsed;
+    return Math.floor((elapsedSecs / 60) * ghostTargetWpm * 5);
+  }, [ghostTargetWpm, startTime, stats.timeElapsed]);
+
+  const ghostProgressPercent = targetText.length === 0
+    ? 0
+    : Math.min(100, Math.round((ghostChars / targetText.length) * 100));
+
+  const pacerDiff = ghostTargetWpm > 0 ? stats.netWpm - ghostTargetWpm : 0;
+
   let displayTime = Math.floor(stats.timeElapsed);
   if (timeLimit > 0) {
       displayTime = Math.max(0, timeLimit - Math.floor((Date.now() - (startTime || Date.now())) / 1000));
       if (!startTime) displayTime = timeLimit;
   }
+
+  useEffect(() => {
+    const handleGlobalKey = (e: KeyboardEvent) => {
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        onRestart();
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKey);
+    return () => window.removeEventListener('keydown', handleGlobalKey);
+  }, [onRestart]);
 
   const formatTime = (secs: number) => {
       const m = Math.floor(secs / 60);
@@ -511,135 +681,422 @@ export const TypingTest: React.FC<TypingTestProps> = ({ text, timeLimit, onCompl
   };
 
   return (
-    <div className="w-full max-w-6xl mx-auto flex flex-col h-full min-h-0 items-center" onClick={focusInput}>
-      {/* Stats Header */}
-      <div className="w-full shrink-0 z-40 bg-slate-900/95 backdrop-blur-md border border-slate-700 py-2 px-4 md:px-6 mb-3 flex flex-col md:flex-row md:justify-between md:items-center rounded-2xl shadow-2xl gap-3">
-        <div className="flex flex-wrap gap-3 md:gap-6">
-            <div className="flex flex-col">
-                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Net WPM</span>
-                <span className="text-2xl font-mono font-bold leading-none text-indigo-400">
-                    {stats.netWpm}
-                </span>
-            </div>
-            <div className="flex flex-col">
-                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Accuracy</span>
-                <span className={`${stats.accuracy > 95 ? 'text-emerald-400' : 'text-rose-400'} text-2xl font-mono font-bold leading-none`}>{stats.accuracy}%</span>
-            </div>
-            <div className="flex flex-col">
-                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Mistakes</span>
-                <span className="text-rose-400 text-2xl font-mono font-bold leading-none">{stats.incorrectChars}</span>
-            </div>
-             <div className="flex flex-col">
-                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">{timeLimit > 0 ? 'Remaining' : 'Time'}</span>
-                <span className={`${timeLimit > 0 && displayTime < 10 ? 'text-rose-500 animate-pulse' : 'text-slate-200'} text-2xl font-mono font-bold leading-none`}>
-                    {formatTime(displayTime)}
-                </span>
-            </div>
-            <div className="flex flex-col">
-                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Progress</span>
-                <span className="text-cyan-300 text-2xl font-mono font-bold leading-none">{progressPercent}%</span>
-            </div>
+    <div className="w-full max-w-6xl mx-auto flex flex-col h-full min-h-0 items-center animate-fade-in" onClick={focusInput}>
+      {/* Floating Glass Bento HUD */}
+      {isZenMode ? (
+        <div className="w-full shrink-0 z-40 bento-card bg-neutral-950/80 backdrop-blur-xl border border-white/10 py-2.5 px-5 mb-4 flex items-center justify-between rounded-2xl shadow-xl">
+          <div className="flex items-center gap-6 font-mono text-sm">
+            <span className="text-white font-bold">{stats.netWpm} WPM</span>
+            <span className={stats.accuracy >= 95 ? 'text-emerald-400 font-bold' : 'text-amber-400 font-bold'}>{stats.accuracy}% ACC</span>
+            <span className="text-neutral-400">{formatTime(displayTime)}</span>
+          </div>
+          <button
+            onClick={(e) => { e.stopPropagation(); setIsZenMode(false); }}
+            className="text-xs font-mono px-3 py-1 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/10 transition-colors"
+          >
+            Exit Zen Mode
+          </button>
+        </div>
+      ) : (
+      <div className="w-full shrink-0 z-40 bento-card bg-neutral-950/80 backdrop-blur-xl border border-white/10 py-3 px-5 md:px-7 mb-4 flex flex-col md:flex-row md:justify-between md:items-center rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.5)] gap-4">
+        <div className="flex items-center justify-between md:justify-start gap-4 md:gap-7 w-full md:w-auto">
+          {/* Net WPM */}
+          <div className="flex flex-col">
+            <span className="text-[10px] text-neutral-400 font-bold uppercase tracking-widest flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse"></span>
+              Net WPM
+            </span>
+            <span className="text-3xl font-mono font-black tracking-tight text-indigo-400 drop-shadow-[0_0_12px_rgba(99,102,241,0.35)] leading-none mt-1">
+              {stats.netWpm}
+            </span>
+          </div>
+
+          <div className="w-px h-8 bg-white/10 hidden sm:block" />
+
+          {/* Accuracy */}
+          <div className="flex flex-col">
+            <span className="text-[10px] text-neutral-400 font-bold uppercase tracking-widest">Accuracy</span>
+            <span className={`text-3xl font-mono font-black tracking-tight leading-none mt-1 ${
+              stats.accuracy >= 97 ? 'text-emerald-400 drop-shadow-[0_0_12px_rgba(52,211,153,0.3)]' :
+              stats.accuracy >= 90 ? 'text-amber-400 drop-shadow-[0_0_12px_rgba(251,191,36,0.3)]' :
+              'text-rose-400 drop-shadow-[0_0_12px_rgba(251,113,133,0.3)]'
+            }`}>
+              {stats.accuracy}%
+            </span>
+          </div>
+
+          <div className="w-px h-8 bg-white/10 hidden sm:block" />
+
+          {/* Mistakes */}
+          <div className="flex flex-col">
+            <span className="text-[10px] text-neutral-400 font-bold uppercase tracking-widest">Errors</span>
+            <span className={`text-2xl font-mono font-bold leading-none mt-1 ${stats.incorrectChars > 0 ? 'text-rose-400' : 'text-neutral-500'}`}>
+              {stats.incorrectChars}
+            </span>
+          </div>
+
+          <div className="w-px h-8 bg-white/10 hidden sm:block" />
+
+          {/* Timer */}
+          <div className="flex flex-col">
+            <span className="text-[10px] text-neutral-400 font-bold uppercase tracking-widest">
+              {timeLimit > 0 ? 'Remaining' : 'Time'}
+            </span>
+            <span className={`text-2xl font-mono font-bold leading-none mt-1 ${
+              timeLimit > 0 && displayTime < 10 ? 'text-rose-500 animate-pulse drop-shadow-[0_0_8px_rgba(244,63,94,0.6)]' : 'text-neutral-200'
+            }`}>
+              {formatTime(displayTime)}
+            </span>
+          </div>
+
+          {/* Progress Indicator */}
+          <div className="hidden lg:flex flex-col">
+            <span className="text-[10px] text-neutral-400 font-bold uppercase tracking-widest">Progress</span>
+            <span className="text-xl font-mono font-bold text-neutral-300 leading-none mt-1">
+              {progressPercent}%
+            </span>
+          </div>
+
+          {/* KDPH Indicator */}
+          <div className="hidden xl:flex flex-col">
+            <span className="text-[10px] text-neutral-400 font-bold uppercase tracking-widest">Rate (KDPH)</span>
+            <span className="text-xl font-mono font-bold text-indigo-300 leading-none mt-1">
+              {stats.kdph || 0}
+            </span>
+          </div>
         </div>
         
-        <div className="flex flex-wrap items-center justify-end gap-2 md:gap-3">
-             <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setTextScale(prev => Math.max(20, prev - 2));
-                }}
-                className="px-2 py-1 rounded bg-slate-800 text-slate-300 text-xs font-semibold hover:bg-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
-                title="Decrease text size"
-             >
-                A-
-             </button>
-             <span className="text-[10px] font-mono text-slate-500 min-w-7 text-center">{textScale}</span>
-             <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setTextScale(prev => Math.min(46, prev + 2));
-                }}
-                className="px-2 py-1 rounded bg-slate-800 text-slate-300 text-xs font-semibold hover:bg-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
-                title="Increase text size"
-             >
-                A+
-             </button>
-             <button 
-                onClick={(e) => { e.stopPropagation(); setSoundEnabled(!soundEnabled); }}
-                className={`p-2 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 ${soundEnabled ? 'text-indigo-400 bg-indigo-500/10' : 'text-slate-600'}`}
-                aria-label="Toggle Sound"
-                title="Toggle Sound"
-             >
-                 {soundEnabled ? (
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" /></svg>
-                 ) : (
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" /></svg>
-                 )}
-             </button>
-            <Button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  finishTestRef.current?.();
-                }}
-                variant="primary"
-                className="!py-2 !px-4 text-xs font-bold uppercase tracking-wide flex items-center gap-2"
-                disabled={!startTime && input.length === 0}
+        {/* Quick Controls & Actions */}
+        <div className="flex flex-wrap items-center justify-end gap-2 md:gap-3 w-full md:w-auto pt-2 md:pt-0 border-t border-white/5 md:border-t-0">
+          {/* Text Size Stepper */}
+          <div className="flex items-center bg-white/5 border border-white/10 rounded-xl p-0.5" title="Adjust text size">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setTextScale(prev => Math.max(20, prev - 2));
+              }}
+              className="w-7 h-7 rounded-lg flex items-center justify-center text-neutral-300 hover:text-white hover:bg-white/10 text-xs font-bold transition-colors"
+              title="Decrease text size"
             >
-                <span>Submit</span>
-                <span className="hidden sm:inline-flex items-center gap-0.5 text-[9px] text-slate-500 bg-white/10 px-1.5 py-0.5 rounded">
-                   <kbd>Ctrl</kbd>+<kbd>Enter</kbd>
-                </span>
-            </Button>
-            <Button onClick={(e) => { e.stopPropagation(); onRestart(); }} variant="secondary" className="!py-2 !px-4 text-xs font-bold uppercase tracking-wide flex items-center gap-2">
-                <span>Back</span>
-                <span className="hidden sm:inline-flex items-center text-[9px] text-slate-500 bg-white/10 px-1.5 py-0.5 rounded">
-                   <kbd>Esc</kbd>
-                </span>
-            </Button>
+              -
+            </button>
+            <span className="text-[11px] font-mono text-neutral-400 px-2 min-w-8 text-center select-none font-semibold">
+              {textScale}px
+            </span>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setTextScale(prev => Math.min(46, prev + 2));
+              }}
+              className="w-7 h-7 rounded-lg flex items-center justify-center text-neutral-300 hover:text-white hover:bg-white/10 text-xs font-bold transition-colors"
+              title="Increase text size"
+            >
+              +
+            </button>
+          </div>
+
+          {/* Sound Profile Selector */}
+          <div className="relative" title="Switch Keyboard Audio Profile">
+            <select
+              value={soundProfile}
+              onChange={(e) => {
+                e.stopPropagation();
+                const next = e.target.value as SoundProfile;
+                setSoundProfileState(next);
+                setSoundProfile(next);
+                playKeystrokeSound(next);
+              }}
+              className="text-[11px] font-mono font-semibold px-2.5 py-1.5 rounded-xl border bg-white/5 border-white/10 text-neutral-300 hover:text-white cursor-pointer appearance-none pr-5 transition-all"
+            >
+              <option value="cherry-blue" className="bg-neutral-900 text-white">Cherry Blue (Clicky)</option>
+              <option value="cherry-brown" className="bg-neutral-900 text-white">Cherry Brown (Tactile)</option>
+              <option value="topre" className="bg-neutral-900 text-white">Topre (Thock)</option>
+              <option value="typewriter" className="bg-neutral-900 text-white">Typewriter</option>
+              <option value="soft" className="bg-neutral-900 text-white">Soft Bubble</option>
+              <option value="off" className="bg-neutral-900 text-white">Sound Muted</option>
+            </select>
+          </div>
+
+          {/* Caret Style Toggle */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setCaretStyle(prev => prev === 'line' ? 'block' : prev === 'block' ? 'underline' : 'line');
+            }}
+            className="text-[10px] font-mono px-2.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-neutral-400 hover:text-white transition-colors"
+            title="Toggle Caret Style (Line / Block / Underline)"
+          >
+            Caret: {caretStyle.toUpperCase()}
+          </button>
+
+          {/* Zen Focus Mode Toggle */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsZenMode(prev => !prev);
+            }}
+            className={`p-2 rounded-xl border transition-all ${
+              isZenMode 
+                ? 'bg-indigo-500/20 border-indigo-400 text-indigo-300 shadow-[0_0_12px_rgba(99,102,241,0.25)]' 
+                : 'bg-white/5 border-white/10 text-neutral-500 hover:text-neutral-300'
+            }`}
+            title={isZenMode ? 'Exit Zen Focus Mode' : 'Enter Zen Focus Mode (Distraction-Free)'}
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+            </svg>
+          </button>
+
+          {/* Virtual Keyboard Toggle */}
+          <button
+            onClick={(e) => { e.stopPropagation(); setShowKeyboard(prev => !prev); }}
+            className={`p-2 rounded-xl border transition-all duration-150 ${
+              showKeyboard 
+                ? 'bg-indigo-500/15 border-indigo-500/40 text-indigo-300' 
+                : 'bg-white/5 border-white/10 text-neutral-500 hover:text-neutral-300'
+            }`}
+            aria-label="Toggle Virtual Keyboard"
+            title={showKeyboard ? 'Hide virtual keyboard' : 'Show virtual keyboard'}
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m4 0h1M5 5h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2z" />
+            </svg>
+          </button>
+
+          {/* Hands Guide Toggle */}
+          <button
+            onClick={(e) => { e.stopPropagation(); setShowHands(prev => !prev); }}
+            className={`p-2 rounded-xl border transition-all duration-150 ${
+              showHands 
+                ? 'bg-indigo-500/20 border-indigo-500/50 text-indigo-300 shadow-[0_0_12px_rgba(99,102,241,0.25)]' 
+                : 'bg-white/5 border-white/10 text-neutral-500 hover:text-neutral-300'
+            }`}
+            aria-label="Toggle Hands Guide"
+            title={showHands ? 'Hide Finger Placement Guide' : 'Show Finger Placement Guide'}
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 11.5V14m0-2.5v-6a1.5 1.5 0 113 0m-3 6a1.5 1.5 0 00-3 0v2a7.5 7.5 0 0015 0v-5a1.5 1.5 0 00-3 0m-6-3V11m0-5.5v-1a1.5 1.5 0 013 0v1m0 0V11m0-5.5a1.5 1.5 0 013 0v3m0 0V11" />
+            </svg>
+          </button>
+
+          {/* Ghost Pacer Target Selector */}
+          <div className="relative" title="Ghost Speed Pacer">
+            <select
+              value={pacerMode}
+              onChange={(e) => {
+                e.stopPropagation();
+                setPacerMode(e.target.value as GhostPacerMode);
+              }}
+              className={`text-[11px] font-mono font-bold px-2.5 py-1.5 rounded-xl border appearance-none pr-5 cursor-pointer transition-all ${
+                pacerMode === 'OFF'
+                  ? 'bg-white/5 border-white/10 text-neutral-400 hover:text-white'
+                  : 'bg-purple-500/20 border-purple-500/50 text-purple-300 shadow-[0_0_10px_rgba(168,85,247,0.2)]'
+              }`}
+            >
+              <option value="OFF" className="bg-neutral-900 text-white">Ghost: OFF</option>
+              <option value="30_WPM" className="bg-neutral-900 text-white">Ghost: 30 WPM (SSC)</option>
+              <option value="35_WPM" className="bg-neutral-900 text-white">Ghost: 35 WPM (Clerk)</option>
+              <option value="40_WPM" className="bg-neutral-900 text-white">Ghost: 40 WPM (Goal)</option>
+              <option value="50_WPM" className="bg-neutral-900 text-white">Ghost: 50 WPM (Pro)</option>
+              <option value="PERSONAL_BEST" className="bg-neutral-900 text-white">Ghost: Personal Best</option>
+            </select>
+          </div>
+
+          {/* Audio Metronome Cadence Toggle */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsMetronomeOn(prev => !prev);
+            }}
+            className={`px-2.5 py-1.5 rounded-xl text-[10px] font-mono font-bold border transition-all flex items-center gap-1 ${
+              isMetronomeOn
+                ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300 shadow-[0_0_10px_rgba(16,185,129,0.25)]'
+                : 'bg-white/5 border-white/10 text-neutral-400 hover:text-white'
+            }`}
+            title="Audio Cadence Metronome (Helps rhythm & prevents erratic bursts)"
+          >
+            <span>🎵</span>
+            <span>{isMetronomeOn ? 'BPM ON' : 'BPM'}</span>
+          </button>
+
+          {/* Hardcore Mode Selector */}
+          <div className="relative" title="Typing Mode">
+            <select
+              value={hardcoreMode}
+              onChange={(e) => {
+                e.stopPropagation();
+                setHardcoreMode(e.target.value as HardcoreMode);
+              }}
+              className={`text-[11px] font-mono font-bold px-2.5 py-1.5 rounded-xl border appearance-none pr-5 cursor-pointer transition-all ${
+                hardcoreMode === 'NONE'
+                  ? 'bg-white/5 border-white/10 text-neutral-400 hover:text-white'
+                  : hardcoreMode === 'SUDDEN_DEATH'
+                  ? 'bg-rose-500/20 border-rose-500 text-rose-300 animate-pulse'
+                  : hardcoreMode === 'NO_BACKSPACE'
+                  ? 'bg-amber-500/20 border-amber-500 text-amber-300'
+                  : 'bg-indigo-500/20 border-indigo-500 text-indigo-300'
+              }`}
+            >
+              <option value="NONE" className="bg-neutral-900 text-white">Standard Mode</option>
+              <option value="NO_BACKSPACE" className="bg-neutral-900 text-white">No Backspace</option>
+              <option value="SUDDEN_DEATH" className="bg-neutral-900 text-white">Sudden Death (1 Error)</option>
+              <option value="STOP_ON_ERROR" className="bg-neutral-900 text-white">Stop on Error</option>
+            </select>
+          </div>
+
+          {/* Submit */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              finishTestRef.current?.();
+            }}
+            disabled={!startTime && input.length === 0}
+            className="px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider bg-white text-black hover:bg-neutral-200 transition-all shadow-[0_0_15px_rgba(255,255,255,0.2)] disabled:opacity-40 disabled:pointer-events-none flex items-center gap-1.5"
+          >
+            <span>Submit</span>
+            <kbd className="hidden sm:inline-block text-[9px] font-mono font-normal bg-black/10 px-1 py-0.5 rounded text-neutral-700">Ctrl+↵</kbd>
+          </button>
+
+          {/* Exit / Back */}
+          <button 
+            onClick={(e) => { e.stopPropagation(); onRestart(); }} 
+            className="px-3.5 py-2 rounded-xl text-xs font-bold uppercase tracking-wider bg-white/5 hover:bg-white/10 text-neutral-300 border border-white/10 transition-colors flex items-center gap-1.5"
+          >
+            <span>Exit</span>
+            <kbd className="hidden sm:inline-block text-[9px] font-mono font-normal bg-white/10 px-1 py-0.5 rounded text-neutral-400">Esc</kbd>
+          </button>
         </div>
       </div>
+      )}
 
-      {/* Typing Container */}
-      <div 
-        ref={containerRef}
-        className="w-full flex-1 min-h-0 relative bg-slate-800/30 rounded-2xl p-5 md:p-6 shadow-inner overflow-y-auto border border-slate-700/50"
-        style={{
-          perspective: '1000px',
-        }}
-      >
-        {/* Floating Caret */}
+      {/* Dual Live Ghost Race Track (when Pacer is Active) */}
+      {pacerMode !== 'OFF' && (
+        <div className="w-full shrink-0 bento-card bg-neutral-950/70 border border-purple-500/30 p-3 px-5 mb-3 rounded-2xl flex flex-col gap-2 shadow-lg">
+          <div className="flex items-center justify-between text-xs font-mono">
+            <div className="flex items-center gap-2">
+              <span className="text-base">🏎️</span>
+              <span className="font-bold text-white">Live Ghost Race</span>
+              <span className="text-neutral-400">vs {ghostTargetWpm} WPM Pacer</span>
+            </div>
+            <div className="flex items-center gap-2">
+              {pacerDiff >= 0 ? (
+                <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30">
+                  +{pacerDiff} WPM Ahead ⚡
+                </span>
+              ) : (
+                <span className="px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 font-bold border border-rose-500/30">
+                  {pacerDiff} WPM Behind ⚠️
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Race Track Lines */}
+          <div className="flex flex-col gap-1.5">
+            {/* User Track */}
+            <div className="flex items-center gap-3">
+              <span className="text-[10px] font-mono text-cyan-300 w-12 shrink-0 font-bold">You</span>
+              <div className="flex-1 h-2 bg-white/5 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-indigo-500 to-cyan-400 transition-all duration-150 rounded-full"
+                  style={{ width: `${progressPercent}%` }}
+                />
+              </div>
+              <span className="text-[10px] font-mono text-neutral-400 w-10 text-right">{stats.netWpm} WPM</span>
+            </div>
+
+            {/* Ghost Track */}
+            <div className="flex items-center gap-3">
+              <span className="text-[10px] font-mono text-purple-300 w-12 shrink-0 font-bold">Ghost</span>
+              <div className="flex-1 h-2 bg-white/5 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-purple-500 to-amber-400 transition-all duration-300 rounded-full opacity-80"
+                  style={{ width: `${ghostProgressPercent}%` }}
+                />
+              </div>
+              <span className="text-[10px] font-mono text-neutral-400 w-10 text-right">{ghostTargetWpm} WPM</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Typing Card Wrapper with top Progress Bar */}
+      <div className={`w-full flex-1 min-h-0 flex flex-col bento-card bg-neutral-950/60 backdrop-blur-2xl rounded-3xl border border-white/10 hover:border-white/15 transition-all duration-150 shadow-[0_12px_40px_rgba(0,0,0,0.6)] overflow-hidden ${
+        hasErrorShake ? 'animate-shake border-rose-500/60 shadow-[0_0_25px_rgba(244,63,94,0.3)]' : ''
+      }`}>
+        {/* Sleek Progress Line fixed at the very top edge of the card */}
+        <div className="w-full h-1 bg-white/5 shrink-0 overflow-hidden">
+          <div 
+            className="h-full bg-gradient-to-r from-indigo-500 via-indigo-400 to-cyan-400 transition-all duration-150 shadow-[0_0_12px_rgba(99,102,241,0.8)]"
+            style={{ width: `${progressPercent}%` }}
+          />
+        </div>
+
+        {/* Scrollable Text Viewport */}
         <div 
-            className="absolute h-[3px] bg-indigo-400 shadow-[0_0_10px_rgba(99,102,241,0.85)] z-20 rounded-full"
-            style={{ 
-                width: caretPos.width,
+          ref={containerRef}
+          className="w-full flex-1 min-h-0 relative p-6 md:p-10 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-600"
+        >
+          {/* Caret Styles */}
+          {caretStyle === 'line' && (
+            <div 
+              className="absolute w-[2.5px] bg-indigo-400 shadow-[0_0_12px_rgba(99,102,241,0.95),0_0_4px_rgba(99,102,241,1)] z-20 rounded-full animate-caret-pulse pointer-events-none"
+              style={{ 
+                height: caretPos.height || textScale * 1.15,
                 top: 0, 
                 left: 0,
                 transform: `translate(${caretPos.left}px, ${caretPos.top}px)`,
-                transition: 'transform 0.1s cubic-bezier(0.2, 0, 0.2, 1)', 
-                opacity: 1
-            }}
-        />
+                transition: 'transform 0.08s cubic-bezier(0.16, 1, 0.3, 1)', 
+              }}
+            />
+          )}
+          {caretStyle === 'block' && (
+            <div 
+              className="absolute bg-indigo-400/35 border border-indigo-400/80 shadow-[0_0_10px_rgba(99,102,241,0.5)] z-20 rounded-sm animate-caret-pulse pointer-events-none"
+              style={{ 
+                width: Math.max(13, textScale * 0.58),
+                height: caretPos.height || textScale * 1.15,
+                top: 0, 
+                left: 0,
+                transform: `translate(${caretPos.left}px, ${caretPos.top}px)`,
+                transition: 'transform 0.08s cubic-bezier(0.16, 1, 0.3, 1)', 
+              }}
+            />
+          )}
+          {caretStyle === 'underline' && (
+            <div 
+              className="absolute h-[3px] bg-indigo-400 shadow-[0_0_10px_rgba(99,102,241,0.9)] z-20 rounded-full animate-caret-pulse pointer-events-none"
+              style={{ 
+                width: Math.max(13, textScale * 0.58),
+                top: 0, 
+                left: 0,
+                transform: `translate(${caretPos.left}px, ${caretPos.top + (caretPos.height || textScale * 1.15) - 3}px)`,
+                transition: 'transform 0.08s cubic-bezier(0.16, 1, 0.3, 1)', 
+              }}
+            />
+          )}
 
-        <div
-            className="whitespace-pre-wrap break-normal min-h-full pb-12 relative z-10 [word-break:normal] [overflow-wrap:normal]"
+          {/* Text Rendering Flow */}
+          <div
+            className="whitespace-pre-wrap break-normal min-h-full pb-20 relative z-10 font-mono typing-text-flow select-none [word-break:normal] [overflow-wrap:normal]"
             style={{ fontSize: `${textScale}px`, lineHeight }}
-        >
-            {prefixText && <span className="text-slate-500/90">{prefixText}</span>}
-            {windowedTokens.map(token => {
-                return (
-                    <TokenItem
-                      key={token.tokenKey}
-                      token={token}
-                      input={input}
-                      inputLength={input.length}
-                      inputRevision={inputRevision}
-                    />
-                );
-            })}
-            {suffixText && <span className="text-slate-500/90">{suffixText}</span>}
-        </div>
-        
-        {/* Hidden Textarea (supports newline input) */}
-        <textarea
+          >
+            {prefixText && <span className="text-neutral-500/85">{prefixText}</span>}
+            {windowedTokens.map(token => (
+              <TokenItem
+                key={token.tokenKey}
+                token={token}
+                input={input}
+                inputLength={input.length}
+                inputRevision={inputRevision}
+              />
+            ))}
+            {suffixText && <span className="text-neutral-500/85">{suffixText}</span>}
+          </div>
+          
+          {/* Hidden Textarea (supports newline input) */}
+          <textarea
             ref={inputRef}
             className="opacity-0 absolute inset-0 w-full h-full cursor-default z-30 pointer-events-none"
             value={input}
@@ -650,18 +1107,26 @@ export const TypingTest: React.FC<TypingTestProps> = ({ text, timeLimit, onCompl
             autoCapitalize="off"
             spellCheck="false"
             rows={1}
-        />
-        
-        {!startTime && (
-            <div className="absolute top-3 right-4 z-40 transition-opacity duration-300 pointer-events-none">
-                <div className="text-[11px] text-slate-300 bg-slate-900/80 border border-slate-700 rounded-full px-3 py-1">
-                    Type to start
-                </div>
+          />
+          
+          {!startTime && (
+            <div className="absolute top-4 right-6 z-40 transition-opacity duration-300 pointer-events-none">
+              <div className="text-xs font-mono text-neutral-300 bg-black/70 backdrop-blur-md border border-white/10 rounded-full px-4 py-1.5 shadow-xl flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse" />
+                Type to begin
+              </div>
             </div>
-        )}
+          )}
+        </div>
       </div>
 
-      {showVirtualKeyboard && <VirtualKeyboard nextChar={nextChar} />}
+      {!isZenMode && showHands && (
+        <div className="w-full max-w-4xl mx-auto flex justify-center py-2">
+          <HandsGuide nextChar={nextChar} />
+        </div>
+      )}
+
+      {!isZenMode && showVirtualKeyboard && <VirtualKeyboard nextChar={nextChar} />}
     </div>
   );
 };

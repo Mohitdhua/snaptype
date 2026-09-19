@@ -1,9 +1,11 @@
 
-import React, { useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Button } from './Button';
 import { TestResults } from '../types';
-import { getHistory } from '../services/storageService';
+import { getHistory, calculateExamEvaluation, classifyTypo } from '../services/storageService';
 import { ProgressChart } from './ProgressChart';
+import { CertificateModal } from './CertificateModal';
+import { DiagnosticReportModal } from './DiagnosticReportModal';
 import { ComposedChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { playSound } from '../services/soundService';
 
@@ -59,7 +61,30 @@ const SessionTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
+const HEATMAP_LAYOUT = [
+  ['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'],
+  ['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l'],
+  ['z', 'x', 'c', 'v', 'b', 'n', 'm'],
+  ['Space']
+];
+
 export const Results: React.FC<ResultsProps> = ({ results, onReset, onNewImage, onPractice }) => {
+  const [showCertificate, setShowCertificate] = useState(false);
+  const [showDiagnosticModal, setShowDiagnosticModal] = useState(false);
+  const [showExamEval, setShowExamEval] = useState(results.isSSC || false);
+  const [examCategory, setExamCategory] = useState<'UR' | 'OBC_SC_ST'>('UR');
+  const [hardKeyView, setHardKeyView] = useState<'heatmap' | 'chips'>('heatmap');
+
+  const kdph = useMemo(() => {
+    if (results.kdph) return results.kdph;
+    const mins = Math.max(0.08, results.timeElapsed / 60);
+    return Math.round((results.totalChars / mins) * 60);
+  }, [results.kdph, results.timeElapsed, results.totalChars]);
+
+  const examEval = useMemo(() => {
+    return results.examEval || calculateExamEvaluation(results, examCategory);
+  }, [results, examCategory]);
+
   useEffect(() => {
       if ((results.badgesUnlocked && results.badgesUnlocked.length > 0) || (results.isSSC && (results.sscMarks || 0) > 0)) {
           const timeoutId = setTimeout(() => playSound('success'), 500);
@@ -67,6 +92,15 @@ export const Results: React.FC<ResultsProps> = ({ results, onReset, onNewImage, 
       }
       return undefined;
   }, [results]);
+
+  const normalizedHardKeys = useMemo(() => {
+    const normalized: Record<string, number> = {};
+    for (const [key, count] of Object.entries(results.hardKeys)) {
+      const normalizedKey = normalizeHardKey(key).toLowerCase();
+      normalized[normalizedKey] = (normalized[normalizedKey] || 0) + (count as number);
+    }
+    return normalized;
+  }, [results.hardKeys]);
 
   const topHardKeys = useMemo(
     () => {
@@ -90,6 +124,39 @@ export const Results: React.FC<ResultsProps> = ({ results, onReset, onNewImage, 
         .slice(0, 12),
     [results.missedWords]
   );
+
+  const collisionInsights = useMemo(() => {
+    const originalText = results.originalText || '';
+    const typedText = results.typedText || '';
+    const len = Math.min(originalText.length, typedText.length);
+    let sameFinger = 0;
+    let neighbor = 0;
+    let totalErrors = 0;
+    const conflicts: Record<string, { expected: string; typed: string; count: number; type: string }> = {};
+
+    for (let i = 0; i < len; i++) {
+      const expected = originalText[i].toLowerCase();
+      const typed = typedText[i].toLowerCase();
+      if (expected !== typed) {
+        totalErrors++;
+        const c = classifyTypo(expected, typed);
+        if (c.type === 'SAME_FINGER_REACH') sameFinger++;
+        else if (c.type === 'ADJACENT_NEIGHBOR') neighbor++;
+
+        if (expected.trim() && typed.trim()) {
+          const key = `${expected}→${typed}`;
+          if (!conflicts[key]) conflicts[key] = { expected, typed, count: 0, type: c.type };
+          conflicts[key].count++;
+        }
+      }
+    }
+
+    const sameRatio = totalErrors > 0 ? Math.round((sameFinger / totalErrors) * 100) : 0;
+    const neighborRatio = totalErrors > 0 ? Math.round((neighbor / totalErrors) * 100) : 0;
+    const topPairs = Object.values(conflicts).sort((a, b) => b.count - a.count).slice(0, 4);
+
+    return { totalErrors, sameFinger, neighbor, sameRatio, neighborRatio, topPairs };
+  }, [results.originalText, results.typedText]);
 
   const sessionHistory = results.history || [];
   const sessionChartData = useMemo(
@@ -186,40 +253,143 @@ export const Results: React.FC<ResultsProps> = ({ results, onReset, onNewImage, 
             </div>
         )}
 
+        {/* Ghost Pacer Race Result Banner */}
+        {results.ghostWpm && (
+          <div className="w-full mb-6 p-4 rounded-2xl bg-gradient-to-r from-purple-950/60 via-indigo-950/40 to-neutral-900 border border-purple-500/40 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-lg">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">🏎️</span>
+              <div>
+                <span className="text-[10px] font-mono uppercase tracking-wider text-purple-300 font-bold">
+                  Ghost Pacer Challenge ({results.ghostWpm} WPM Benchmark)
+                </span>
+                <h4 className="text-sm font-bold text-white">
+                  {results.netWpm >= results.ghostWpm
+                    ? `Victory! You outpaced the ${results.ghostWpm} WPM target by +${results.netWpm - results.ghostWpm} WPM!`
+                    : `Close race! You finished only ${results.ghostWpm - results.netWpm} WPM behind the target pace.`}
+                </h4>
+              </div>
+            </div>
+            <span className={`text-xs font-mono font-bold px-3 py-1 rounded-xl ${
+              results.netWpm >= results.ghostWpm ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+            }`}>
+              {results.netWpm >= results.ghostWpm ? 'PACER BEATEN ⚡' : 'CADENCE RECOVERY 🎯'}
+            </span>
+          </div>
+        )}
+
         {/* Main Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 w-full mb-8">
-            <div className="bento-card flex flex-col items-center justify-center py-8 shadow-lg relative overflow-hidden group">
-                <span className="text-white font-black text-6xl mb-1">{results.netWpm}</span>
-                <span className="text-stitch-muted font-bold uppercase tracking-widest text-xs">{results.isSSC ? 'Actual Speed' : 'Net WPM'}</span>
-                <span className="text-stitch-muted text-xs mt-2">{results.isSSC ? 'After penalty' : 'Adjusted speed'}</span>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 w-full mb-8">
+            <div className="bento-card flex flex-col items-center justify-center py-6 shadow-lg relative overflow-hidden group">
+                <span className="text-white font-black text-4xl md:text-5xl mb-1">{results.netWpm}</span>
+                <span className="text-stitch-muted font-bold uppercase tracking-widest text-[11px]">{results.isSSC ? 'Actual Speed' : 'Net WPM'}</span>
+                <span className="text-stitch-muted text-[10px] mt-1">{results.isSSC ? 'After penalty' : 'Adjusted speed'}</span>
             </div>
 
-            <div className="bento-card flex flex-col items-center justify-center py-8 shadow-lg">
-                <span className="text-stitch-accent font-bold text-4xl mb-2">{results.rawWpm}</span>
-                <span className="text-stitch-muted font-bold uppercase tracking-widest text-xs">{results.isSSC ? 'Tentative Speed' : 'Raw WPM'}</span>
-                 <span className="text-stitch-muted text-xs mt-2">Uncorrected speed</span>
+            <div className="bento-card flex flex-col items-center justify-center py-6 shadow-lg">
+                <span className="text-stitch-accent font-bold text-3xl mb-1">{results.rawWpm}</span>
+                <span className="text-stitch-muted font-bold uppercase tracking-widest text-[11px]">{results.isSSC ? 'Tentative Speed' : 'Raw WPM'}</span>
+                 <span className="text-stitch-muted text-[10px] mt-1">Gross speed</span>
             </div>
 
-             <div className="bento-card flex flex-col items-center justify-center py-8 shadow-lg">
-                <span className={`${results.accuracy > 95 ? 'text-emerald-400' : 'text-amber-400'} font-bold text-4xl mb-2`}>{results.accuracy}%</span>
-                <span className="text-stitch-muted font-bold uppercase tracking-widest text-xs">Accuracy</span>
-                 <span className="text-stitch-muted text-xs mt-2">{results.incorrectChars} errors</span>
+             <div className="bento-card flex flex-col items-center justify-center py-6 shadow-lg">
+                <span className={`${results.accuracy > 95 ? 'text-emerald-400' : 'text-amber-400'} font-bold text-3xl mb-1`}>{results.accuracy}%</span>
+                <span className="text-stitch-muted font-bold uppercase tracking-widest text-[11px]">Accuracy</span>
+                 <span className="text-stitch-muted text-[10px] mt-1">{results.incorrectChars} errors</span>
             </div>
 
-             <div className="bento-card flex flex-col items-center justify-center py-8 shadow-lg">
-                <div className="flex gap-4 items-end mb-2">
+             <div className="bento-card flex flex-col items-center justify-center py-6 shadow-lg">
+                <div className="flex gap-3 items-end mb-1">
                     <div className="flex flex-col items-center">
-                         <span className="text-emerald-400 font-bold text-2xl">{results.correctChars}</span>
-                         <span className="text-[10px] text-stitch-muted uppercase">Correct</span>
+                         <span className="text-emerald-400 font-bold text-xl">{results.correctChars}</span>
+                         <span className="text-[9px] text-stitch-muted uppercase">Correct</span>
                     </div>
-                    <div className="h-8 w-px bg-white/20"></div>
+                    <div className="h-6 w-px bg-white/20"></div>
                      <div className="flex flex-col items-center">
-                         <span className="text-rose-400 font-bold text-2xl">{results.incorrectChars}</span>
-                         <span className="text-[10px] text-slate-500 uppercase">Incorrect</span>
+                         <span className="text-rose-400 font-bold text-xl">{results.incorrectChars}</span>
+                         <span className="text-[9px] text-slate-500 uppercase">Wrong</span>
                     </div>
                 </div>
-                <span className="text-slate-400 font-bold uppercase tracking-widest text-xs">Keystrokes</span>
+                <span className="text-slate-400 font-bold uppercase tracking-widest text-[11px]">Keystrokes</span>
             </div>
+
+            <div className="bento-card flex flex-col items-center justify-center py-6 shadow-lg border border-indigo-500/20 bg-indigo-950/10">
+                <span className="text-indigo-400 font-mono font-bold text-3xl mb-1">{kdph}</span>
+                <span className="text-stitch-muted font-bold uppercase tracking-widest text-[11px]">KDPH Rate</span>
+                <span className="text-stitch-muted text-[10px] mt-1">Depressions / hr</span>
+            </div>
+
+            <div className="bento-card flex flex-col items-center justify-center py-6 shadow-lg border border-cyan-500/20 bg-cyan-950/10">
+                <span className="text-cyan-300 font-mono font-bold text-3xl mb-1">{results.avgLatencyMs || 165}<span className="text-xs">ms</span></span>
+                <span className="text-stitch-muted font-bold uppercase tracking-widest text-[11px]">Reflex Latency</span>
+                <span className="text-stitch-muted text-[10px] mt-1">Inter-key reaction</span>
+            </div>
+        </div>
+
+        {/* Official High Court & SSC Exam Evaluation Section */}
+        <div className="w-full mb-8 bento-card p-6 border border-white/15 rounded-2xl relative overflow-hidden">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/10">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+                <h3 className="text-base font-bold text-white tracking-wide">
+                  Official Exam Evaluation (Court & SSC Typing Criteria)
+                </h3>
+              </div>
+              <p className="text-xs text-neutral-400 mt-0.5">
+                Evaluated against High Court, SSC CGL/CHSL, and State Clerk exam standards.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-neutral-400 font-mono">Category:</span>
+              <button
+                onClick={() => setExamCategory('UR')}
+                className={`text-xs px-3 py-1 rounded-lg font-mono font-bold transition-colors ${examCategory === 'UR' ? 'bg-white text-black' : 'bg-white/5 text-neutral-400 hover:text-white'}`}
+              >
+                UR (5% Max Err)
+              </button>
+              <button
+                onClick={() => setExamCategory('OBC_SC_ST')}
+                className={`text-xs px-3 py-1 rounded-lg font-mono font-bold transition-colors ${examCategory === 'OBC_SC_ST' ? 'bg-white text-black' : 'bg-white/5 text-neutral-400 hover:text-white'}`}
+              >
+                Reserved (7% Max Err)
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mt-5">
+            <div className="p-3 bg-white/5 rounded-xl border border-white/10 flex flex-col items-center">
+              <span className="text-[10px] font-mono uppercase text-neutral-400">Total Key Depressions</span>
+              <span className="text-2xl font-mono font-bold text-white mt-1">{examEval.totalKeyDepressions}</span>
+              <span className="text-[10px] text-neutral-500 mt-0.5">KDPH: {examEval.kdph}</span>
+            </div>
+            <div className="p-3 bg-white/5 rounded-xl border border-white/10 flex flex-col items-center">
+              <span className="text-[10px] font-mono uppercase text-neutral-400">Full Mistakes</span>
+              <span className="text-2xl font-mono font-bold text-rose-400 mt-1">{examEval.fullMistakes}</span>
+              <span className="text-[10px] text-neutral-500 mt-0.5">Omission / Substitution</span>
+            </div>
+            <div className="p-3 bg-white/5 rounded-xl border border-white/10 flex flex-col items-center">
+              <span className="text-[10px] font-mono uppercase text-neutral-400">Half Mistakes</span>
+              <span className="text-2xl font-mono font-bold text-amber-400 mt-1">{examEval.halfMistakes}</span>
+              <span className="text-[10px] text-neutral-500 mt-0.5">Punctuation / Spelling</span>
+            </div>
+            <div className="p-3 bg-white/5 rounded-xl border border-white/10 flex flex-col items-center">
+              <span className="text-[10px] font-mono uppercase text-neutral-400">Error Percentage</span>
+              <span className={`text-2xl font-mono font-bold mt-1 ${examEval.errorPercentage <= examEval.maxAllowedError ? 'text-emerald-400' : 'text-rose-400'}`}>
+                {examEval.errorPercentage}%
+              </span>
+              <span className="text-[10px] text-neutral-500 mt-0.5">Allowed &le; {examEval.maxAllowedError}%</span>
+            </div>
+            <div className="p-3 bg-white/5 rounded-xl border border-white/10 flex flex-col items-center col-span-2 md:col-span-1 justify-center">
+              <span className="text-[10px] font-mono uppercase text-neutral-400 mb-1">Result Status</span>
+              <span className={`text-xs font-black uppercase tracking-wider px-3 py-1.5 rounded-lg border ${
+                examEval.status === 'QUALIFIED'
+                  ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                  : 'bg-rose-500/20 text-rose-400 border-rose-500/30'
+              }`}>
+                {examEval.status}
+              </span>
+            </div>
+          </div>
         </div>
 
         {/* Session Performance */}
@@ -309,22 +479,76 @@ export const Results: React.FC<ResultsProps> = ({ results, onReset, onNewImage, 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full mb-8">
             {/* Hard Keys Section */}
             <div className="bg-slate-800/50 rounded-2xl border border-slate-700 p-6 flex flex-col h-full relative group">
-                <div className="flex justify-between items-start mb-4">
+                <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
                     <h3 className="text-slate-300 font-bold flex items-center gap-2">
                         <svg className="w-5 h-5 text-rose-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-                        Hard Keys
+                        Diagnostic Hard Keys
                     </h3>
-                    {topHardKeys.length > 0 && (
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setHardKeyView(v => v === 'heatmap' ? 'chips' : 'heatmap')}
+                        className="text-xs px-2.5 py-1 rounded-full bg-slate-700/60 hover:bg-slate-700 text-slate-300 border border-slate-600 font-medium transition-colors"
+                      >
+                        {hardKeyView === 'heatmap' ? 'List View' : 'Heatmap View'}
+                      </button>
+                      {topHardKeys.length > 0 && (
                         <button 
                             onClick={() => onPractice('keys')}
                             className="text-xs bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 px-3 py-1 rounded-full font-semibold transition-colors border border-rose-500/20"
                         >
                             Practice Keys
                         </button>
-                    )}
+                      )}
+                    </div>
                 </div>
                 
-                {topHardKeys.length > 0 ? (
+                {hardKeyView === 'heatmap' ? (
+                  <div className="flex flex-col gap-1.5 w-full items-center my-auto p-3 bg-slate-950/60 rounded-xl border border-slate-800 select-none">
+                    {HEATMAP_LAYOUT.map((row, rIdx) => (
+                      <div key={rIdx} className="flex gap-1 justify-center w-full">
+                        {row.map((k) => {
+                          const count = normalizedHardKeys[k.toLowerCase()] || 0;
+                          const isSpace = k === 'Space';
+                          let colorClass = 'bg-slate-900/90 text-slate-500 border-slate-800/80';
+                          if (count === 1) {
+                            colorClass = 'bg-amber-500/20 text-amber-300 border-amber-500/50 shadow-[0_0_8px_rgba(245,158,11,0.25)] font-bold';
+                          } else if (count >= 2) {
+                            colorClass = 'bg-rose-500/25 text-rose-300 border-rose-500/60 shadow-[0_0_12px_rgba(244,63,94,0.35)] font-bold animate-pulse';
+                          }
+
+                          return (
+                            <div
+                              key={k}
+                              className={`h-8 rounded-lg flex items-center justify-center font-mono text-[11px] border relative transition-all ${isSpace ? 'w-44' : 'w-7 sm:w-8'} ${colorClass}`}
+                              title={`Key ${k}: ${count} error(s)`}
+                            >
+                              <span>{isSpace ? '—' : k.toUpperCase()}</span>
+                              {count > 0 && (
+                                <span className="absolute -top-1 -right-1 bg-rose-500 text-white font-black text-[9px] w-3.5 h-3.5 rounded-full flex items-center justify-center shadow">
+                                  {count}
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ))}
+                    <div className="flex items-center gap-4 text-[10px] font-mono text-slate-400 mt-2">
+                      <div className="flex items-center gap-1">
+                        <span className="w-2.5 h-2.5 rounded bg-slate-900 border border-slate-800" />
+                        <span>0 errors</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span className="w-2.5 h-2.5 rounded bg-amber-500/40 border border-amber-500" />
+                        <span>1 error</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span className="w-2.5 h-2.5 rounded bg-rose-500/50 border border-rose-500" />
+                        <span>2+ errors</span>
+                      </div>
+                    </div>
+                  </div>
+                ) : topHardKeys.length > 0 ? (
                     <div className="flex flex-wrap gap-3 content-start">
                         {topHardKeys.map(([key, count]) => (
                             <div key={key} className="flex items-center gap-2 bg-slate-900 px-3 py-2 rounded-lg border border-slate-700">
@@ -375,15 +599,96 @@ export const Results: React.FC<ResultsProps> = ({ results, onReset, onNewImage, 
                 )}
             </div>
         </div>
+          {/* Biomechanical Collision & Tendon Analysis Card */}
+        {collisionInsights.totalErrors > 0 && (
+          <div className="w-full bg-slate-900/80 border border-cyan-500/30 rounded-2xl p-5 md:p-6 mb-8 shadow-xl">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
+              <div className="flex items-center gap-2">
+                <span className="text-cyan-400 font-bold">⚡</span>
+                <h3 className="text-white font-bold text-sm uppercase tracking-wider font-mono">
+                  Biomechanical Finger Collision & Tendon Audit
+                </h3>
+              </div>
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                Hardware & Neuromuscular Diagnostic
+              </span>
+            </div>
 
-        <div className="flex flex-col sm:flex-row gap-4 w-full justify-center">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="p-3.5 rounded-xl bg-slate-950/60 border border-slate-800">
+                <span className="text-[10px] font-mono text-cyan-300 uppercase block font-semibold">Same-Finger Reach Overshoot</span>
+                <div className="text-xl font-bold font-mono text-white mt-1">
+                  {collisionInsights.sameRatio}% <span className="text-xs text-slate-400 font-normal">({collisionInsights.sameFinger} errors)</span>
+                </div>
+                <p className="text-[10px] text-slate-400 mt-1">
+                  Single finger confusion across multi-key reach columns (e.g. R↔T, F↔G, V↔B).
+                </p>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-slate-950/60 border border-slate-800">
+                <span className="text-[10px] font-mono text-indigo-300 uppercase block font-semibold">Neighbor Finger Tendon Crosstalk</span>
+                <div className="text-xl font-bold font-mono text-white mt-1">
+                  {collisionInsights.neighborRatio}% <span className="text-xs text-slate-400 font-normal">({collisionInsights.neighbor} errors)</span>
+                </div>
+                <p className="text-[10px] text-slate-400 mt-1">
+                  Adjacent fingers co-firing due to linked extensor tendons (e.g. Ring W↔Middle E, S↔D).
+                </p>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-slate-950/60 border border-slate-800 flex flex-col justify-between">
+                <div>
+                  <span className="text-[10px] font-mono text-amber-300 uppercase block font-semibold">Top Active Conflicts</span>
+                  {collisionInsights.topPairs.length > 0 ? (
+                    <div className="flex flex-wrap gap-1.5 mt-1.5">
+                      {collisionInsights.topPairs.map((p, idx) => (
+                        <span key={idx} className="px-2 py-0.5 rounded bg-cyan-500/15 border border-cyan-500/30 text-cyan-200 font-mono text-[11px] font-bold">
+                          {p.expected.toUpperCase()} ↔ {p.typed.toUpperCase()} <span className="text-[9px] text-slate-400 font-normal">({p.count}x)</span>
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <span className="text-xs text-slate-500 italic mt-1 block">Clean finger isolation!</span>
+                  )}
+                </div>
+                <span className="text-[9px] font-mono text-cyan-400/80 mt-2">
+                  Tip: Use Academy "Finger Collision Fix" to isolate tendons.
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="flex flex-col sm:flex-row flex-wrap gap-4 w-full justify-center">
             <Button onClick={onReset} className="w-full sm:w-auto">
                 Retry Same Test
             </Button>
+            <button
+                onClick={() => setShowCertificate(true)}
+                className="w-full sm:w-auto px-6 py-3 rounded-2xl font-bold text-xs uppercase tracking-widest bg-gradient-to-r from-amber-500 to-yellow-400 text-black hover:brightness-110 transition-all shadow-[0_0_20px_rgba(245,158,11,0.25)] flex items-center justify-center gap-2"
+            >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                </svg>
+                <span>Claim Official Certificate</span>
+            </button>
+            <button
+                onClick={() => setShowDiagnosticModal(true)}
+                className="w-full sm:w-auto px-6 py-3 rounded-2xl font-bold text-xs uppercase tracking-widest bg-indigo-600 hover:bg-indigo-500 text-white transition-all shadow-[0_0_20px_rgba(99,102,241,0.3)] flex items-center justify-center gap-2"
+            >
+                <span>🖨️ Candidate Diagnostic Report</span>
+            </button>
              <Button onClick={onNewImage} variant="secondary" className="w-full sm:w-auto">
                 Upload New Image
             </Button>
         </div>
+
+        {showCertificate && (
+          <CertificateModal results={results} onClose={() => setShowCertificate(false)} />
+        )}
+
+        {showDiagnosticModal && (
+          <DiagnosticReportModal results={results} onClose={() => setShowDiagnosticModal(false)} />
+        )}
     </div>
   );
 };
