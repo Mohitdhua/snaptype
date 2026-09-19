@@ -37,6 +37,9 @@ export const saveResult = (
     timestamp: Date.now(),
     netWpm: results.netWpm,
     accuracy: results.accuracy,
+    realAccuracy: results.realAccuracy,
+    totalRawErrors: results.totalRawErrors,
+    backspaceCount: results.backspaceCount,
     mode: mode,
     testId: context?.testId,
     avgLatencyMs: results.avgLatencyMs
@@ -110,6 +113,9 @@ export const getHistory = (): StoredResult[] => {
         timestamp: Number(entry.timestamp ?? Date.now()),
         netWpm: Number(entry.netWpm ?? 0),
         accuracy: Number(entry.accuracy ?? 0),
+        realAccuracy: typeof entry.realAccuracy === 'number' ? entry.realAccuracy : undefined,
+        totalRawErrors: typeof entry.totalRawErrors === 'number' ? entry.totalRawErrors : undefined,
+        backspaceCount: typeof entry.backspaceCount === 'number' ? entry.backspaceCount : undefined,
         mode: isGameMode(entry.mode) ? entry.mode : 'DIGITAL',
         testId: typeof entry.testId === 'string' ? entry.testId : undefined,
         avgLatencyMs: typeof entry.avgLatencyMs === 'number' ? entry.avgLatencyMs : undefined

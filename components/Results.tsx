@@ -293,8 +293,12 @@ export const Results: React.FC<ResultsProps> = ({ results, onReset, onNewImage, 
 
              <div className="bento-card flex flex-col items-center justify-center py-6 shadow-lg">
                 <span className={`${results.accuracy > 95 ? 'text-emerald-400' : 'text-amber-400'} font-bold text-3xl mb-1`}>{results.accuracy}%</span>
-                <span className="text-stitch-muted font-bold uppercase tracking-widest text-[11px]">Accuracy</span>
-                 <span className="text-stitch-muted text-[10px] mt-1">{results.incorrectChars} errors</span>
+                <span className="text-stitch-muted font-bold uppercase tracking-widest text-[11px]">Final Accuracy</span>
+                <span className="text-stitch-muted text-[10px] mt-1">
+                  {results.realAccuracy !== undefined && results.realAccuracy !== results.accuracy
+                    ? `Real: ${results.realAccuracy}% (${results.backspaceCount ?? 0} ⌫)`
+                    : `${results.incorrectChars} errors`}
+                </span>
             </div>
 
              <div className="bento-card flex flex-col items-center justify-center py-6 shadow-lg">
@@ -323,6 +327,85 @@ export const Results: React.FC<ResultsProps> = ({ results, onReset, onNewImage, 
                 <span className="text-stitch-muted font-bold uppercase tracking-widest text-[11px]">Reflex Latency</span>
                 <span className="text-stitch-muted text-[10px] mt-1">Inter-key reaction</span>
             </div>
+        </div>
+
+        {/* Real vs Net Accuracy Diagnostic Card */}
+        <div className="w-full mb-8 bento-card p-6 border border-white/15 rounded-2xl relative overflow-hidden bg-gradient-to-br from-neutral-950 via-neutral-900 to-neutral-950">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/10">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse" />
+                <h3 className="text-base font-bold text-white tracking-wide">
+                  Keystroke Fidelity Diagnostic (Real vs Net Accuracy Audit)
+                </h3>
+              </div>
+              <p className="text-xs text-neutral-400 mt-0.5">
+                वास्तविक की-स्ट्रोक शुद्धता (बिना बैकस्पेस) बनाम फाइनल सबमिट की गई शुद्धता का गहन विश्लेषण।
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className={`text-xs font-mono font-bold px-3 py-1 rounded-xl border ${
+                (results.realAccuracy ?? results.accuracy) >= 95
+                  ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                  : (results.realAccuracy ?? results.accuracy) >= 88
+                    ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                    : 'bg-rose-500/20 text-rose-300 border-rose-500/40'
+              }`}>
+                Real Acc: {results.realAccuracy ?? results.accuracy}%
+              </span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-5">
+            <div className="p-4 bg-white/5 rounded-xl border border-white/10 flex flex-col justify-between">
+              <span className="text-[10px] font-mono uppercase text-neutral-400 font-semibold">Net / Exam Accuracy</span>
+              <div className="text-3xl font-mono font-bold text-emerald-400 mt-1">{results.accuracy}%</div>
+              <span className="text-[10px] text-neutral-500 mt-0.5">Final submitted text</span>
+            </div>
+
+            <div className="p-4 bg-white/5 rounded-xl border border-white/10 flex flex-col justify-between">
+              <span className="text-[10px] font-mono uppercase text-cyan-300 font-semibold">Real Keystroke Accuracy</span>
+              <div className="text-3xl font-mono font-bold text-cyan-300 mt-1">{results.realAccuracy ?? results.accuracy}%</div>
+              <span className="text-[10px] text-neutral-500 mt-0.5">Raw muscle memory</span>
+            </div>
+
+            <div className="p-4 bg-white/5 rounded-xl border border-white/10 flex flex-col justify-between">
+              <span className="text-[10px] font-mono uppercase text-amber-300 font-semibold">Backspace Usage</span>
+              <div className="text-3xl font-mono font-bold text-amber-300 mt-1">{results.backspaceCount ?? 0} <span className="text-sm font-normal">hits</span></div>
+              <span className="text-[10px] text-neutral-500 mt-0.5">{results.correctedErrors ?? 0} errors corrected</span>
+            </div>
+
+            <div className="p-4 bg-white/5 rounded-xl border border-white/10 flex flex-col justify-between">
+              <span className="text-[10px] font-mono uppercase text-rose-300 font-semibold">Total Raw Mistakes</span>
+              <div className="text-3xl font-mono font-bold text-rose-400 mt-1">{results.totalRawErrors ?? results.incorrectChars}</div>
+              <span className="text-[10px] text-neutral-500 mt-0.5">{results.incorrectChars} left uncorrected</span>
+            </div>
+          </div>
+
+          {/* Diagnostic Muscle Memory Advice */}
+          <div className="mt-4 p-3.5 rounded-xl bg-white/5 border border-white/10 text-xs font-mono">
+            {(results.backspaceCount || 0) > 3 && (results.realAccuracy ?? results.accuracy) < results.accuracy ? (
+              <div className="flex items-start gap-2.5 text-amber-200">
+                <span className="text-base shrink-0">⚠️</span>
+                <div>
+                  <span className="font-bold text-amber-300">Backspace Reliance Detected (बैकस्पेस की आदत):</span>
+                  <p className="text-neutral-300 text-[11px] mt-0.5 leading-relaxed">
+                    आपने टेस्ट के दौरान <strong>{results.backspaceCount} बार बैकस्पेस</strong> दबाकर गलतियों को ठीक किया। इससे फाइनल एक्यूरेसी तो <strong>{results.accuracy}%</strong> दिख रही है, लेकिन रियल की-स्ट्रोक शुद्धता <strong>{results.realAccuracy}%</strong> है। बैकस्पेस दबाने से आपकी टाइपिंग स्पीड (WPM) और रिफ्लेक्स फ्लो कम होता है। परीक्षा में स्पीड बनाए रखने के लिए <em>पहली बार में ही सही की दबाने</em> (Accuracy-First Muscle Memory) का अभ्यास करें।
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-start gap-2.5 text-emerald-200">
+                <span className="text-base shrink-0">⚡</span>
+                <div>
+                  <span className="font-bold text-emerald-300">Pure Muscle Memory (उत्कृष्ट की-स्ट्रोक नियंत्रण):</span>
+                  <p className="text-neutral-300 text-[11px] mt-0.5 leading-relaxed">
+                    शानदार नियंत्रण! आपकी रियल और फाइनल एक्यूरेसी बहुत संतुलित हैं ({results.realAccuracy ?? results.accuracy}%) और बैकस्पेस का इस्तेमाल केवल {results.backspaceCount ?? 0} बार हुआ है। आपका कीबोर्ड पर नियंत्रण प्रोफेशनल लेवल का है।
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Official High Court & SSC Exam Evaluation Section */}

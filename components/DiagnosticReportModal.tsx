@@ -150,13 +150,17 @@ export const DiagnosticReportModal: React.FC<DiagnosticReportModalProps> = ({ re
             <div className="p-4 rounded-2xl bg-white/5 border border-white/10 print:border-neutral-300 print:bg-neutral-50 flex flex-col justify-between">
               <span className="text-[10px] uppercase font-mono font-bold text-neutral-400 print:text-black">Accuracy Rate</span>
               <div className="text-3xl font-black font-mono text-emerald-400 print:text-black mt-1">{results.accuracy}%</div>
-              <span className="text-[10px] font-mono text-neutral-400 print:text-neutral-600">Errors: {results.incorrectChars}</span>
+              <span className="text-[10px] font-mono text-neutral-400 print:text-neutral-600">
+                {results.realAccuracy !== undefined ? `Real: ${results.realAccuracy}% (${results.backspaceCount ?? 0} ⌫)` : `Errors: ${results.incorrectChars}`}
+              </span>
             </div>
 
             <div className="p-4 rounded-2xl bg-white/5 border border-white/10 print:border-neutral-300 print:bg-neutral-50 flex flex-col justify-between">
               <span className="text-[10px] uppercase font-mono font-bold text-neutral-400 print:text-black">Key Depressions (KDPH)</span>
               <div className="text-3xl font-black font-mono text-white print:text-black mt-1">{kdph}</div>
-              <span className="text-[10px] font-mono text-neutral-400 print:text-neutral-600">Req: 8000 KDPH</span>
+              <span className="text-[10px] font-mono text-neutral-400 print:text-neutral-600">
+                {results.backspaceCount !== undefined ? `${results.backspaceCount} Backspaces Used` : 'Req: 8000 KDPH'}
+              </span>
             </div>
 
             <div className={`p-4 rounded-2xl border flex flex-col justify-between ${

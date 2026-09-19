@@ -186,9 +186,13 @@ export const TypingTest: React.FC<TypingTestProps> = ({
     }
   });
   
-  // History tracking
+  // History and Keystroke Tracking
   const historyRef = useRef<{ time: number; wpm: number; raw: number; accuracy: number }[]>([]);
   const linearErrorsRef = useRef(0);
+  const totalKeystrokesRef = useRef<number>(0);
+  const totalRawErrorsRef = useRef<number>(0);
+  const backspaceCountRef = useRef<number>(0);
+  const correctedErrorsRef = useRef<number>(0);
   
   // Tick state to force re-renders for timer
   const [, setTick] = useState(0);
@@ -255,6 +259,10 @@ export const TypingTest: React.FC<TypingTestProps> = ({
   useEffect(() => {
     historyRef.current = [];
     linearErrorsRef.current = 0;
+    totalKeystrokesRef.current = 0;
+    totalRawErrorsRef.current = 0;
+    backspaceCountRef.current = 0;
+    correctedErrorsRef.current = 0;
     hasCompletedRef.current = false;
     setInputRevision(0);
   }, [targetText]);
@@ -314,10 +322,22 @@ export const TypingTest: React.FC<TypingTestProps> = ({
         ? Math.max(0, Math.round(((input.length - errors) / input.length) * 100)) 
         : 100;
 
+    // Real keystroke accuracy taking all mistakes into account (including corrected via backspace)
+    const totalKeystrokes = Math.max(input.length, totalKeystrokesRef.current);
+    const totalRawErrors = totalRawErrorsRef.current;
+    const realAccuracy = totalKeystrokes > 0
+      ? Math.max(0, Math.min(100, Math.round(((totalKeystrokes - totalRawErrors) / totalKeystrokes) * 100)))
+      : 100;
+
     return {
       netWpm,
       rawWpm,
       accuracy,
+      realAccuracy,
+      totalKeystrokes,
+      totalRawErrors,
+      backspaceCount: backspaceCountRef.current,
+      correctedErrors: correctedErrorsRef.current,
       timeElapsed: timeElapsedSecs,
       totalChars: input.length,
       correctChars,
@@ -576,6 +596,24 @@ export const TypingTest: React.FC<TypingTestProps> = ({
       setInputRevision(rev => rev + 1);
     }
 
+    if (val.length > prevInput.length) {
+      const addedChars = val.length - prevInput.length;
+      totalKeystrokesRef.current += addedChars;
+      for (let i = prevInput.length; i < val.length; i++) {
+        if (i < targetText.length && val[i] !== targetText[i]) {
+          totalRawErrorsRef.current += 1;
+        }
+      }
+    } else if (val.length < prevInput.length) {
+      const removedChars = prevInput.length - val.length;
+      backspaceCountRef.current += removedChars;
+      for (let i = val.length; i < prevInput.length; i++) {
+        if (i < targetText.length && prevInput[i] !== targetText[i]) {
+          correctedErrorsRef.current += 1;
+        }
+      }
+    }
+
     // Keep a cheap running mismatch count for live stats.
     let nextLinearErrors = linearErrorsRef.current;
     if (val.length >= prevInput.length && val.startsWith(prevInput)) {
@@ -687,7 +725,9 @@ export const TypingTest: React.FC<TypingTestProps> = ({
         <div className="w-full shrink-0 z-40 bento-card bg-neutral-950/80 backdrop-blur-xl border border-white/10 py-2.5 px-5 mb-4 flex items-center justify-between rounded-2xl shadow-xl">
           <div className="flex items-center gap-6 font-mono text-sm">
             <span className="text-white font-bold">{stats.netWpm} WPM</span>
-            <span className={stats.accuracy >= 95 ? 'text-emerald-400 font-bold' : 'text-amber-400 font-bold'}>{stats.accuracy}% ACC</span>
+            <span className={stats.accuracy >= 95 ? 'text-emerald-400 font-bold' : 'text-amber-400 font-bold'}>
+              {stats.accuracy}% ACC {stats.realAccuracy !== undefined && stats.realAccuracy !== stats.accuracy ? `(${stats.realAccuracy}% real)` : ''}
+            </span>
             <span className="text-neutral-400">{formatTime(displayTime)}</span>
           </div>
           <button
@@ -716,13 +756,20 @@ export const TypingTest: React.FC<TypingTestProps> = ({
           {/* Accuracy */}
           <div className="flex flex-col">
             <span className="text-[10px] text-neutral-400 font-bold uppercase tracking-widest">Accuracy</span>
-            <span className={`text-3xl font-mono font-black tracking-tight leading-none mt-1 ${
-              stats.accuracy >= 97 ? 'text-emerald-400 drop-shadow-[0_0_12px_rgba(52,211,153,0.3)]' :
-              stats.accuracy >= 90 ? 'text-amber-400 drop-shadow-[0_0_12px_rgba(251,191,36,0.3)]' :
-              'text-rose-400 drop-shadow-[0_0_12px_rgba(251,113,133,0.3)]'
-            }`}>
-              {stats.accuracy}%
-            </span>
+            <div className="flex items-baseline gap-1.5 mt-1">
+              <span className={`text-3xl font-mono font-black tracking-tight leading-none ${
+                stats.accuracy >= 97 ? 'text-emerald-400 drop-shadow-[0_0_12px_rgba(52,211,153,0.3)]' :
+                stats.accuracy >= 90 ? 'text-amber-400 drop-shadow-[0_0_12px_rgba(251,191,36,0.3)]' :
+                'text-rose-400 drop-shadow-[0_0_12px_rgba(251,113,133,0.3)]'
+              }`}>
+                {stats.accuracy}%
+              </span>
+              {stats.realAccuracy !== undefined && stats.realAccuracy !== stats.accuracy && (
+                <span className="text-[10px] font-mono text-neutral-400 font-medium" title="Real Keystroke Accuracy before Backspace">
+                  ({stats.realAccuracy}% real)
+                </span>
+              )}
+            </div>
           </div>
 
           <div className="w-px h-8 bg-white/10 hidden sm:block" />

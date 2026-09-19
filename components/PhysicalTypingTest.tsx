@@ -32,11 +32,15 @@ export const PhysicalTypingTest: React.FC<PhysicalTypingTestProps> = ({ ocrText,
   const scrollRafRef = useRef<number | null>(null);
   const mouseMoveRafRef = useRef<number | null>(null);
   const hasCompletedRef = useRef(false);
+  const totalKeystrokesRef = useRef(0);
+  const backspaceCountRef = useRef(0);
 
   useEffect(() => { inputRef.current = input; }, [input]);
   useEffect(() => { startTimeRef.current = startTime; }, [startTime]);
   useEffect(() => {
     hasCompletedRef.current = false;
+    totalKeystrokesRef.current = 0;
+    backspaceCountRef.current = 0;
   }, [ocrText, timeLimit, isSSC]);
 
   const finishTest = useCallback((finalTime?: number) => {
@@ -138,6 +142,13 @@ export const PhysicalTypingTest: React.FC<PhysicalTypingTestProps> = ({ ocrText,
       let rawWpm = Math.round((normalizedCharCount / 5) / minutes);
       let netWpm = Math.max(0, Math.round(((normalizedCharCount - errors) / 5) / minutes));
       const accuracy = Math.max(0, Math.round((correctChars / cleanInput.length) * 100));
+      
+      const totalKeystrokes = Math.max(cleanInput.length, totalKeystrokesRef.current);
+      const totalRawErrors = errors + backspaceCountRef.current;
+      const realAccuracy = totalKeystrokes > 0
+        ? Math.max(0, Math.min(100, Math.round(((totalKeystrokes - totalRawErrors) / totalKeystrokes) * 100)))
+        : accuracy;
+      
       let sscMarks: number | undefined;
 
       if (isSSC) {
@@ -156,7 +167,13 @@ export const PhysicalTypingTest: React.FC<PhysicalTypingTestProps> = ({ ocrText,
       }
 
       const results: TestResults = {
-          netWpm, rawWpm, accuracy, timeElapsed: effectiveTime,
+          netWpm, rawWpm, accuracy,
+          realAccuracy,
+          totalKeystrokes,
+          totalRawErrors,
+          backspaceCount: backspaceCountRef.current,
+          correctedErrors: backspaceCountRef.current,
+          timeElapsed: effectiveTime,
           totalChars: normalizedCharCount, correctChars, incorrectChars: errors,
           hardKeys: {}, 
           missedWords: missedWordsCount, 
@@ -203,8 +220,16 @@ export const PhysicalTypingTest: React.FC<PhysicalTypingTestProps> = ({ ocrText,
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     if (hasCompletedRef.current) return;
-    if (!startTime) setStartTime(Date.now());
+    const prevInput = input;
     const val = e.target.value;
+    if (!startTime) setStartTime(Date.now());
+
+    if (val.length > prevInput.length) {
+      totalKeystrokesRef.current += (val.length - prevInput.length);
+    } else if (val.length < prevInput.length) {
+      backspaceCountRef.current += (prevInput.length - val.length);
+    }
+
     setInput(val);
 
     if (scrollRafRef.current !== null) {

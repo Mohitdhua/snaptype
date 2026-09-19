@@ -31,10 +31,15 @@ export interface TestResults {
   netWpm: number;
   rawWpm: number;
   accuracy: number;
-  timeElapsed: number;
+  realAccuracy?: number;        // Raw keystroke accuracy accounting for all mistakes before backspacing
   totalChars: number;
   correctChars: number;
   incorrectChars: number;
+  totalKeystrokes?: number;     // Total keystrokes attempted (including backspaces and typos)
+  totalRawErrors?: number;      // Total raw errors made throughout the session
+  backspaceCount?: number;      // Number of backspaces pressed
+  correctedErrors?: number;     // Errors that were typed and then corrected
+  timeElapsed: number;
   hardKeys: Record<string, number>;
   missedWords: Record<string, number>;
   history: { time: number; wpm: number; raw: number; accuracy: number }[];
@@ -69,6 +74,9 @@ export interface StoredResult {
   timestamp: number;
   netWpm: number;
   accuracy: number;
+  realAccuracy?: number;
+  totalRawErrors?: number;
+  backspaceCount?: number;
   mode: GameMode;
   testId?: string;
   kdph?: number;

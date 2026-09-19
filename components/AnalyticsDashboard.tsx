@@ -48,6 +48,12 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
     return Math.round(history.reduce((acc, cur) => acc + cur.accuracy, 0) / history.length);
   }, [history]);
 
+  const avgRealAccuracy = useMemo(() => {
+    const validHistory = history.filter(h => typeof h.realAccuracy === 'number');
+    if (validHistory.length === 0) return avgAccuracy;
+    return Math.round(validHistory.reduce((acc, cur) => acc + (cur.realAccuracy ?? cur.accuracy), 0) / validHistory.length);
+  }, [history, avgAccuracy]);
+
   const totalMinutes = useMemo(() => {
     return Math.round((userStats.totalTimeSeconds || 0) / 60);
   }, [userStats.totalTimeSeconds]);
@@ -149,9 +155,11 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
         </div>
 
         <div className="p-4 rounded-2xl bg-neutral-900/80 border border-white/10 flex flex-col justify-between">
-          <span className="text-[10px] uppercase font-mono font-bold text-emerald-400">Accuracy</span>
+          <span className="text-[10px] uppercase font-mono font-bold text-emerald-400">Final Accuracy</span>
           <div className="text-2xl md:text-3xl font-black font-mono text-emerald-400 mt-1">{avgAccuracy}%</div>
-          <span className="text-[10px] font-mono text-neutral-500 mt-1">Clean keystrokes</span>
+          <span className="text-[10px] font-mono text-neutral-400 mt-1">
+            Real: <strong className="text-cyan-300">{avgRealAccuracy}%</strong>
+          </span>
         </div>
 
         <div className="p-4 rounded-2xl bg-neutral-900/80 border border-white/10 flex flex-col justify-between">
