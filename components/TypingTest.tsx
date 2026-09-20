@@ -162,6 +162,12 @@ export const TypingTest: React.FC<TypingTestProps> = ({
   const [showKeyboard, setShowKeyboard] = useState(true);
   const [showHands, setShowHands] = useState(false);
   const [hardcoreMode, setHardcoreMode] = useState<HardcoreMode>(initialHardcoreMode);
+  const [backspaceBlockedToast, setBackspaceBlockedToast] = useState(false);
+  const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    setHardcoreMode(initialHardcoreMode);
+  }, [initialHardcoreMode, text]);
   const [soundProfile, setSoundProfileState] = useState<SoundProfile>(() => getSoundProfile());
   const [caretStyle, setCaretStyle] = useState<'line' | 'block' | 'underline'>('line');
   const [isZenMode, setIsZenMode] = useState(false);
@@ -557,6 +563,9 @@ export const TypingTest: React.FC<TypingTestProps> = ({
     if (hardcoreMode === 'NO_BACKSPACE' && val.length < prevInput.length) {
       if (soundProfile !== 'off') playSound('error');
       setHasErrorShake(true);
+      setBackspaceBlockedToast(true);
+      if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+      toastTimeoutRef.current = setTimeout(() => setBackspaceBlockedToast(false), 1400);
       setTimeout(() => setHasErrorShake(false), 180);
       return;
     }
@@ -967,6 +976,22 @@ export const TypingTest: React.FC<TypingTestProps> = ({
             <span>{isMetronomeOn ? 'BPM ON' : 'BPM'}</span>
           </button>
 
+          {/* Quick Backspace Lock / Accuracy-First Toggle */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setHardcoreMode(prev => prev === 'NO_BACKSPACE' ? 'NONE' : 'NO_BACKSPACE');
+            }}
+            className={`px-2.5 py-1.5 rounded-xl text-[10px] font-mono font-bold border transition-all flex items-center gap-1 ${
+              hardcoreMode === 'NO_BACKSPACE'
+                ? 'bg-amber-400 text-black border-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.35)]'
+                : 'bg-white/5 border-white/10 text-neutral-400 hover:text-white'
+            }`}
+            title={hardcoreMode === 'NO_BACKSPACE' ? 'Accuracy-First Active (Backspace Blocked)' : 'Enable Accuracy-First Mode (Block Backspace to build real muscle precision)'}
+          >
+            <span>{hardcoreMode === 'NO_BACKSPACE' ? '🛡️ No ⌫' : '⌫ Normal'}</span>
+          </button>
+
           {/* Hardcore Mode Selector */}
           <div className="relative" title="Typing Mode">
             <select
@@ -986,9 +1011,9 @@ export const TypingTest: React.FC<TypingTestProps> = ({
               }`}
             >
               <option value="NONE" className="bg-neutral-900 text-white">Standard Mode</option>
-              <option value="NO_BACKSPACE" className="bg-neutral-900 text-white">No Backspace</option>
-              <option value="SUDDEN_DEATH" className="bg-neutral-900 text-white">Sudden Death (1 Error)</option>
-              <option value="STOP_ON_ERROR" className="bg-neutral-900 text-white">Stop on Error</option>
+              <option value="NO_BACKSPACE" className="bg-neutral-900 text-white">🛡️ No Backspace</option>
+              <option value="SUDDEN_DEATH" className="bg-neutral-900 text-white">💀 Sudden Death</option>
+              <option value="STOP_ON_ERROR" className="bg-neutral-900 text-white">🛑 Stop on Error</option>
             </select>
           </div>
 
@@ -1065,6 +1090,26 @@ export const TypingTest: React.FC<TypingTestProps> = ({
               <span className="text-[10px] font-mono text-neutral-400 w-10 text-right">{ghostTargetWpm} WPM</span>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Accuracy First Banner / Notification */}
+      {hardcoreMode === 'NO_BACKSPACE' && (
+        <div className="w-full shrink-0 flex items-center justify-between px-4 py-2 mb-2 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-mono shadow-md animate-fade-in">
+          <div className="flex items-center gap-2">
+            <span className="text-base">🛡️</span>
+            <span className="font-bold">Accuracy-First Training Mode:</span>
+            <span className="text-neutral-300 hidden sm:inline">Backspace disabled to force 96%+ raw muscle precision. Feel each key before pressing.</span>
+          </div>
+          {backspaceBlockedToast ? (
+            <span className="px-2.5 py-0.5 rounded-lg bg-rose-500/20 text-rose-300 font-bold border border-rose-500/40 animate-pulse text-[11px]">
+              ⌫ Backspace Blocked! Press forward.
+            </span>
+          ) : (
+            <span className="text-[10px] text-amber-400/80 uppercase tracking-widest hidden md:inline">
+              Real Accuracy Mode
+            </span>
+          )}
         </div>
       )}
 

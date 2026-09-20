@@ -1,9 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import { PRACTICE_LIBRARY } from '../data/practiceLibrary';
-import { GameMode, PassageCategory, PracticePassage, TimeLimit } from '../types';
+import { GameMode, HardcoreMode, PassageCategory, PracticePassage, TimeLimit } from '../types';
 
 interface PracticeLibraryViewProps {
-  onStartPassage: (passage: PracticePassage, mode: GameMode, timeLimit: TimeLimit) => void;
+  onStartPassage: (passage: PracticePassage, mode: GameMode, timeLimit: TimeLimit, hardcore?: HardcoreMode) => void;
 }
 
 const CATEGORIES: { id: 'all' | PassageCategory; label: string }[] = [
@@ -21,6 +21,7 @@ export const PracticeLibraryView: React.FC<PracticeLibraryViewProps> = ({ onStar
   const [selectedCategory, setSelectedCategory] = useState<'all' | PassageCategory>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTimeLimit, setSelectedTimeLimit] = useState<TimeLimit>(0);
+  const [isAccuracyFirst, setIsAccuracyFirst] = useState(false);
 
   const filteredPassages = useMemo(() => {
     return PRACTICE_LIBRARY.filter(p => {
@@ -59,22 +60,37 @@ export const PracticeLibraryView: React.FC<PracticeLibraryViewProps> = ({ onStar
           </p>
         </div>
 
-        {/* Global Timer Selector */}
-        <div className="flex items-center gap-2 bg-white/5 border border-white/10 p-1.5 rounded-2xl">
-          <span className="text-xs font-mono text-neutral-400 pl-2">Timer:</span>
-          {([0, 60, 120, 300, 600] as TimeLimit[]).map(t => (
-            <button
-              key={t}
-              onClick={() => setSelectedTimeLimit(t)}
-              className={`text-xs font-mono px-3 py-1 rounded-xl font-bold transition-all ${
-                selectedTimeLimit === t
-                  ? 'bg-white text-black shadow-md'
-                  : 'text-neutral-400 hover:text-white'
-              }`}
-            >
-              {t === 0 ? 'Full' : `${t / 60}m`}
-            </button>
-          ))}
+        {/* Global Timer & Accuracy First Selectors */}
+        <div className="flex flex-wrap items-center gap-2.5">
+          <button
+            onClick={() => setIsAccuracyFirst(!isAccuracyFirst)}
+            className={`px-3 py-1.5 rounded-xl text-xs font-mono font-bold transition-all border flex items-center gap-1.5 ${
+              isAccuracyFirst
+                ? 'bg-amber-400 text-black border-amber-300 shadow-md'
+                : 'bg-white/5 hover:bg-white/10 text-neutral-300 border-white/10'
+            }`}
+            title="Block Backspace to test real exam muscle memory"
+          >
+            <span>🛡️</span>
+            <span>{isAccuracyFirst ? 'No Backspace ON' : 'Standard (⌫ On)'}</span>
+          </button>
+
+          <div className="flex items-center gap-1 bg-white/5 border border-white/10 p-1 rounded-2xl">
+            <span className="text-xs font-mono text-neutral-400 pl-2 pr-1">Timer:</span>
+            {([0, 60, 120, 300, 600] as TimeLimit[]).map(t => (
+              <button
+                key={t}
+                onClick={() => setSelectedTimeLimit(t)}
+                className={`text-xs font-mono px-3 py-1 rounded-xl font-bold transition-all ${
+                  selectedTimeLimit === t
+                    ? 'bg-white text-black shadow-md'
+                    : 'text-neutral-400 hover:text-white'
+                }`}
+              >
+                {t === 0 ? 'Full' : `${t / 60}m`}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -147,13 +163,17 @@ export const PracticeLibraryView: React.FC<PracticeLibraryViewProps> = ({ onStar
             {/* Launch Buttons */}
             <div className="flex gap-2 pt-2 border-t border-white/5">
               <button
-                onClick={() => onStartPassage(passage, 'DIGITAL', selectedTimeLimit)}
-                className="flex-1 py-2 px-3 rounded-xl text-xs font-bold uppercase tracking-wider bg-white text-black hover:bg-neutral-200 transition-all shadow-[0_0_12px_rgba(255,255,255,0.2)] flex items-center justify-center gap-1.5"
+                onClick={() => onStartPassage(passage, 'DIGITAL', selectedTimeLimit, isAccuracyFirst ? 'NO_BACKSPACE' : 'NONE')}
+                className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all shadow-[0_0_12px_rgba(255,255,255,0.2)] flex items-center justify-center gap-1.5 ${
+                  isAccuracyFirst
+                    ? 'bg-amber-400 hover:bg-amber-300 text-black shadow-amber-500/20'
+                    : 'bg-white text-black hover:bg-neutral-200'
+                }`}
               >
-                <span>Digital Mode</span>
+                <span>{isAccuracyFirst ? 'Digital (No ⌫)' : 'Digital Mode'}</span>
               </button>
               <button
-                onClick={() => onStartPassage(passage, 'PHYSICAL', selectedTimeLimit)}
+                onClick={() => onStartPassage(passage, 'PHYSICAL', selectedTimeLimit, isAccuracyFirst ? 'NO_BACKSPACE' : 'NONE')}
                 className="py-2 px-3 rounded-xl text-xs font-bold uppercase tracking-wider bg-white/5 hover:bg-white/10 text-neutral-300 border border-white/10 transition-colors flex items-center justify-center gap-1.5"
                 title="Type in Split Paper / Exam Mode"
               >

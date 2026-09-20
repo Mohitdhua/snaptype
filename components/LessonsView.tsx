@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { LESSONS, MASTERY_PLAN } from '../data/lessonsData';
 import { PRACTICE_LIBRARY } from '../data/practiceLibrary';
-import { Lesson, LessonProgress, LessonProgressMap, FingerId } from '../types';
+import { Lesson, LessonProgress, LessonProgressMap, FingerId, HardcoreMode } from '../types';
 import {
   getLessonProgress,
   getAdaptiveProfile,
@@ -13,7 +13,7 @@ import {
 
 interface LessonsViewProps {
   progress?: LessonProgressMap;
-  onSelectExercise: (text: string, lessonId: string, title: string) => void;
+  onSelectExercise: (text: string, lessonId: string, title: string, hardcoreMode?: HardcoreMode) => void;
 }
 
 const FINGER_META: Record<FingerId, { label: string; hand: 'Left' | 'Right' | 'Thumb'; defaultKeys: string }> = {
@@ -35,6 +35,7 @@ export const LessonsView: React.FC<LessonsViewProps> = ({ progress: propProgress
   const [activeLesson, setActiveLesson] = useState<Lesson>(LESSONS[0]);
   const [activeTab, setActiveTab] = useState<'curriculum' | 'roadmap' | 'weakness' | 'collision'>('curriculum');
   const [selectedDayNumber, setSelectedDayNumber] = useState<number | null>(null);
+  const [isAccuracyFirst, setIsAccuracyFirst] = useState(false);
 
   const progress: LessonProgressMap = propProgress || getLessonProgress();
   const adaptiveProfile = useMemo(() => getAdaptiveProfile(), []);
@@ -76,18 +77,20 @@ export const LessonsView: React.FC<LessonsViewProps> = ({ progress: propProgress
     return LESSONS[0];
   }, [adaptiveProfile.recommendedLessonId]);
 
-  const handleStartWeaknessDrill = () => {
+  const handleStartWeaknessDrill = (forceNoBackspace: boolean = false) => {
     let drillText = generateWeaknessDrill(adaptiveProfile);
     if (!drillText || drillText.trim().length < 50) {
       drillText = 'the quick brown fox jumps over the lazy dog package text view size clear make user calm quick judge form stream index equal power daily test speed focus rhythm hand accuracy master clerk typing flow target world number';
     }
-    onSelectExercise(drillText, 'adaptive-weakness', 'AI Adaptive Finger & Weak Key Drill');
+    const mode: HardcoreMode = forceNoBackspace || isAccuracyFirst ? 'NO_BACKSPACE' : 'NONE';
+    onSelectExercise(drillText, 'adaptive-weakness', 'AI Adaptive Finger & Weak Key Drill', mode);
   };
 
-  const handleStartCollisionDrill = (focusPair?: string) => {
+  const handleStartCollisionDrill = (focusPair?: string, forceNoBackspace: boolean = false) => {
     const drillText = generateCollisionRepairDrill(adaptiveProfile, focusPair);
     const label = focusPair ? `Finger Isolation Drill (${focusPair.toUpperCase()})` : 'AI Adaptive Collision Disentangler';
-    onSelectExercise(drillText, `collision-${focusPair || 'ai-auto'}`, label);
+    const mode: HardcoreMode = forceNoBackspace || isAccuracyFirst ? 'NO_BACKSPACE' : 'NONE';
+    onSelectExercise(drillText, `collision-${focusPair || 'ai-auto'}`, label, mode);
   };
 
   const renderStars = (stars: number) => {
@@ -147,6 +150,42 @@ export const LessonsView: React.FC<LessonsViewProps> = ({ progress: propProgress
         </div>
       </div>
 
+      {/* Daily 3-Step Accuracy & Speed Booster Routine */}
+      <div className="p-4 md:p-5 rounded-2xl bg-gradient-to-r from-neutral-950 via-indigo-950/20 to-neutral-950 border border-indigo-500/25 shadow-lg flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div className="flex items-start gap-3">
+          <div className="w-9 h-9 rounded-xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-lg shrink-0 mt-0.5">
+            ⚡
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-mono uppercase tracking-widest text-indigo-400 font-bold">
+                10-Day Speed & Accuracy Booster Routine
+              </span>
+              <span className="text-[9px] font-mono px-2 py-0.2 rounded bg-indigo-500/30 text-indigo-200">
+                Daily 35 Min Plan
+              </span>
+            </div>
+            <div className="text-xs text-neutral-300 mt-1 flex flex-wrap items-center gap-x-4 gap-y-1">
+              <span><strong>1️⃣ Warmup (10m):</strong> Weak Key Isolation</span>
+              <span className="text-neutral-600">•</span>
+              <span><strong>2️⃣ Milestone (15m):</strong> Day {dayProgress.currentDay} Core Keys ({MASTERY_PLAN[dayProgress.currentDay - 1]?.targetWpm || 40} WPM)</span>
+              <span className="text-neutral-600">•</span>
+              <span><strong>3️⃣ Benchmark (10m):</strong> Real Accuracy Exam Passage</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 shrink-0 w-full md:w-auto justify-end">
+          <button
+            onClick={() => handleStartWeaknessDrill(true)}
+            className="px-3.5 py-1.5 rounded-xl text-xs font-bold font-mono bg-gradient-to-r from-amber-400 to-yellow-300 hover:from-amber-300 hover:to-yellow-200 text-black shadow transition-all flex items-center gap-1.5"
+            title="Starts an AI weakness repair drill with Backspace disabled to force 96%+ raw muscle precision"
+          >
+            <span>⚡ Start Warmup (No Backspace)</span>
+          </button>
+        </div>
+      </div>
+
       {/* 2. Unified Clean Navigation Bar */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
         {/* Navigation Tabs */}
@@ -198,7 +237,7 @@ export const LessonsView: React.FC<LessonsViewProps> = ({ progress: propProgress
 
         {/* Quick Launch AI Weakness Drill */}
         <button
-          onClick={handleStartWeaknessDrill}
+          onClick={() => handleStartWeaknessDrill(isAccuracyFirst)}
           className="px-4 py-2 rounded-xl text-xs font-semibold bg-white/10 hover:bg-white/15 text-white border border-white/15 transition-all flex items-center justify-center gap-2 shrink-0 font-mono shadow-sm"
         >
           <span>⚡ Launch AI Drill</span>
@@ -209,6 +248,37 @@ export const LessonsView: React.FC<LessonsViewProps> = ({ progress: propProgress
       {/* ================= CURRICULUM VIEW ================= */}
       {activeTab === 'curriculum' && (
         <div className="flex flex-col gap-5 animate-fade-in">
+          {/* Accuracy First Mode Toggle */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl bg-neutral-900/60 border border-white/10 text-xs">
+            <div className="flex items-center gap-2.5">
+              <span className="text-base">🛡️</span>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-white">Accuracy-First Training Mode (No Backspace)</span>
+                  <span className={`text-[10px] font-mono px-2 py-0.2 rounded-full font-bold ${isAccuracyFirst ? 'bg-amber-400 text-black' : 'bg-white/10 text-neutral-400'}`}>
+                    {isAccuracyFirst ? 'ACTIVE' : 'OFF'}
+                  </span>
+                </div>
+                <p className="text-[11px] text-neutral-400 mt-0.5">
+                  {isAccuracyFirst
+                    ? 'बैकस्पेस ब्लॉक है! हर की को पहली बार में ही सही दबाएं ताकि Real Accuracy 96%+ बने।'
+                    : 'उंगलियों की गलत आदत और बैकस्पेस की लत छुड़ाने के लिए इसे ऑन करें।'}
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setIsAccuracyFirst(!isAccuracyFirst)}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-mono font-bold transition-all shrink-0 border ${
+                isAccuracyFirst
+                  ? 'bg-amber-400 text-black border-amber-300 shadow-md'
+                  : 'bg-white/5 hover:bg-white/10 text-neutral-300 border-white/10'
+              }`}
+            >
+              {isAccuracyFirst ? '✓ Accuracy-First ON' : 'Enable Accuracy-First'}
+            </button>
+          </div>
+
           {/* Slim Recommendation Bar */}
           {recommendedLesson && selectedDayNumber === null && (
             <div className="px-4 py-2.5 rounded-xl bg-indigo-950/40 border border-indigo-500/30 flex items-center justify-between gap-3 text-xs">
@@ -389,10 +459,14 @@ export const LessonsView: React.FC<LessonsViewProps> = ({ progress: propProgress
                         </div>
 
                         <button
-                          onClick={() => onSelectExercise(ex.text, activeLesson.id, `${activeLesson.title} - ${ex.title}`)}
-                          className="px-3.5 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider bg-white text-black hover:bg-neutral-200 transition-all shrink-0 flex items-center gap-1.5 shadow-sm"
+                          onClick={() => onSelectExercise(ex.text, activeLesson.id, `${activeLesson.title} - ${ex.title}`, isAccuracyFirst ? 'NO_BACKSPACE' : 'NONE')}
+                          className={`px-3.5 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all shrink-0 flex items-center gap-1.5 shadow-sm ${
+                            isAccuracyFirst
+                              ? 'bg-amber-400 hover:bg-amber-300 text-black shadow-amber-500/20'
+                              : 'bg-white text-black hover:bg-neutral-200'
+                          }`}
                         >
-                          <span>Start</span>
+                          <span>{isAccuracyFirst ? 'Start (No ⌫)' : 'Start'}</span>
                           <span className="text-[10px]">→</span>
                         </button>
                       </div>

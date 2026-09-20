@@ -2,7 +2,7 @@ import React, { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'rea
 import { Button } from './components/Button';
 import { extractTextFromImage } from './services/geminiService';
 import { deleteSavedTest, getHistory, getSavedTests, getUserStats, saveLessonProgress, saveResult, saveTest, updateAdaptiveProfile } from './services/storageService';
-import { GameMode, GameState, PracticePassage, SavedTest, StoredResult, TestResults, TimeLimit, UserStats } from './types';
+import { GameMode, GameState, HardcoreMode, PracticePassage, SavedTest, StoredResult, TestResults, TimeLimit, UserStats } from './types';
 import { LESSONS } from './data/lessonsData';
 
 type HomeTab = 'LESSONS' | 'PRACTICE' | 'CREATE' | 'SAVED' | 'PROGRESS';
@@ -61,6 +61,7 @@ const App: React.FC = () => {
   const [userStats, setUserStats] = useState<UserStats | null>(null);
   const [savedTests, setSavedTests] = useState<SavedTest[]>([]);
   const [isSSCMode, setIsSSCMode] = useState(false);
+  const [hardcoreMode, setHardcoreMode] = useState<HardcoreMode>('NONE');
   const [activeTestId, setActiveTestId] = useState<string | null>(null);
   const [activeLessonId, setActiveLessonId] = useState<string | null>(null);
   const isRestoringFromHistoryRef = useRef(false);
@@ -144,6 +145,7 @@ const App: React.FC = () => {
     sscEnabled,
     testId,
     lessonId,
+    hardcore = 'NONE',
   }: {
     rawText: string;
     imageSrc: string | null;
@@ -152,6 +154,7 @@ const App: React.FC = () => {
     sscEnabled: boolean;
     testId: string | null;
     lessonId?: string | null;
+    hardcore?: HardcoreMode;
   }) => {
     const gameText = prepareTextForGame(rawText, selectedTimeLimit);
     setOriginalText(rawText);
@@ -162,6 +165,7 @@ const App: React.FC = () => {
     setIsSSCMode(sscEnabled);
     setActiveTestId(testId);
     setActiveLessonId(lessonId || null);
+    setHardcoreMode(hardcore);
     setGameState(GameState.PLAYING);
   };
 
@@ -174,6 +178,7 @@ const App: React.FC = () => {
     setOriginalText('');
     setImagePreview(null);
     setIsSSCMode(false);
+    setHardcoreMode('NONE');
     setActiveTestId(null);
     setActiveLessonId(null);
   };
@@ -271,7 +276,12 @@ const App: React.FC = () => {
     setGameState(GameState.RESULTS);
   };
 
-  const handleSelectLessonExercise = (exerciseText: string, lessonId: string, title: string) => {
+  const handleSelectLessonExercise = (
+    exerciseText: string,
+    lessonId: string,
+    title: string,
+    hardcore: HardcoreMode = 'NONE'
+  ) => {
     startGame({
       rawText: exerciseText,
       imageSrc: null,
@@ -280,10 +290,16 @@ const App: React.FC = () => {
       sscEnabled: false,
       testId: null,
       lessonId,
+      hardcore,
     });
   };
 
-  const handleStartPassage = (passage: PracticePassage, mode: GameMode, selectedTimeLimit: TimeLimit) => {
+  const handleStartPassage = (
+    passage: PracticePassage,
+    mode: GameMode,
+    selectedTimeLimit: TimeLimit,
+    hardcore: HardcoreMode = 'NONE'
+  ) => {
     const isSSC = passage.category === 'ssc' || passage.category === 'legal';
     startGame({
       rawText: passage.text,
@@ -293,6 +309,24 @@ const App: React.FC = () => {
       sscEnabled: isSSC,
       testId: passage.id,
       lessonId: null,
+      hardcore,
+    });
+  };
+
+  const handleLaunchBooster = (
+    boosterText: string,
+    title: string,
+    hardcore: HardcoreMode = 'NO_BACKSPACE'
+  ) => {
+    startGame({
+      rawText: boosterText,
+      imageSrc: null,
+      mode: 'DIGITAL',
+      selectedTimeLimit: 0,
+      sscEnabled: false,
+      testId: null,
+      lessonId: null,
+      hardcore,
     });
   };
 
@@ -594,7 +628,15 @@ const App: React.FC = () => {
         <Suspense fallback={<SectionLoader />}>
           {gameState === GameState.PLAYING &&
             (gameMode === 'DIGITAL' ? (
-              <TypingTest text={text} timeLimit={timeLimit} onComplete={handleComplete} onRestart={goHomeCreate} isSSC={isSSCMode} lessonId={activeLessonId || undefined} />
+              <TypingTest
+                text={text}
+                timeLimit={timeLimit}
+                onComplete={handleComplete}
+                onRestart={goHomeCreate}
+                isSSC={isSSCMode}
+                lessonId={activeLessonId || undefined}
+                initialHardcoreMode={hardcoreMode}
+              />
             ) : (
               <PhysicalTypingTest
                 ocrText={text}
@@ -608,7 +650,13 @@ const App: React.FC = () => {
             ))}
 
           {gameState === GameState.RESULTS && results && (
-            <Results results={results} onReset={handleRetry} onNewImage={goHomeCreate} onPractice={handlePractice} />
+            <Results
+              results={results}
+              onReset={handleRetry}
+              onNewImage={goHomeCreate}
+              onPractice={handlePractice}
+              onLaunchBooster={handleLaunchBooster}
+            />
           )}
         </Suspense>
       </main>

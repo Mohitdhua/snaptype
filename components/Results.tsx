@@ -1,8 +1,8 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { Button } from './Button';
-import { TestResults } from '../types';
-import { getHistory, calculateExamEvaluation, classifyTypo } from '../services/storageService';
+import { TestResults, HardcoreMode } from '../types';
+import { getHistory, calculateExamEvaluation, classifyTypo, getAdaptiveProfile, generateWeaknessDrill, generateCollisionRepairDrill } from '../services/storageService';
 import { ProgressChart } from './ProgressChart';
 import { CertificateModal } from './CertificateModal';
 import { DiagnosticReportModal } from './DiagnosticReportModal';
@@ -14,6 +14,7 @@ interface ResultsProps {
   onReset: () => void;
   onNewImage: () => void;
   onPractice: (type: 'words' | 'keys') => void;
+  onLaunchBooster?: (text: string, title: string, hardcore?: HardcoreMode) => void;
 }
 
 const roundTo = (value: number, precision = 1) => {
@@ -68,7 +69,7 @@ const HEATMAP_LAYOUT = [
   ['Space']
 ];
 
-export const Results: React.FC<ResultsProps> = ({ results, onReset, onNewImage, onPractice }) => {
+export const Results: React.FC<ResultsProps> = ({ results, onReset, onNewImage, onPractice, onLaunchBooster }) => {
   const [showCertificate, setShowCertificate] = useState(false);
   const [showDiagnosticModal, setShowDiagnosticModal] = useState(false);
   const [showExamEval, setShowExamEval] = useState(results.isSSC || false);
@@ -405,6 +406,53 @@ export const Results: React.FC<ResultsProps> = ({ results, onReset, onNewImage, 
                 </div>
               </div>
             )}
+            {/* Direct Actionable Booster CTAs */}
+            <div className="mt-3.5 pt-3.5 border-t border-white/10 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] uppercase font-bold text-neutral-400">Actionable Prescription:</span>
+                <span className="text-xs text-neutral-300">
+                  {(results.backspaceCount || 0) > 3
+                    ? '3-day No-Backspace challenge recommended to lock in 96%+ raw muscle precision.'
+                    : 'Maintain precision with sustained rhythmic paragraphs.'}
+                </span>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                {onLaunchBooster && (
+                  <button
+                    onClick={() => {
+                      const profile = getAdaptiveProfile();
+                      let drill = generateWeaknessDrill(profile);
+                      if (!drill || drill.length < 40) {
+                        drill = results.typedText && results.typedText.length > 50
+                          ? results.typedText.slice(0, 350)
+                          : 'focus rhythm cadence precision accuracy flow muscle memory speed judge master form clerk test court';
+                      }
+                      onLaunchBooster(drill, 'Real Accuracy Booster (No Backspace)', 'NO_BACKSPACE');
+                    }}
+                    className="px-3.5 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider bg-gradient-to-r from-amber-400 to-yellow-300 hover:from-amber-300 hover:to-yellow-200 text-black shadow-md flex items-center gap-1.5 font-mono"
+                  >
+                    <span>⚡ Boost Real Accuracy (No Backspace)</span>
+                    <span>→</span>
+                  </button>
+                )}
+
+                {onLaunchBooster && collisionInsights.topPairs.length > 0 && (
+                  <button
+                    onClick={() => {
+                      const profile = getAdaptiveProfile();
+                      const topPair = collisionInsights.topPairs[0];
+                      const drill = generateCollisionRepairDrill(profile, `${topPair.expected}-${topPair.typed}`);
+                      onLaunchBooster(drill, `Collision Fix (${topPair.expected.toUpperCase()} ↔ ${topPair.typed.toUpperCase()})`, 'NO_BACKSPACE');
+                    }}
+                    className="px-3.5 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider bg-cyan-400 hover:bg-cyan-300 text-black shadow-md flex items-center gap-1.5 font-mono"
+                  >
+                    <span>🎯 Disentangle {collisionInsights.topPairs[0].expected.toUpperCase()} ↔ {collisionInsights.topPairs[0].typed.toUpperCase()}</span>
+                    <span>→</span>
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
         </div>
 
@@ -745,6 +793,15 @@ export const Results: React.FC<ResultsProps> = ({ results, onReset, onNewImage, 
             <Button onClick={onReset} className="w-full sm:w-auto">
                 Retry Same Test
             </Button>
+            {onLaunchBooster && results.originalText && (
+              <button
+                onClick={() => onLaunchBooster(results.originalText!, 'Retest (Accuracy First)', 'NO_BACKSPACE')}
+                className="w-full sm:w-auto px-5 py-3 rounded-2xl font-bold text-xs uppercase tracking-widest bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 transition-all flex items-center justify-center gap-2 font-mono shadow-sm"
+                title="Retest this exact passage with Backspace disabled to build 96%+ raw muscle precision"
+              >
+                <span>🛡️ Retest (No Backspace)</span>
+              </button>
+            )}
             <button
                 onClick={() => setShowCertificate(true)}
                 className="w-full sm:w-auto px-6 py-3 rounded-2xl font-bold text-xs uppercase tracking-widest bg-gradient-to-r from-amber-500 to-yellow-400 text-black hover:brightness-110 transition-all shadow-[0_0_20px_rgba(245,158,11,0.25)] flex items-center justify-center gap-2"
