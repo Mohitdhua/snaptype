@@ -2,6 +2,7 @@ import React, { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'rea
 import { Button } from './components/Button';
 import { extractTextFromImage } from './services/geminiService';
 import { deleteSavedTest, getHistory, getSavedTests, getUserStats, saveLessonProgress, saveResult, saveTest, updateAdaptiveProfile } from './services/storageService';
+import { Theme, getStoredTheme, applyTheme } from './services/themeService';
 import { GameMode, GameState, HardcoreMode, PracticePassage, SavedTest, StoredResult, TestResults, TimeLimit, UserStats } from './types';
 import { LESSONS } from './data/lessonsData';
 
@@ -64,6 +65,17 @@ const App: React.FC = () => {
   const [hardcoreMode, setHardcoreMode] = useState<HardcoreMode>('NONE');
   const [activeTestId, setActiveTestId] = useState<string | null>(null);
   const [activeLessonId, setActiveLessonId] = useState<string | null>(null);
+  const [theme, setTheme] = useState<Theme>(() => getStoredTheme());
+
+  useEffect(() => {
+    applyTheme(theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    const nextTheme: Theme = theme === 'dark' ? 'light' : 'dark';
+    setTheme(nextTheme);
+    applyTheme(nextTheme);
+  };
   const isRestoringFromHistoryRef = useRef(false);
   const hasInitializedHistoryRef = useRef(false);
   const lastRouteKeyRef = useRef('');
@@ -556,8 +568,22 @@ const App: React.FC = () => {
               </nav>
             )}
 
-            {/* Gamification Cockpit & Close Button */}
-            <div className="flex items-center gap-3 shrink-0">
+            {/* Gamification Cockpit, Theme Toggle & Close Button */}
+            <div className="flex items-center gap-2.5 shrink-0">
+              {/* Theme Switcher Button */}
+              <button
+                type="button"
+                onClick={toggleTheme}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border bg-white/5 hover:bg-white/10 border-white/10 text-xs font-medium transition-all text-neutral-300 hover:text-white"
+                title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+                aria-label="Toggle Light/Dark Theme"
+              >
+                <span className="text-xs leading-none">{theme === 'dark' ? '☀️' : '🌙'}</span>
+                <span className="hidden sm:inline font-mono text-[11px]">
+                  {theme === 'dark' ? 'Light' : 'Dark'}
+                </span>
+              </button>
+
               {gameState !== GameState.UPLOAD && (
                 <button
                   type="button"
@@ -636,6 +662,8 @@ const App: React.FC = () => {
                 isSSC={isSSCMode}
                 lessonId={activeLessonId || undefined}
                 initialHardcoreMode={hardcoreMode}
+                theme={theme}
+                onToggleTheme={toggleTheme}
               />
             ) : (
               <PhysicalTypingTest

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from './Button';
 import { TestResults, TimeLimit } from '../types';
 import { levenshteinDistance } from '../utils/stringUtils';
+import { TYPING_FONTS, TypingFont } from './TypingTest';
 
 interface PhysicalTypingTestProps {
   ocrText: string;
@@ -18,6 +19,17 @@ export const PhysicalTypingTest: React.FC<PhysicalTypingTestProps> = ({ ocrText,
   const [startTime, setStartTime] = useState<number | null>(null);
   const [showReference, setShowReference] = useState(true);
   const [elapsed, setElapsed] = useState(0);
+
+  const [typingFont] = useState<TypingFont>(() => {
+    try {
+      const saved = localStorage.getItem('snaptype_typing_font_v1');
+      if (saved && TYPING_FONTS.some(f => f.id === saved)) {
+        return saved as TypingFont;
+      }
+    } catch {}
+    return 'inter';
+  });
+  const activeFontClass = TYPING_FONTS.find(f => f.id === typingFont)?.className || 'font-sans-clean';
 
   // Zoom state
   const [zoomLevel, setZoomLevel] = useState(1);
@@ -447,7 +459,7 @@ export const PhysicalTypingTest: React.FC<PhysicalTypingTestProps> = ({ ocrText,
             ref={textareaRef}
             value={input}
             onChange={handleInputChange}
-            className="w-full h-full bg-transparent p-6 md:p-8 text-lg md:text-xl font-mono text-neutral-100 placeholder-neutral-600 focus:outline-none resize-none leading-relaxed transition-all caret-indigo-400 selection:bg-indigo-500/30 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-600"
+            className={`w-full h-full bg-transparent p-6 md:p-8 text-lg md:text-xl ${activeFontClass} text-neutral-100 placeholder-neutral-600 focus:outline-none resize-none leading-relaxed transition-all caret-indigo-400 selection:bg-indigo-500/30 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-600`}
             placeholder="Start typing what you see on the document..."
             spellCheck={false}
           />
@@ -455,7 +467,7 @@ export const PhysicalTypingTest: React.FC<PhysicalTypingTestProps> = ({ ocrText,
           {/* Mirror Div for Scroll Calculation */}
           <div 
             ref={mirrorRef}
-            className="absolute top-0 left-0 -z-50 invisible p-6 md:p-8 text-lg md:text-xl font-mono leading-relaxed border border-transparent whitespace-pre-wrap break-words overflow-hidden pointer-events-none"
+            className={`absolute top-0 left-0 -z-50 invisible p-6 md:p-8 text-lg md:text-xl ${activeFontClass} leading-relaxed border border-transparent whitespace-pre-wrap break-words overflow-hidden pointer-events-none`}
             aria-hidden="true"
           />
         </div>

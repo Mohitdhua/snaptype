@@ -1,5 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 export default {
+  darkMode: 'class',
   content: ['./index.html', './index.tsx', './App.tsx', './components/**/*.{ts,tsx}', './services/**/*.{ts,tsx}', './utils/**/*.{ts,tsx}'],
   theme: {
     extend: {
@@ -12,6 +13,11 @@ export default {
       },
       fontFamily: {
         sans: ['Inter', 'sans-serif'],
+        'sans-clean': ['Inter', 'sans-serif'],
+        'roboto-mono': ['Roboto Mono', 'monospace'],
+        jakarta: ['Plus Jakarta Sans', 'sans-serif'],
+        courier: ['Courier Prime', 'monospace'],
+        jetbrains: ['JetBrains Mono', 'monospace'],
       },
     },
   },

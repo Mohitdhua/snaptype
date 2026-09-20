@@ -9,8 +9,22 @@
     <link rel="apple-touch-icon" href="/logo-mark.svg" />
     <link rel="manifest" href="/manifest.json" />
     <meta name="theme-color" content="#0a0a0a" />
+    <script>
+      (function() {
+        try {
+          var theme = localStorage.getItem('snaptype_theme_v1');
+          if (theme === 'light' || (!theme && window.matchMedia('(prefers-color-scheme: light)').matches)) {
+            document.documentElement.classList.add('light');
+            document.documentElement.setAttribute('data-theme', 'light');
+          } else {
+            document.documentElement.classList.add('dark');
+            document.documentElement.setAttribute('data-theme', 'dark');
+          }
+        } catch (e) {}
+      })();
+    </script>
   </head>
-  <body class="bg-stitch-dark text-stitch-accent overscroll-none">
+  <body class="bg-stitch-dark text-stitch-accent overscroll-none transition-colors duration-200">
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
   </body>

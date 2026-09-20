@@ -6,11 +6,23 @@ import { VirtualKeyboard } from './VirtualKeyboard';
 import { HandsGuide } from './HandsGuide';
 import { playSound, playKeystrokeSound, getSoundProfile, setSoundProfile, SoundProfile, startMetronome, stopMetronome } from '../services/soundService';
 import { getUserStats } from '../services/storageService';
+import { Theme, getStoredTheme, applyTheme } from '../services/themeService';
 
 const TYPING_TEXT_SCALE_KEY = 'snaptype_typing_text_scale_v1';
+const TYPING_FONT_KEY = 'snaptype_typing_font_v1';
 const WINDOW_PRE_CHARS = 900;
 const WINDOW_POST_CHARS = 1800;
 const ENTER_SYMBOL = '\u23CE';
+
+export type TypingFont = 'inter' | 'roboto-mono' | 'jakarta' | 'courier' | 'jetbrains';
+
+export const TYPING_FONTS: { id: TypingFont; label: string; className: string }[] = [
+  { id: 'inter', label: 'Clean Sans (Inter)', className: 'font-sans-clean' },
+  { id: 'roboto-mono', label: 'Roboto Mono', className: 'font-roboto-mono' },
+  { id: 'jakarta', label: 'Jakarta Sans', className: 'font-jakarta' },
+  { id: 'courier', label: 'Typewriter (Courier)', className: 'font-courier' },
+  { id: 'jetbrains', label: 'JetBrains Mono', className: 'font-jetbrains' },
+];
 
 const countLinearMismatches = (typed: string, expected: string): number => {
   let mismatches = 0;
@@ -41,6 +53,8 @@ interface TypingTestProps {
   isSSC?: boolean;
   lessonId?: string;
   initialHardcoreMode?: HardcoreMode;
+  theme?: Theme;
+  onToggleTheme?: () => void;
 }
 
 type CharStatus = 'pending' | 'correct' | 'incorrect';
@@ -65,20 +79,20 @@ interface CharItemProps {
 
 const CharItemBase: React.FC<CharItemProps> = ({ char, status, index }) => {
     const isNewline = char === '\n';
-    let className = "relative font-mono transition-colors duration-75 inline-block ";
+    let className = "relative transition-colors duration-75 inline-block ";
     
     if (status === 'pending') {
-      className += "text-neutral-500/85";
+      className += "char-pending";
     } else if (status === 'correct') {
-      className += "text-neutral-100 font-medium";
+      className += "char-correct font-medium";
     } else if (status === 'incorrect') {
-      className += "text-rose-400 bg-rose-500/20 border-b-2 border-rose-500/90 rounded-[2px]";
+      className += "char-incorrect rounded-[2px]";
     }
 
     return (
         <span data-char-idx={index} className={className}>
             {isNewline ? (
-              <span className={status === 'pending' ? "text-neutral-600/70 font-sans text-[0.8em]" : "text-indigo-400 font-sans text-[0.8em]"}>
+              <span className={status === 'pending' ? "opacity-60 text-[0.8em]" : "text-indigo-500 text-[0.8em]"}>
                 {ENTER_SYMBOL}
               </span>
             ) : char}
@@ -151,7 +165,9 @@ export const TypingTest: React.FC<TypingTestProps> = ({
   onRestart,
   isSSC = false,
   lessonId,
-  initialHardcoreMode = 'NONE'
+  initialHardcoreMode = 'NONE',
+  theme,
+  onToggleTheme,
 }) => {
   const [input, setInput] = useState('');
   const [inputRevision, setInputRevision] = useState(0);
@@ -164,6 +180,41 @@ export const TypingTest: React.FC<TypingTestProps> = ({
   const [hardcoreMode, setHardcoreMode] = useState<HardcoreMode>(initialHardcoreMode);
   const [backspaceBlockedToast, setBackspaceBlockedToast] = useState(false);
   const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const [typingFont, setTypingFont] = useState<TypingFont>(() => {
+    try {
+      const raw = localStorage.getItem(TYPING_FONT_KEY);
+      if (raw && TYPING_FONTS.some(f => f.id === raw)) {
+        return raw as TypingFont;
+      }
+    } catch {}
+    return 'inter';
+  });
+
+  const [currentTheme, setCurrentTheme] = useState<Theme>(() => theme || getStoredTheme());
+
+  useEffect(() => {
+    if (theme) {
+      setCurrentTheme(theme);
+    }
+  }, [theme]);
+
+  const toggleTheme = () => {
+    const nextTheme: Theme = currentTheme === 'dark' ? 'light' : 'dark';
+    setCurrentTheme(nextTheme);
+    applyTheme(nextTheme);
+    if (onToggleTheme) onToggleTheme();
+  };
+
+  const activeFontClass = useMemo(() => {
+    return TYPING_FONTS.find(f => f.id === typingFont)?.className || 'font-sans-clean';
+  }, [typingFont]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(TYPING_FONT_KEY, typingFont);
+    } catch {}
+  }, [typingFont]);
 
   useEffect(() => {
     setHardcoreMode(initialHardcoreMode);
@@ -538,8 +589,8 @@ export const TypingTest: React.FC<TypingTestProps> = ({
     const caretHeight = Math.max(16, Math.round(textScale * 0.9));
     const caretTop = cursorRect.top - containerRect.top + container.scrollTop + (cursorRect.height - caretHeight) / 2;
 
-    setCaretPos({ top: caretTop, left: newLeft, width: 2.5, height: caretHeight });
-  }, [currIndex, chars.length, textScale]);
+    setCaretPos({ top: caretTop, left: newLeft, width: cursorRect.width || 2.5, height: caretHeight });
+  }, [currIndex, chars.length, textScale, typingFont]);
 
   useEffect(() => {
     const rafId = requestAnimationFrame(updateCaret);
@@ -873,6 +924,24 @@ export const TypingTest: React.FC<TypingTestProps> = ({
             </select>
           </div>
 
+          {/* Typing Font Selector */}
+          <div className="relative" title="Select Clean Typing Font">
+            <select
+              value={typingFont}
+              onChange={(e) => {
+                e.stopPropagation();
+                setTypingFont(e.target.value as TypingFont);
+              }}
+              className="text-[11px] font-medium px-2.5 py-1.5 rounded-xl border bg-white/5 border-white/10 text-neutral-300 hover:text-white cursor-pointer appearance-none pr-5 transition-all"
+            >
+              {TYPING_FONTS.map(f => (
+                <option key={f.id} value={f.id} className="bg-neutral-900 text-white">
+                  Font: {f.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
           {/* Caret Style Toggle */}
           <button
             onClick={(e) => {
@@ -883,6 +952,19 @@ export const TypingTest: React.FC<TypingTestProps> = ({
             title="Toggle Caret Style (Line / Block / Underline)"
           >
             Caret: {caretStyle.toUpperCase()}
+          </button>
+
+          {/* Light / Dark Mode Toggle */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleTheme();
+            }}
+            className="p-2 rounded-xl border bg-white/5 border-white/10 text-neutral-400 hover:text-white transition-all flex items-center justify-center"
+            title={currentTheme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            aria-label="Toggle Theme"
+          >
+            <span className="text-xs leading-none">{currentTheme === 'dark' ? '☀️' : '🌙'}</span>
           </button>
 
           {/* Zen Focus Mode Toggle */}
@@ -1171,10 +1253,10 @@ export const TypingTest: React.FC<TypingTestProps> = ({
 
           {/* Text Rendering Flow */}
           <div
-            className="whitespace-pre-wrap break-normal min-h-full pb-20 relative z-10 font-mono typing-text-flow select-none [word-break:normal] [overflow-wrap:normal]"
+            className={`whitespace-pre-wrap break-normal min-h-full pb-20 relative z-10 ${activeFontClass} typing-text-flow select-none [word-break:normal] [overflow-wrap:normal]`}
             style={{ fontSize: `${textScale}px`, lineHeight }}
           >
-            {prefixText && <span className="text-neutral-500/85">{prefixText}</span>}
+            {prefixText && <span className="char-pending">{prefixText}</span>}
             {windowedTokens.map(token => (
               <TokenItem
                 key={token.tokenKey}
@@ -1184,7 +1266,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({
                 inputRevision={inputRevision}
               />
             ))}
-            {suffixText && <span className="text-neutral-500/85">{suffixText}</span>}
+            {suffixText && <span className="char-pending">{suffixText}</span>}
           </div>
           
           {/* Hidden Textarea (supports newline input) */}

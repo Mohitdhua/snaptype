@@ -1,17 +1,54 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Roboto+Mono:wght@400;500;600&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 body {
-  font-family: 'Inter', sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   background-color: #0a0a0a;
   color: #ededed;
+  transition: background-color 0.25s ease, color 0.25s ease;
 }
 
 .font-mono {
   font-family: 'JetBrains Mono', monospace;
+}
+
+/* Typing Font Engine Utilities */
+.font-sans-clean {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.font-roboto-mono {
+  font-family: 'Roboto Mono', 'Courier New', monospace;
+}
+
+.font-jakarta {
+  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+}
+
+.font-courier {
+  font-family: 'Courier Prime', 'Courier New', monospace;
+}
+
+.font-jetbrains {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* High-Contrast Character Tokens */
+.char-pending {
+  color: rgba(163, 163, 163, 0.72);
+}
+
+.char-correct {
+  color: #f8fafc;
+}
+
+.char-incorrect {
+  color: #fb7185;
+  background-color: rgba(244, 63, 94, 0.22);
+  border-bottom: 2px solid #f43f5e;
 }
 
 /* Glassmorphism & Bento Utilities */
@@ -134,6 +171,132 @@ body {
 .keycap-active {
   transform: translateY(2px) scale(0.96);
   transition: transform 0.05s ease-out;
+}
+
+/* ==========================================================================
+   LIGHT MODE THEME SYSTEM
+   ========================================================================== */
+.light,
+:root[data-theme='light'] {
+  color-scheme: light;
+}
+
+.light body,
+body.light {
+  background-color: #f8fafc;
+  color: #0f172a;
+}
+
+.light .mesh-bg {
+  background: radial-gradient(circle at 15% 50%, rgba(99, 102, 241, 0.08), transparent 30%),
+              radial-gradient(circle at 85% 30%, rgba(6, 182, 212, 0.07), transparent 30%);
+}
+
+.light .bento-card {
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
+  color: #0f172a;
+}
+
+.light .bento-card:hover {
+  border-color: rgba(0, 0, 0, 0.14);
+  background: rgba(255, 255, 255, 0.98);
+}
+
+.light .char-pending {
+  color: #94a3b8;
+}
+
+.light .char-correct {
+  color: #0f172a;
+  font-weight: 600;
+}
+
+.light .char-incorrect {
+  color: #e11d48;
+  background-color: rgba(244, 63, 94, 0.14);
+  border-bottom: 2px solid #e11d48;
+}
+
+.light .bg-neutral-950\/80,
+.light .bg-neutral-950\/90,
+.light .bg-neutral-950\/70,
+.light .bg-neutral-950\/60,
+.light .bg-neutral-950 {
+  background-color: rgba(255, 255, 255, 0.92) !important;
+  color: #0f172a;
+}
+
+.light .bg-neutral-900\/80,
+.light .bg-neutral-900\/60,
+.light .bg-neutral-900\/50,
+.light .bg-neutral-900 {
+  background-color: rgba(241, 245, 249, 0.95) !important;
+  color: #0f172a;
+}
+
+.light .border-white\/10,
+.light .border-white\/15,
+.light .border-white\/5,
+.light .border-white\/20 {
+  border-color: rgba(0, 0, 0, 0.09) !important;
+}
+
+.light .bg-white\/5 {
+  background-color: rgba(0, 0, 0, 0.04) !important;
+}
+
+.light .bg-white\/10 {
+  background-color: rgba(0, 0, 0, 0.07) !important;
+}
+
+.light .bg-white\/15,
+.light .bg-white\/20 {
+  background-color: rgba(0, 0, 0, 0.1) !important;
+}
+
+.light .text-neutral-400 {
+  color: #64748b !important;
+}
+
+.light .text-neutral-300 {
+  color: #475569 !important;
+}
+
+.light .text-neutral-200 {
+  color: #334155 !important;
+}
+
+.light .text-neutral-100 {
+  color: #1e293b !important;
+}
+
+.light .text-neutral-500 {
+  color: #94a3b8 !important;
+}
+
+.light select option {
+  background-color: #ffffff;
+  color: #0f172a;
+}
+
+.light .bg-black\/70 {
+  background-color: rgba(255, 255, 255, 0.88) !important;
+  color: #0f172a !important;
+  border-color: rgba(0, 0, 0, 0.12) !important;
+}
+
+.light .scrollbar-thumb-slate-600 {
+  scrollbar-color: rgba(0, 0, 0, 0.15) transparent;
+}
+
+.light .scrollbar-thumb-slate-600::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.15);
+}
+
+.light .scrollbar-thumb-slate-600::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(0, 0, 0, 0.28);
 }
 
 @media print {
