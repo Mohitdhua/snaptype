@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from 'react';
-import { LESSONS, MASTERY_PLAN } from '../data/lessonsData';
+import React, { useMemo, useState, useEffect } from 'react';
+import { LESSONS, MASTERY_PLAN, getNextLessonTarget } from '../data/lessonsData';
 import { PRACTICE_LIBRARY } from '../data/practiceLibrary';
 import { Lesson, LessonProgress, LessonProgressMap, FingerId, HardcoreMode } from '../types';
 import {
@@ -8,12 +8,14 @@ import {
   generateWeaknessDrill,
   generateCollisionRepairDrill,
   isLessonUnlocked,
-  getDayProgress
+  getDayProgress,
+  getLastActiveLessonId,
+  setLastActiveLessonId
 } from '../services/storageService';
 
 interface LessonsViewProps {
   progress?: LessonProgressMap;
-  onSelectExercise: (text: string, lessonId: string, title: string, hardcoreMode?: HardcoreMode) => void;
+  onSelectExercise: (text: string, lessonId: string, title: string, hardcoreMode?: HardcoreMode, exerciseIndex?: number) => void;
 }
 
 const FINGER_META: Record<FingerId, { label: string; hand: 'Left' | 'Right' | 'Thumb'; defaultKeys: string }> = {
@@ -31,15 +33,40 @@ const FINGER_META: Record<FingerId, { label: string; hand: 'Left' | 'Right' | 'T
 const ORDERED_FINGERS: FingerId[] = ['lp', 'lr', 'lm', 'li', 'thumb', 'ri', 'rm', 'rr', 'rp'];
 
 export const LessonsView: React.FC<LessonsViewProps> = ({ progress: propProgress, onSelectExercise }) => {
-  const [selectedStage, setSelectedStage] = useState<number>(1);
-  const [activeLesson, setActiveLesson] = useState<Lesson>(LESSONS[0]);
+  const progress: LessonProgressMap = propProgress || getLessonProgress();
+  const adaptiveProfile = useMemo(() => getAdaptiveProfile(), []);
+  const dayProgress = useMemo(() => getDayProgress(), []);
+
+  // Determine user's current active lesson based on history & uncompleted lessons
+  const currentActiveLesson = useMemo(() => {
+    const lastActiveId = getLastActiveLessonId();
+    if (lastActiveId) {
+      const lastLesson = LESSONS.find(l => l.id === lastActiveId);
+      if (lastLesson) {
+        if (!progress[lastLesson.id]?.completed) {
+          return lastLesson;
+        }
+        const nextTarget = getNextLessonTarget(lastLesson.id, (lastLesson.exercises.length || 1) - 1);
+        if (nextTarget) {
+          const nextLesson = LESSONS.find(l => l.id === nextTarget.lessonId);
+          if (nextLesson) return nextLesson;
+        }
+      }
+    }
+    const firstUncompleted = LESSONS.find(l => !progress[l.id]?.completed);
+    return firstUncompleted || LESSONS[0];
+  }, [progress]);
+
+  const [selectedStage, setSelectedStage] = useState<number>(() => currentActiveLesson.stage);
+  const [activeLesson, setActiveLesson] = useState<Lesson>(() => currentActiveLesson);
   const [activeTab, setActiveTab] = useState<'curriculum' | 'roadmap' | 'weakness' | 'collision'>('curriculum');
   const [selectedDayNumber, setSelectedDayNumber] = useState<number | null>(null);
   const [isAccuracyFirst, setIsAccuracyFirst] = useState(false);
 
-  const progress: LessonProgressMap = propProgress || getLessonProgress();
-  const adaptiveProfile = useMemo(() => getAdaptiveProfile(), []);
-  const dayProgress = useMemo(() => getDayProgress(), []);
+  useEffect(() => {
+    setSelectedStage(currentActiveLesson.stage);
+    setActiveLesson(currentActiveLesson);
+  }, [currentActiveLesson.id]);
 
   const stages = [
     { num: 1, title: 'Home Row', desc: 'ASDF JKL;' },
@@ -177,6 +204,18 @@ export const LessonsView: React.FC<LessonsViewProps> = ({ progress: propProgress
 
         <div className="flex flex-wrap items-center gap-2 shrink-0 w-full md:w-auto justify-end">
           <button
+            onClick={() => onSelectExercise(
+              'j k l ; u i o p h n m , . / ;lkj poiu juki lopi look loop pool kill silk milk pink jolly monk look milk hill pulp jump onion join loop moon plum hook junk hymn holy oily lion coin foil join look like link pool loop plum pink punk jump monk milk hull lull kill look jolly puppy imply oily pony lion. Looking upon moist soil in July, millions of lively monks imply pure joy. Jolly monks look like joyful souls jumping into oily pools of milk.',
+              'rh-special',
+              '✋ Right Hand Special Mode Drill',
+              'RIGHT_HAND_FOCUS'
+            )}
+            className="px-3.5 py-1.5 rounded-xl text-xs font-bold font-mono bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 shadow transition-all flex items-center gap-1.5"
+            title="Starts dedicated Right Hand Focus practice"
+          >
+            <span>✋ Right Hand Special</span>
+          </button>
+          <button
             onClick={() => handleStartWeaknessDrill(true)}
             className="px-3.5 py-1.5 rounded-xl text-xs font-bold font-mono bg-gradient-to-r from-amber-400 to-yellow-300 hover:from-amber-300 hover:to-yellow-200 text-black shadow transition-all flex items-center gap-1.5"
             title="Starts an AI weakness repair drill with Backspace disabled to force 96%+ raw muscle precision"
@@ -279,25 +318,66 @@ export const LessonsView: React.FC<LessonsViewProps> = ({ progress: propProgress
             </button>
           </div>
 
-          {/* Slim Recommendation Bar */}
-          {recommendedLesson && selectedDayNumber === null && (
-            <div className="px-4 py-2.5 rounded-xl bg-indigo-950/40 border border-indigo-500/30 flex items-center justify-between gap-3 text-xs">
-              <div className="flex items-center gap-2 truncate">
-                <span className="text-indigo-400">🎯</span>
-                <span className="text-neutral-400 font-mono">Next:</span>
-                <span className="text-white font-semibold truncate">
-                  {recommendedLesson.stageTitle} — {recommendedLesson.title}
-                </span>
+          {/* Current Active Lesson Hero Card */}
+          {selectedDayNumber === null && (
+            <div className="p-4 md:p-5 rounded-2xl bg-gradient-to-r from-indigo-950/40 via-neutral-900/80 to-neutral-900/60 border border-indigo-500/30 shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4 animate-fade-in">
+              <div className="flex items-start gap-3.5">
+                <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-500 to-cyan-400 flex items-center justify-center text-white text-base font-black shrink-0 shadow-md">
+                  {currentActiveLesson.stage}
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 uppercase tracking-widest">
+                      Your Current Lesson
+                    </span>
+                    <span className="text-xs text-neutral-400 font-mono">
+                      Stage {currentActiveLesson.stage}: {currentActiveLesson.stageTitle}
+                    </span>
+                  </div>
+                  <h3 className="text-base md:text-lg font-bold text-white mt-1">
+                    {currentActiveLesson.title}
+                  </h3>
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-neutral-400 mt-1">
+                    <span>Keys: <strong className="text-cyan-300 font-mono">{currentActiveLesson.targetKeys.join(', ')}</strong></span>
+                    <span>•</span>
+                    <span>Goal: {currentActiveLesson.minWpm} WPM ({currentActiveLesson.minAccuracy}% Acc)</span>
+                    {progress[currentActiveLesson.id]?.completed && (
+                      <>
+                        <span>•</span>
+                        <span className="text-emerald-400 font-bold">✓ Completed ({progress[currentActiveLesson.id]?.stars || 1}★)</span>
+                      </>
+                    )}
+                  </div>
+                </div>
               </div>
-              <button
-                onClick={() => {
-                  setActiveLesson(recommendedLesson);
-                  setSelectedStage(recommendedLesson.stage);
-                }}
-                className="text-xs font-mono font-bold text-indigo-300 hover:text-white transition-colors shrink-0"
-              >
-                Jump to Lesson →
-              </button>
+
+              <div className="flex items-center gap-2.5 shrink-0 w-full md:w-auto justify-end">
+                <button
+                  onClick={() => {
+                    setSelectedStage(currentActiveLesson.stage);
+                    setActiveLesson(currentActiveLesson);
+                    setLastActiveLessonId(currentActiveLesson.id);
+                    const firstEx = currentActiveLesson.exercises[0];
+                    if (firstEx) {
+                      onSelectExercise(
+                        firstEx.text,
+                        currentActiveLesson.id,
+                        `${currentActiveLesson.title} - ${firstEx.title}`,
+                        isAccuracyFirst ? 'NO_BACKSPACE' : 'NONE',
+                        0
+                      );
+                    }
+                  }}
+                  className={`px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all shadow-md flex items-center gap-2 font-mono ${
+                    isAccuracyFirst
+                      ? 'bg-amber-400 hover:bg-amber-300 text-black shadow-amber-500/25'
+                      : 'bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 hover:brightness-110 text-black shadow-emerald-500/25'
+                  }`}
+                >
+                  <span>{isAccuracyFirst ? '▶ Continue (No ⌫)' : '▶ Continue Lesson'}</span>
+                  <span>➔</span>
+                </button>
+              </div>
             </div>
           )}
 
@@ -353,6 +433,7 @@ export const LessonsView: React.FC<LessonsViewProps> = ({ progress: propProgress
             <div className="flex flex-col gap-2.5">
               {stageLessons.map(lesson => {
                 const isSelected = activeLesson.id === lesson.id;
+                const isCurrent = currentActiveLesson.id === lesson.id;
                 const p = progress[lesson.id];
                 const isDone = p?.completed;
                 const unlocked = isLessonUnlocked(lesson.id);
@@ -360,15 +441,25 @@ export const LessonsView: React.FC<LessonsViewProps> = ({ progress: propProgress
                 return (
                   <div
                     key={lesson.id}
-                    onClick={() => setActiveLesson(lesson)}
+                    onClick={() => {
+                      setActiveLesson(lesson);
+                      setLastActiveLessonId(lesson.id);
+                    }}
                     className={`p-3.5 rounded-xl border cursor-pointer transition-all ${
                       isSelected
-                        ? 'bg-neutral-900 border-white/25 shadow-md'
+                        ? 'bg-neutral-900 border-indigo-500/60 shadow-md ring-1 ring-indigo-500/30'
+                        : isCurrent
+                        ? 'bg-indigo-950/20 border-indigo-500/30 hover:bg-neutral-900/80'
                         : 'bg-neutral-900/40 hover:bg-neutral-900/80 border-white/5'
                     }`}
                   >
                     <div className="flex justify-between items-center mb-1">
                       <div className="flex items-center gap-1.5">
+                        {isCurrent && (
+                          <span className="px-1.5 py-0.2 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 text-[9px] font-mono font-bold">
+                            CURRENT
+                          </span>
+                        )}
                         {lesson.targetKeys.slice(0, 4).map(k => (
                           <span key={k} className="px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-[10px] font-mono text-neutral-300 font-bold uppercase">
                             {k === ' ' ? 'Space' : k}
@@ -459,7 +550,10 @@ export const LessonsView: React.FC<LessonsViewProps> = ({ progress: propProgress
                         </div>
 
                         <button
-                          onClick={() => onSelectExercise(ex.text, activeLesson.id, `${activeLesson.title} - ${ex.title}`, isAccuracyFirst ? 'NO_BACKSPACE' : 'NONE')}
+                          onClick={() => {
+                            setLastActiveLessonId(activeLesson.id);
+                            onSelectExercise(ex.text, activeLesson.id, `${activeLesson.title} - ${ex.title}`, isAccuracyFirst ? 'NO_BACKSPACE' : 'NONE', idx);
+                          }}
                           className={`px-3.5 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all shrink-0 flex items-center gap-1.5 shadow-sm ${
                             isAccuracyFirst
                               ? 'bg-amber-400 hover:bg-amber-300 text-black shadow-amber-500/20'

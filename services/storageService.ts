@@ -245,6 +245,22 @@ export const getLessonProgress = (): Record<string, { completed: boolean; bestWp
   }
 };
 
+const LAST_ACTIVE_LESSON_KEY = 'snaptype_last_active_lesson_v1';
+
+export const getLastActiveLessonId = (): string | null => {
+  try {
+    return localStorage.getItem(LAST_ACTIVE_LESSON_KEY);
+  } catch {
+    return null;
+  }
+};
+
+export const setLastActiveLessonId = (lessonId: string): void => {
+  try {
+    localStorage.setItem(LAST_ACTIVE_LESSON_KEY, lessonId);
+  } catch {}
+};
+
 export const saveLessonProgress = (
   lessonId: string,
   wpm: number,
@@ -262,6 +278,7 @@ export const saveLessonProgress = (
   };
   try {
     localStorage.setItem(LESSON_PROGRESS_KEY, JSON.stringify(current));
+    setLastActiveLessonId(lessonId);
   } catch (e) {
     console.error('Failed to save lesson progress', e);
   }

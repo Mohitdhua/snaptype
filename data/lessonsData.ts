@@ -1544,3 +1544,54 @@ export const MASTERY_PLAN: DayPlan[] = [
     "minSessions": 6
   }
 ];
+
+export interface NextLessonTarget {
+  type: 'EXERCISE' | 'LESSON';
+  lessonId: string;
+  exerciseIndex: number;
+  exerciseTitle: string;
+  lessonTitle: string;
+  text: string;
+  label: string;
+}
+
+export const getNextLessonTarget = (
+  currentLessonId: string,
+  currentExerciseIndex: number = 0
+): NextLessonTarget | null => {
+  const lesson = LESSONS.find(l => l.id === currentLessonId);
+  if (!lesson) return null;
+
+  // 1. Next exercise in the same lesson
+  if (currentExerciseIndex < lesson.exercises.length - 1) {
+    const nextIdx = currentExerciseIndex + 1;
+    const nextEx = lesson.exercises[nextIdx];
+    return {
+      type: 'EXERCISE',
+      lessonId: lesson.id,
+      exerciseIndex: nextIdx,
+      exerciseTitle: nextEx.title,
+      lessonTitle: lesson.title,
+      text: nextEx.text,
+      label: `Next Part: ${nextEx.title} (${nextIdx + 1}/${lesson.exercises.length}) ➔`,
+    };
+  }
+
+  // 2. Next lesson in sequence
+  const currentIdx = LESSONS.findIndex(l => l.id === currentLessonId);
+  if (currentIdx >= 0 && currentIdx < LESSONS.length - 1) {
+    const nextLesson = LESSONS[currentIdx + 1];
+    const nextEx = nextLesson.exercises[0];
+    return {
+      type: 'LESSON',
+      lessonId: nextLesson.id,
+      exerciseIndex: 0,
+      exerciseTitle: nextEx.title,
+      lessonTitle: nextLesson.title,
+      text: nextEx.text,
+      label: `Next Lesson: ${nextLesson.title} ➔`,
+    };
+  }
+
+  return null;
+};

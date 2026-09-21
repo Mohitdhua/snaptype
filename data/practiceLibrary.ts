@@ -203,6 +203,48 @@ export const PRACTICE_LIBRARY: PracticePassage[] = [
     estimatedMinutes: 5,
     description: 'Builds neuromuscular independence for Left Pinky (Q-A-Z) without dragging the Ring Finger (W-S-X).',
     text: `qa aq qaq aqa za az zaz aza qz zq qzq zqz swa dza xza qws azx sqa wzs. quick quiet quote squad equal aqua award aware admit amaze alias adapt asset zone zero zinc zoom zeal jazz maze gaze hazard frozen plaza prize puzzle. Quick squads adapt quiet quotes with equal zeal and awareness. Amazing athletes acquire awards after zero errors in difficult zones. Always admit quotes from qualified authors into the official Gazette. Puzzle solvers analyze complex hazards with calm zeal and quick wisdom. Zeal for quality and equal access inspires great modern plazas. Liquid zinc and quartz produce quiet sparks inside frozen zones. Always organize and stabilize every difficult task with patience.`
+  },
+
+  // ================= RIGHT HAND SPECIAL MODE & DEXTERITY PASSAGES =================
+  {
+    id: 'rh-01-core',
+    title: '✋ Right Hand Core Isolation (J-K-L-; & U-I-O-P)',
+    category: 'righthand',
+    difficulty: 'Medium',
+    wordCount: 195,
+    estimatedMinutes: 5,
+    description: 'Specialized isolation drill targeting Right Index, Middle, Ring & Pinky key coordination without left hand assistance.',
+    text: `jkl; ;lkj uiop poiu juki lopi hjnm mnhj jkl; uiop poiu lkj; yuiop hjkl; nm,./ ;lkj. look loop pool kill silk milk pink jolly monk look milk hill pulp jump onion join loop moon plum hook junk hymn holy oily lion coin foil join look like link pool loop plum pink punk jump monk milk hull lull kill look jolly puppy imply oily pony lion. Looking upon moist soil in July, millions of lively monks imply pure joy. Jolly monks look like joyful souls jumping into oily pools of milk. Only holy monks politely join lively links on high hills. Point out pink plums in jolly July into milk pots. Jump into lively pools looking upon pink lilies with joyful optimism. Milking lively ponies in July looks like joyful play for kind monks. Join jolly monks looking into milk pools on high hills politely.`
+  },
+  {
+    id: 'rh-02-index-reach',
+    title: '✋ Right Index Heavy Reach (H-J-Y-U-N-M & 6-7)',
+    category: 'righthand',
+    difficulty: 'Hard',
+    wordCount: 205,
+    estimatedMinutes: 5,
+    description: 'Calibrates the heavily loaded Right Index finger across 6 distinct alphanumeric targets (H, J, Y, U, N, M, 6, 7).',
+    text: `jh hj yu uy mn nm yhn ujm 76 67 hj nm yu jm hy un my nh jy hu mu ny mh ju yn hm jm. human hymn hunter hungry money honey month young youth humor human myth rhythm union mummy tummy funny sunny nylon myth hymn young humor yummy sunny numpy mummy. Young hunters hunt hungry monkeys in sunny months with youthful humor. Many young humans honor human rhythm in July without money. Youthful hunters humming hymns hunt hungry monkeys on sunny mountains. Mummy hums funny hymns in July while making yummy honey muffins. Sunny months bring yummy honey and young humming monkeys to humid hills. Many youthful humans make money by making sunny nylon umbrellas. Hunt hungry monkeys with youthful humor in humid mountain months. Humming hymns in July honors many youthful minds with human warmth.`
+  },
+  {
+    id: 'rh-03-pinky-punct',
+    title: '✋ Right Pinky Punctuation & Anchor (; : \' " , . / ? P 0 - =)',
+    category: 'righthand',
+    difficulty: 'Exam',
+    wordCount: 180,
+    estimatedMinutes: 5,
+    description: 'Exclusively exercises the Right Pinky perimeter keys—semicolons, apostrophes, commas, periods, slashes, and dashes.',
+    text: `p; ;p p' 'p p/ /p p- -p p= =p ;' ', '. '. '/ '/ p; p' ;/ ;- ;= p0 0p p[ p] ;: '" ,< .> /? pop's; John's; plan; quote; "point"; input/output; top-down; step-by-step; self-help; co-op; 100%; item-1; item-2; loop; plum; prompt; puppy; reply; paper; polar; proper. John's proposal was clear: "Prepare proper papers; review output; verify input." The clerk's report said: "Point 01: Verify step-by-step; Point 02: Keep proper records; Point 03: File reports promptly." People's primary policy implies: keep calm, type properly, and point out mistakes promptly. Philip's puppy jumped: "Look, Philip! The paper is flying; catch it promptly!" Proper punctuation requires patient practice; feel each key: semicolon, period, apostrophe, and slash.`
+  },
+  {
+    id: 'rh-04-right-flow',
+    title: '✋ Right Hand High-Density Flow Mastery',
+    category: 'righthand',
+    difficulty: 'Hard',
+    wordCount: 220,
+    estimatedMinutes: 6,
+    description: 'Fluency passage where over 70% of characters are struck by the right hand, developing effortless right-hand stamina.',
+    text: `You know him politely; look upon his million joyful opinions in July. Holy monks look into plump pink plums with kindly, joyful humor. Millions of people look up into sunny mountain points on jolly mornings. Only you might imply proper policy in your official output; keep smiling kindly. Many young pilgrims look upon high holy mountains in jolly July. You might look into his plump pupil; politely join him in singing hymns. Jolly monks milk plump cows in July, looking upon hills with pure optimism. You know my young cousin Philip; he joyfully prompts kind replies upon official papers. You might easily look up millions of sunny points on popular online maps. Kindly join him on his mission into high holy hills in sunny July.`
   }
 ];
 

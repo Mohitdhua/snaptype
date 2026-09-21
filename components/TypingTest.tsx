@@ -55,6 +55,8 @@ interface TypingTestProps {
   initialHardcoreMode?: HardcoreMode;
   theme?: Theme;
   onToggleTheme?: () => void;
+  onNextLesson?: () => void;
+  nextLessonLabel?: string;
 }
 
 type CharStatus = 'pending' | 'correct' | 'incorrect';
@@ -168,6 +170,8 @@ export const TypingTest: React.FC<TypingTestProps> = ({
   initialHardcoreMode = 'NONE',
   theme,
   onToggleTheme,
+  onNextLesson,
+  nextLessonLabel,
 }) => {
   const [input, setInput] = useState('');
   const [inputRevision, setInputRevision] = useState(0);
@@ -225,6 +229,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({
   const [hasErrorShake, setHasErrorShake] = useState(false);
   const [pacerMode, setPacerMode] = useState<GhostPacerMode>('OFF');
   const [isMetronomeOn, setIsMetronomeOn] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
 
   // Latency & reaction time tracking refs
   const lastKeystrokeTimeRef = useRef<number | null>(null);
@@ -288,6 +293,9 @@ export const TypingTest: React.FC<TypingTestProps> = ({
     });
   }, [targetText]);
   const { windowStart, windowEnd } = useMemo(() => {
+    if (targetText.length <= 4000) {
+      return { windowStart: 0, windowEnd: targetText.length };
+    }
     const start = Math.max(0, currIndex - WINDOW_PRE_CHARS);
     const end = Math.min(targetText.length, currIndex + WINDOW_POST_CHARS);
     return { windowStart: start, windowEnd: end };
@@ -386,11 +394,14 @@ export const TypingTest: React.FC<TypingTestProps> = ({
       ? Math.max(0, Math.min(100, Math.round(((totalKeystrokes - totalRawErrors) / totalKeystrokes) * 100)))
       : 100;
 
+    const kdph = Math.round((input.length / Math.max(0.001, timeElapsedSecs / 3600)));
+
     return {
       netWpm,
       rawWpm,
       accuracy,
       realAccuracy,
+      kdph,
       totalKeystrokes,
       totalRawErrors,
       backspaceCount: backspaceCountRef.current,
@@ -410,8 +421,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({
   const finishTest = useCallback(() => {
      if (hasCompletedRef.current) return;
      hasCompletedRef.current = true;
-     const shouldUseLevenshtein = !isSSC && input.length > 0 && input.length <= 2500;
-     const partialStats = calculateStats(shouldUseLevenshtein);
+     const partialStats = calculateStats(false);
      
      // Full missed words calculation
      const missedWordsCount: Record<string, number> = {};
@@ -447,13 +457,17 @@ export const TypingTest: React.FC<TypingTestProps> = ({
       keyLatencies: Object.keys(keyLatencies).length > 0 ? keyLatencies : undefined,
       pacerMode,
       ghostWpm: ghostTargetWpm > 0 ? ghostTargetWpm : undefined,
+      lessonId: lessonId || undefined,
+      hardcoreMode,
+      kdph: partialStats.kdph,
     };
 
     if (isSSC) {
         const effectiveMins = Math.max(0.001, partialStats.timeElapsed / 60);
         const tentativeSpeed = (partialStats.totalChars / 5) / effectiveMins;
         const sscRawWpm = Math.round(tentativeSpeed);
-        const sscNetWpm = Math.max(0, Math.round(tentativeSpeed - partialStats.incorrectChars));
+        const errorPenaltyWpm = (partialStats.incorrectChars / 5) / effectiveMins;
+        const sscNetWpm = Math.max(0, Math.round(tentativeSpeed - errorPenaltyWpm));
 
         let sscMarks = 0;
         const speed = sscNetWpm;
@@ -471,7 +485,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({
     }
 
     onComplete(finalResults);
-  }, [calculateStats, input, targetText, onComplete, isSSC]);
+  }, [calculateStats, input, targetText, onComplete, isSSC, lessonId, hardcoreMode, pacerMode, ghostTargetWpm]);
 
   // Ref to hold the latest version of finishTest
   const finishTestRef = useRef(finishTest);
@@ -643,6 +657,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({
         setHasErrorShake(true);
         setInput(val);
         setCurrIndex(val.length);
+        hasCompletedRef.current = true;
         setTimeout(() => {
           finishTestRef.current?.();
         }, 80);
@@ -667,6 +682,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({
     } else if (val.length < prevInput.length) {
       const removedChars = prevInput.length - val.length;
       backspaceCountRef.current += removedChars;
+      totalKeystrokesRef.current += removedChars;
       for (let i = val.length; i < prevInput.length; i++) {
         if (i < targetText.length && prevInput[i] !== targetText[i]) {
           correctedErrorsRef.current += 1;
@@ -704,7 +720,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({
               if (delta >= 15 && delta <= 2500) {
                 totalLatencyMsRef.current += delta;
                 latencyCountRef.current++;
-                const expectedKey = expectedChar === ' ' ? 'Space' : expectedChar.toLowerCase();
+                const expectedKey = expectedChar === '\n' ? 'Enter' : expectedChar === ' ' ? 'Space' : expectedChar.toLowerCase();
                 if (!keyLatenciesRef.current[expectedKey]) {
                   keyLatenciesRef.current[expectedKey] = { totalMs: 0, count: 0 };
                 }
@@ -798,330 +814,307 @@ export const TypingTest: React.FC<TypingTestProps> = ({
           </button>
         </div>
       ) : (
-      <div className="w-full shrink-0 z-40 bento-card bg-neutral-950/80 backdrop-blur-xl border border-white/10 py-3 px-5 md:px-7 mb-4 flex flex-col md:flex-row md:justify-between md:items-center rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.5)] gap-4">
-        <div className="flex items-center justify-between md:justify-start gap-4 md:gap-7 w-full md:w-auto">
+      <>
+      {/* ── Slim Minimalist Stats Bar (Ultra Clean, Zero Clutter) ── */}
+      <div className="w-full shrink-0 z-40 flex items-center justify-between gap-3 px-3 md:px-5 py-2 mb-2 rounded-xl bg-neutral-950/70 border border-white/8 backdrop-blur-md shadow-sm">
+        {/* Core Metrics */}
+        <div className="flex items-center gap-4 md:gap-6 font-mono text-sm">
           {/* Net WPM */}
-          <div className="flex flex-col">
-            <span className="text-[10px] text-neutral-400 font-bold uppercase tracking-widest flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse"></span>
-              Net WPM
-            </span>
-            <span className="text-3xl font-mono font-black tracking-tight text-indigo-400 drop-shadow-[0_0_12px_rgba(99,102,241,0.35)] leading-none mt-1">
-              {stats.netWpm}
-            </span>
+          <div className="flex items-baseline gap-1" title="Net Words Per Minute">
+            <span className="text-2xl font-black text-indigo-400 tabular-nums leading-none tracking-tight">{stats.netWpm}</span>
+            <span className="text-[10px] text-neutral-500 uppercase font-bold tracking-wider">wpm</span>
           </div>
 
-          <div className="w-px h-8 bg-white/10 hidden sm:block" />
+          <div className="w-px h-5 bg-white/10 hidden sm:block" />
 
           {/* Accuracy */}
-          <div className="flex flex-col">
-            <span className="text-[10px] text-neutral-400 font-bold uppercase tracking-widest">Accuracy</span>
-            <div className="flex items-baseline gap-1.5 mt-1">
-              <span className={`text-3xl font-mono font-black tracking-tight leading-none ${
-                stats.accuracy >= 97 ? 'text-emerald-400 drop-shadow-[0_0_12px_rgba(52,211,153,0.3)]' :
-                stats.accuracy >= 90 ? 'text-amber-400 drop-shadow-[0_0_12px_rgba(251,191,36,0.3)]' :
-                'text-rose-400 drop-shadow-[0_0_12px_rgba(251,113,133,0.3)]'
-              }`}>
-                {stats.accuracy}%
-              </span>
-              {stats.realAccuracy !== undefined && stats.realAccuracy !== stats.accuracy && (
-                <span className="text-[10px] font-mono text-neutral-400 font-medium" title="Real Keystroke Accuracy before Backspace">
-                  ({stats.realAccuracy}% real)
-                </span>
-              )}
-            </div>
-          </div>
-
-          <div className="w-px h-8 bg-white/10 hidden sm:block" />
-
-          {/* Mistakes */}
-          <div className="flex flex-col">
-            <span className="text-[10px] text-neutral-400 font-bold uppercase tracking-widest">Errors</span>
-            <span className={`text-2xl font-mono font-bold leading-none mt-1 ${stats.incorrectChars > 0 ? 'text-rose-400' : 'text-neutral-500'}`}>
-              {stats.incorrectChars}
+          <div className="flex items-baseline gap-1.5" title={`Accuracy${stats.realAccuracy !== undefined && stats.realAccuracy !== stats.accuracy ? ` (${stats.realAccuracy}% real)` : ''}`}>
+            <span className={`text-xl font-black tabular-nums leading-none ${
+              stats.accuracy >= 97 ? 'text-emerald-400' : stats.accuracy >= 90 ? 'text-amber-400' : 'text-rose-400'
+            }`}>
+              {stats.accuracy}%
             </span>
+            {stats.realAccuracy !== undefined && stats.realAccuracy !== stats.accuracy && (
+              <span className="text-[10px] text-neutral-400 font-medium hidden sm:inline" title="Real Keystroke Accuracy (accounting for corrected errors)">
+                ({stats.realAccuracy}% real)
+              </span>
+            )}
           </div>
 
-          <div className="w-px h-8 bg-white/10 hidden sm:block" />
+          {/* Errors count if any */}
+          {stats.incorrectChars > 0 && (
+            <>
+              <div className="w-px h-5 bg-white/10 hidden sm:block" />
+              <div className="flex items-baseline gap-1" title="Current Errors">
+                <span className="text-lg font-bold text-rose-400 tabular-nums leading-none">{stats.incorrectChars}</span>
+                <span className="text-[10px] text-rose-400/70 uppercase font-semibold">err</span>
+              </div>
+            </>
+          )}
+
+          <div className="w-px h-5 bg-white/10 hidden sm:block" />
 
           {/* Timer */}
-          <div className="flex flex-col">
-            <span className="text-[10px] text-neutral-400 font-bold uppercase tracking-widest">
-              {timeLimit > 0 ? 'Remaining' : 'Time'}
-            </span>
-            <span className={`text-2xl font-mono font-bold leading-none mt-1 ${
-              timeLimit > 0 && displayTime < 10 ? 'text-rose-500 animate-pulse drop-shadow-[0_0_8px_rgba(244,63,94,0.6)]' : 'text-neutral-200'
+          <div className="flex items-baseline gap-1" title={timeLimit > 0 ? 'Remaining Time' : 'Elapsed Time'}>
+            <span className={`text-lg font-bold tabular-nums leading-none font-mono ${
+              timeLimit > 0 && displayTime < 10 ? 'text-rose-500 animate-pulse font-black' : 'text-neutral-300'
             }`}>
               {formatTime(displayTime)}
             </span>
           </div>
 
-          {/* Progress Indicator */}
-          <div className="hidden lg:flex flex-col">
-            <span className="text-[10px] text-neutral-400 font-bold uppercase tracking-widest">Progress</span>
-            <span className="text-xl font-mono font-bold text-neutral-300 leading-none mt-1">
-              {progressPercent}%
+          {/* Active Mode Pill if not standard */}
+          {hardcoreMode === 'RIGHT_HAND_FOCUS' && (
+            <span className="hidden lg:inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md bg-cyan-500/15 border border-cyan-500/30 text-cyan-300">
+              ✋ Right-Hand
             </span>
-          </div>
-
-          {/* KDPH Indicator */}
-          <div className="hidden xl:flex flex-col">
-            <span className="text-[10px] text-neutral-400 font-bold uppercase tracking-widest">Rate (KDPH)</span>
-            <span className="text-xl font-mono font-bold text-indigo-300 leading-none mt-1">
-              {stats.kdph || 0}
+          )}
+          {hardcoreMode === 'NO_BACKSPACE' && (
+            <span className="hidden lg:inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md bg-amber-500/15 border border-amber-500/30 text-amber-300">
+              🛡️ No ⌫
             </span>
-          </div>
+          )}
         </div>
-        
-        {/* Quick Controls & Actions */}
-        <div className="flex flex-wrap items-center justify-end gap-2 md:gap-3 w-full md:w-auto pt-2 md:pt-0 border-t border-white/5 md:border-t-0">
-          {/* Text Size Stepper */}
-          <div className="flex items-center bg-white/5 border border-white/10 rounded-xl p-0.5" title="Adjust text size">
+
+        {/* Center Progress Line */}
+        <div className="hidden md:flex flex-1 max-w-xs mx-4 items-center gap-2">
+          <div className="flex-1 h-1 bg-white/8 rounded-full overflow-hidden">
+            <div 
+              className="h-full bg-gradient-to-r from-indigo-500 via-cyan-400 to-emerald-400 rounded-full transition-all duration-200"
+              style={{ width: `${progressPercent}%` }}
+            />
+          </div>
+          <span className="text-[10px] font-mono text-neutral-400 tabular-nums w-8 text-right font-medium">{progressPercent}%</span>
+        </div>
+
+        {/* Quick Actions */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          {/* Settings Toggle Button */}
+          <button
+            onClick={(e) => { e.stopPropagation(); setShowSettings(p => !p); }}
+            className={`h-8 px-2.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
+              showSettings 
+                ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 shadow-sm' 
+                : 'text-neutral-400 hover:text-white bg-white/5 hover:bg-white/10 border border-white/8'
+            }`}
+            title="Typing Preferences & Modes"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            <span className="hidden sm:inline">Settings</span>
+          </button>
+
+          {/* Next Lesson Advancement */}
+          {onNextLesson && nextLessonLabel && (
             <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setTextScale(prev => Math.max(20, prev - 2));
-              }}
-              className="w-7 h-7 rounded-lg flex items-center justify-center text-neutral-300 hover:text-white hover:bg-white/10 text-xs font-bold transition-colors"
-              title="Decrease text size"
+              onClick={(e) => { e.stopPropagation(); onNextLesson(); }}
+              className="h-8 px-3 rounded-lg text-xs font-bold font-mono bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/35 transition-all flex items-center gap-1 shadow-sm"
+              title={`Advance to ${nextLessonLabel}`}
             >
-              -
+              <span>Next</span>
+              <span>⏭️</span>
             </button>
-            <span className="text-[11px] font-mono text-neutral-400 px-2 min-w-8 text-center select-none font-semibold">
-              {textScale}px
-            </span>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setTextScale(prev => Math.min(46, prev + 2));
-              }}
-              className="w-7 h-7 rounded-lg flex items-center justify-center text-neutral-300 hover:text-white hover:bg-white/10 text-xs font-bold transition-colors"
-              title="Increase text size"
-            >
-              +
-            </button>
-          </div>
+          )}
 
-          {/* Sound Profile Selector */}
-          <div className="relative" title="Switch Keyboard Audio Profile">
-            <select
-              value={soundProfile}
-              onChange={(e) => {
-                e.stopPropagation();
-                const next = e.target.value as SoundProfile;
-                setSoundProfileState(next);
-                setSoundProfile(next);
-                playKeystrokeSound(next);
-              }}
-              className="text-[11px] font-mono font-semibold px-2.5 py-1.5 rounded-xl border bg-white/5 border-white/10 text-neutral-300 hover:text-white cursor-pointer appearance-none pr-5 transition-all"
-            >
-              <option value="cherry-blue" className="bg-neutral-900 text-white">Cherry Blue (Clicky)</option>
-              <option value="cherry-brown" className="bg-neutral-900 text-white">Cherry Brown (Tactile)</option>
-              <option value="topre" className="bg-neutral-900 text-white">Topre (Thock)</option>
-              <option value="typewriter" className="bg-neutral-900 text-white">Typewriter</option>
-              <option value="soft" className="bg-neutral-900 text-white">Soft Bubble</option>
-              <option value="off" className="bg-neutral-900 text-white">Sound Muted</option>
-            </select>
-          </div>
-
-          {/* Typing Font Selector */}
-          <div className="relative" title="Select Clean Typing Font">
-            <select
-              value={typingFont}
-              onChange={(e) => {
-                e.stopPropagation();
-                setTypingFont(e.target.value as TypingFont);
-              }}
-              className="text-[11px] font-medium px-2.5 py-1.5 rounded-xl border bg-white/5 border-white/10 text-neutral-300 hover:text-white cursor-pointer appearance-none pr-5 transition-all"
-            >
-              {TYPING_FONTS.map(f => (
-                <option key={f.id} value={f.id} className="bg-neutral-900 text-white">
-                  Font: {f.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Caret Style Toggle */}
+          {/* Submit Test Button */}
           <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setCaretStyle(prev => prev === 'line' ? 'block' : prev === 'block' ? 'underline' : 'line');
-            }}
-            className="text-[10px] font-mono px-2.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-neutral-400 hover:text-white transition-colors"
-            title="Toggle Caret Style (Line / Block / Underline)"
-          >
-            Caret: {caretStyle.toUpperCase()}
-          </button>
-
-          {/* Light / Dark Mode Toggle */}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              toggleTheme();
-            }}
-            className="p-2 rounded-xl border bg-white/5 border-white/10 text-neutral-400 hover:text-white transition-all flex items-center justify-center"
-            title={currentTheme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-            aria-label="Toggle Theme"
-          >
-            <span className="text-xs leading-none">{currentTheme === 'dark' ? '☀️' : '🌙'}</span>
-          </button>
-
-          {/* Zen Focus Mode Toggle */}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsZenMode(prev => !prev);
-            }}
-            className={`p-2 rounded-xl border transition-all ${
-              isZenMode 
-                ? 'bg-indigo-500/20 border-indigo-400 text-indigo-300 shadow-[0_0_12px_rgba(99,102,241,0.25)]' 
-                : 'bg-white/5 border-white/10 text-neutral-500 hover:text-neutral-300'
-            }`}
-            title={isZenMode ? 'Exit Zen Focus Mode' : 'Enter Zen Focus Mode (Distraction-Free)'}
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-            </svg>
-          </button>
-
-          {/* Virtual Keyboard Toggle */}
-          <button
-            onClick={(e) => { e.stopPropagation(); setShowKeyboard(prev => !prev); }}
-            className={`p-2 rounded-xl border transition-all duration-150 ${
-              showKeyboard 
-                ? 'bg-indigo-500/15 border-indigo-500/40 text-indigo-300' 
-                : 'bg-white/5 border-white/10 text-neutral-500 hover:text-neutral-300'
-            }`}
-            aria-label="Toggle Virtual Keyboard"
-            title={showKeyboard ? 'Hide virtual keyboard' : 'Show virtual keyboard'}
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m4 0h1M5 5h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2z" />
-            </svg>
-          </button>
-
-          {/* Hands Guide Toggle */}
-          <button
-            onClick={(e) => { e.stopPropagation(); setShowHands(prev => !prev); }}
-            className={`p-2 rounded-xl border transition-all duration-150 ${
-              showHands 
-                ? 'bg-indigo-500/20 border-indigo-500/50 text-indigo-300 shadow-[0_0_12px_rgba(99,102,241,0.25)]' 
-                : 'bg-white/5 border-white/10 text-neutral-500 hover:text-neutral-300'
-            }`}
-            aria-label="Toggle Hands Guide"
-            title={showHands ? 'Hide Finger Placement Guide' : 'Show Finger Placement Guide'}
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 11.5V14m0-2.5v-6a1.5 1.5 0 113 0m-3 6a1.5 1.5 0 00-3 0v2a7.5 7.5 0 0015 0v-5a1.5 1.5 0 00-3 0m-6-3V11m0-5.5v-1a1.5 1.5 0 013 0v1m0 0V11m0-5.5a1.5 1.5 0 013 0v3m0 0V11" />
-            </svg>
-          </button>
-
-          {/* Ghost Pacer Target Selector */}
-          <div className="relative" title="Ghost Speed Pacer">
-            <select
-              value={pacerMode}
-              onChange={(e) => {
-                e.stopPropagation();
-                setPacerMode(e.target.value as GhostPacerMode);
-              }}
-              className={`text-[11px] font-mono font-bold px-2.5 py-1.5 rounded-xl border appearance-none pr-5 cursor-pointer transition-all ${
-                pacerMode === 'OFF'
-                  ? 'bg-white/5 border-white/10 text-neutral-400 hover:text-white'
-                  : 'bg-purple-500/20 border-purple-500/50 text-purple-300 shadow-[0_0_10px_rgba(168,85,247,0.2)]'
-              }`}
-            >
-              <option value="OFF" className="bg-neutral-900 text-white">Ghost: OFF</option>
-              <option value="30_WPM" className="bg-neutral-900 text-white">Ghost: 30 WPM (SSC)</option>
-              <option value="35_WPM" className="bg-neutral-900 text-white">Ghost: 35 WPM (Clerk)</option>
-              <option value="40_WPM" className="bg-neutral-900 text-white">Ghost: 40 WPM (Goal)</option>
-              <option value="50_WPM" className="bg-neutral-900 text-white">Ghost: 50 WPM (Pro)</option>
-              <option value="PERSONAL_BEST" className="bg-neutral-900 text-white">Ghost: Personal Best</option>
-            </select>
-          </div>
-
-          {/* Audio Metronome Cadence Toggle */}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsMetronomeOn(prev => !prev);
-            }}
-            className={`px-2.5 py-1.5 rounded-xl text-[10px] font-mono font-bold border transition-all flex items-center gap-1 ${
-              isMetronomeOn
-                ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300 shadow-[0_0_10px_rgba(16,185,129,0.25)]'
-                : 'bg-white/5 border-white/10 text-neutral-400 hover:text-white'
-            }`}
-            title="Audio Cadence Metronome (Helps rhythm & prevents erratic bursts)"
-          >
-            <span>🎵</span>
-            <span>{isMetronomeOn ? 'BPM ON' : 'BPM'}</span>
-          </button>
-
-          {/* Quick Backspace Lock / Accuracy-First Toggle */}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setHardcoreMode(prev => prev === 'NO_BACKSPACE' ? 'NONE' : 'NO_BACKSPACE');
-            }}
-            className={`px-2.5 py-1.5 rounded-xl text-[10px] font-mono font-bold border transition-all flex items-center gap-1 ${
-              hardcoreMode === 'NO_BACKSPACE'
-                ? 'bg-amber-400 text-black border-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.35)]'
-                : 'bg-white/5 border-white/10 text-neutral-400 hover:text-white'
-            }`}
-            title={hardcoreMode === 'NO_BACKSPACE' ? 'Accuracy-First Active (Backspace Blocked)' : 'Enable Accuracy-First Mode (Block Backspace to build real muscle precision)'}
-          >
-            <span>{hardcoreMode === 'NO_BACKSPACE' ? '🛡️ No ⌫' : '⌫ Normal'}</span>
-          </button>
-
-          {/* Hardcore Mode Selector */}
-          <div className="relative" title="Typing Mode">
-            <select
-              value={hardcoreMode}
-              onChange={(e) => {
-                e.stopPropagation();
-                setHardcoreMode(e.target.value as HardcoreMode);
-              }}
-              className={`text-[11px] font-mono font-bold px-2.5 py-1.5 rounded-xl border appearance-none pr-5 cursor-pointer transition-all ${
-                hardcoreMode === 'NONE'
-                  ? 'bg-white/5 border-white/10 text-neutral-400 hover:text-white'
-                  : hardcoreMode === 'SUDDEN_DEATH'
-                  ? 'bg-rose-500/20 border-rose-500 text-rose-300 animate-pulse'
-                  : hardcoreMode === 'NO_BACKSPACE'
-                  ? 'bg-amber-500/20 border-amber-500 text-amber-300'
-                  : 'bg-indigo-500/20 border-indigo-500 text-indigo-300'
-              }`}
-            >
-              <option value="NONE" className="bg-neutral-900 text-white">Standard Mode</option>
-              <option value="NO_BACKSPACE" className="bg-neutral-900 text-white">🛡️ No Backspace</option>
-              <option value="SUDDEN_DEATH" className="bg-neutral-900 text-white">💀 Sudden Death</option>
-              <option value="STOP_ON_ERROR" className="bg-neutral-900 text-white">🛑 Stop on Error</option>
-            </select>
-          </div>
-
-          {/* Submit */}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              finishTestRef.current?.();
-            }}
+            onClick={(e) => { e.stopPropagation(); finishTestRef.current?.(); }}
             disabled={!startTime && input.length === 0}
-            className="px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider bg-white text-black hover:bg-neutral-200 transition-all shadow-[0_0_15px_rgba(255,255,255,0.2)] disabled:opacity-40 disabled:pointer-events-none flex items-center gap-1.5"
+            className="h-8 px-3.5 rounded-lg text-xs font-bold uppercase tracking-wider bg-white text-black hover:bg-neutral-200 transition-all shadow-sm disabled:opacity-30 disabled:pointer-events-none flex items-center gap-1"
           >
-            <span>Submit</span>
-            <kbd className="hidden sm:inline-block text-[9px] font-mono font-normal bg-black/10 px-1 py-0.5 rounded text-neutral-700">Ctrl+↵</kbd>
+            <span>Done</span>
+            <kbd className="hidden md:inline-block text-[9px] font-mono font-normal bg-black/10 px-1 py-0.5 rounded text-neutral-700">Ctrl+↵</kbd>
           </button>
 
-          {/* Exit / Back */}
+          {/* Exit Test Button */}
           <button 
             onClick={(e) => { e.stopPropagation(); onRestart(); }} 
-            className="px-3.5 py-2 rounded-xl text-xs font-bold uppercase tracking-wider bg-white/5 hover:bg-white/10 text-neutral-300 border border-white/10 transition-colors flex items-center gap-1.5"
+            className="h-8 w-8 rounded-lg flex items-center justify-center text-neutral-400 hover:text-white bg-white/5 hover:bg-white/10 border border-white/8 transition-all"
+            title="Exit Test (Esc)"
           >
-            <span>Exit</span>
-            <kbd className="hidden sm:inline-block text-[9px] font-mono font-normal bg-white/10 px-1 py-0.5 rounded text-neutral-400">Esc</kbd>
+            ✕
           </button>
         </div>
       </div>
+
+      {/* ── Settings Dropdown Panel (Organized Clean Grid) ── */}
+      {showSettings && (
+        <div 
+          className="w-full shrink-0 z-30 mb-2 px-1 animate-fade-in"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="bg-neutral-900/95 backdrop-blur-2xl border border-white/12 rounded-2xl p-4 md:p-5 shadow-2xl grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
+            {/* Column 1: Typography & Size */}
+            <div className="flex flex-col gap-2">
+              <span className="text-[10px] font-mono uppercase tracking-widest text-neutral-400 font-bold flex items-center gap-1">
+                <span>🔤</span> Font & Size
+              </span>
+              <div className="flex items-center bg-white/5 border border-white/10 rounded-lg p-0.5">
+                <button
+                  onClick={(e) => { e.stopPropagation(); setTextScale(p => Math.max(20, p - 2)); }}
+                  className="w-7 h-7 rounded flex items-center justify-center text-neutral-300 hover:text-white hover:bg-white/10 font-bold transition-colors"
+                  title="Smaller font"
+                >
+                  −
+                </button>
+                <span className="text-[11px] font-mono text-neutral-300 flex-1 text-center font-bold">{textScale}px</span>
+                <button
+                  onClick={(e) => { e.stopPropagation(); setTextScale(p => Math.min(46, p + 2)); }}
+                  className="w-7 h-7 rounded flex items-center justify-center text-neutral-300 hover:text-white hover:bg-white/10 font-bold transition-colors"
+                  title="Larger font"
+                >
+                  +
+                </button>
+              </div>
+              <select
+                value={typingFont}
+                onChange={(e) => { e.stopPropagation(); setTypingFont(e.target.value as TypingFont); }}
+                className="text-[11px] font-medium px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-neutral-300 hover:text-white cursor-pointer transition-colors"
+              >
+                {TYPING_FONTS.map(f => <option key={f.id} value={f.id} className="bg-neutral-900">{f.label}</option>)}
+              </select>
+              <button
+                onClick={(e) => { e.stopPropagation(); setCaretStyle(p => p === 'line' ? 'block' : p === 'block' ? 'underline' : 'line'); }}
+                className="text-[11px] font-mono px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-neutral-300 hover:text-white text-left transition-colors"
+              >
+                Caret: {caretStyle.toUpperCase()}
+              </button>
+            </div>
+
+            {/* Column 2: Sound & Rhythm */}
+            <div className="flex flex-col gap-2">
+              <span className="text-[10px] font-mono uppercase tracking-widest text-neutral-400 font-bold flex items-center gap-1">
+                <span>🔊</span> Audio & Pace
+              </span>
+              <select
+                value={soundProfile}
+                onChange={(e) => {
+                  e.stopPropagation();
+                  const next = e.target.value as SoundProfile;
+                  setSoundProfileState(next);
+                  setSoundProfile(next);
+                  playKeystrokeSound(next);
+                }}
+                className="text-[11px] font-medium px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-neutral-300 hover:text-white cursor-pointer transition-colors"
+              >
+                <option value="cherry-blue" className="bg-neutral-900">Cherry Blue (Clicky)</option>
+                <option value="cherry-brown" className="bg-neutral-900">Cherry Brown (Tactile)</option>
+                <option value="topre" className="bg-neutral-900">Topre (Thock)</option>
+                <option value="typewriter" className="bg-neutral-900">Typewriter</option>
+                <option value="soft" className="bg-neutral-900">Soft Bubble</option>
+                <option value="off" className="bg-neutral-900">Sound Muted</option>
+              </select>
+              <button
+                onClick={(e) => { e.stopPropagation(); setIsMetronomeOn(p => !p); }}
+                className={`text-[11px] px-2.5 py-1.5 rounded-lg border text-left font-semibold transition-all flex items-center justify-between ${
+                  isMetronomeOn
+                    ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300'
+                    : 'bg-white/5 border-white/10 text-neutral-400 hover:text-white'
+                }`}
+              >
+                <span>🎵 Metronome</span>
+                <span className="font-mono text-[10px] uppercase font-bold">{isMetronomeOn ? 'ON' : 'OFF'}</span>
+              </button>
+              <select
+                value={pacerMode}
+                onChange={(e) => { e.stopPropagation(); setPacerMode(e.target.value as GhostPacerMode); }}
+                className={`text-[11px] font-medium px-2 py-1.5 rounded-lg border cursor-pointer transition-colors ${
+                  pacerMode === 'OFF'
+                    ? 'bg-white/5 border-white/10 text-neutral-400'
+                    : 'bg-purple-500/20 border-purple-500/40 text-purple-300 font-bold'
+                }`}
+              >
+                <option value="OFF" className="bg-neutral-900">Ghost Pacer: OFF</option>
+                <option value="30_WPM" className="bg-neutral-900">Ghost: 30 WPM (SSC)</option>
+                <option value="35_WPM" className="bg-neutral-900">Ghost: 35 WPM (Clerk)</option>
+                <option value="40_WPM" className="bg-neutral-900">Ghost: 40 WPM (Goal)</option>
+                <option value="50_WPM" className="bg-neutral-900">Ghost: 50 WPM (Pro)</option>
+                <option value="PERSONAL_BEST" className="bg-neutral-900">Ghost: Personal Best</option>
+              </select>
+            </div>
+
+            {/* Column 3: Specialized Training Modes */}
+            <div className="flex flex-col gap-2">
+              <span className="text-[10px] font-mono uppercase tracking-widest text-neutral-400 font-bold flex items-center gap-1">
+                <span>🎯</span> Training Mode
+              </span>
+              <select
+                value={hardcoreMode}
+                onChange={(e) => { e.stopPropagation(); setHardcoreMode(e.target.value as HardcoreMode); }}
+                className={`text-[11px] font-medium px-2 py-1.5 rounded-lg border cursor-pointer transition-all ${
+                  hardcoreMode === 'NONE'
+                    ? 'bg-white/5 border-white/10 text-neutral-300'
+                    : hardcoreMode === 'RIGHT_HAND_FOCUS'
+                    ? 'bg-cyan-500/20 border-cyan-500/40 text-cyan-300 font-bold'
+                    : hardcoreMode === 'NO_BACKSPACE'
+                    ? 'bg-amber-500/20 border-amber-500/40 text-amber-300 font-bold'
+                    : 'bg-rose-500/20 border-rose-500/40 text-rose-300 font-bold'
+                }`}
+              >
+                <option value="NONE" className="bg-neutral-900">Standard Practice</option>
+                <option value="RIGHT_HAND_FOCUS" className="bg-neutral-900">✋ Right Hand Focus</option>
+                <option value="NO_BACKSPACE" className="bg-neutral-900">🛡️ No Backspace (Real Acc)</option>
+                <option value="STOP_ON_ERROR" className="bg-neutral-900">🛑 Stop on Error</option>
+                <option value="SUDDEN_DEATH" className="bg-neutral-900">💀 Sudden Death</option>
+              </select>
+              <div className="text-[10px] text-neutral-400 leading-tight p-2 rounded-lg bg-white/3 border border-white/5">
+                {hardcoreMode === 'RIGHT_HAND_FOCUS' && '✋ Emphasizes right index, middle, ring, pinky & punctuation keys.'}
+                {hardcoreMode === 'NO_BACKSPACE' && '🛡️ Backspace blocked to enforce true muscle memory.'}
+                {hardcoreMode === 'STOP_ON_ERROR' && '🛑 Cursor pauses until the correct key is typed.'}
+                {hardcoreMode === 'SUDDEN_DEATH' && '💀 One wrong key immediately ends the test.'}
+                {hardcoreMode === 'NONE' && 'Standard free-flow typing with normal backspacing.'}
+              </div>
+            </div>
+
+            {/* Column 4: Guides & View */}
+            <div className="flex flex-col gap-2">
+              <span className="text-[10px] font-mono uppercase tracking-widest text-neutral-400 font-bold flex items-center gap-1">
+                <span>👁️</span> Visual Guides
+              </span>
+              <button
+                onClick={(e) => { e.stopPropagation(); setShowKeyboard(p => !p); }}
+                className={`text-[11px] px-2.5 py-1.5 rounded-lg border text-left font-semibold transition-all flex items-center justify-between ${
+                  showKeyboard
+                    ? 'bg-indigo-500/20 border-indigo-500/40 text-indigo-300'
+                    : 'bg-white/5 border-white/10 text-neutral-400 hover:text-white'
+                }`}
+              >
+                <span>⌨️ Keyboard</span>
+                <span className="font-mono text-[10px]">{showKeyboard ? 'ON' : 'OFF'}</span>
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); setShowHands(p => !p); }}
+                className={`text-[11px] px-2.5 py-1.5 rounded-lg border text-left font-semibold transition-all flex items-center justify-between ${
+                  showHands
+                    ? 'bg-indigo-500/20 border-indigo-500/40 text-indigo-300'
+                    : 'bg-white/5 border-white/10 text-neutral-400 hover:text-white'
+                }`}
+              >
+                <span>✋ Hands Placement</span>
+                <span className="font-mono text-[10px]">{showHands ? 'ON' : 'OFF'}</span>
+              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={(e) => { e.stopPropagation(); setIsZenMode(p => !p); }}
+                  className="flex-1 text-[11px] py-1.5 px-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-neutral-300 hover:text-white text-center transition-colors"
+                >
+                  👁 Zen Mode
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); toggleTheme(); }}
+                  className="flex-1 text-[11px] py-1.5 px-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-neutral-300 hover:text-white text-center transition-colors"
+                  title="Toggle Light / Dark Mode"
+                >
+                  {currentTheme === 'dark' ? '☀️ Light' : '🌙 Dark'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      </>
       )}
 
       {/* Dual Live Ghost Race Track (when Pacer is Active) */}
@@ -1172,6 +1165,20 @@ export const TypingTest: React.FC<TypingTestProps> = ({
               <span className="text-[10px] font-mono text-neutral-400 w-10 text-right">{ghostTargetWpm} WPM</span>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Right Hand Special Training Mode Banner */}
+      {hardcoreMode === 'RIGHT_HAND_FOCUS' && (
+        <div className="w-full shrink-0 flex items-center justify-between px-4 py-2 mb-2 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 text-xs font-mono shadow-md animate-fade-in">
+          <div className="flex items-center gap-2">
+            <span className="text-base">✋</span>
+            <span className="font-bold">Right Hand Focus Mode:</span>
+            <span className="text-neutral-300 hidden sm:inline">Focus on right index, middle, ring, pinky & punctuation keys (H, J, K, L, ;, Y, U, I, O, P, N, M, ,, ., /)</span>
+          </div>
+          <span className="text-[10px] text-cyan-400 font-bold uppercase tracking-widest hidden md:inline">
+            Right Hand Active
+          </span>
         </div>
       )}
 
@@ -1256,7 +1263,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({
             className={`whitespace-pre-wrap break-normal min-h-full pb-20 relative z-10 ${activeFontClass} typing-text-flow select-none [word-break:normal] [overflow-wrap:normal]`}
             style={{ fontSize: `${textScale}px`, lineHeight }}
           >
-            {prefixText && <span className="char-pending">{prefixText}</span>}
+            {prefixText && <span className="char-correct opacity-60">{prefixText}</span>}
             {windowedTokens.map(token => (
               <TokenItem
                 key={token.tokenKey}
@@ -1269,13 +1276,23 @@ export const TypingTest: React.FC<TypingTestProps> = ({
             {suffixText && <span className="char-pending">{suffixText}</span>}
           </div>
           
-          {/* Hidden Textarea (supports newline input) */}
+          {/* Hidden Textarea (supports native focus and keyboard events) */}
           <textarea
             ref={inputRef}
-            className="opacity-0 absolute inset-0 w-full h-full cursor-default z-30 pointer-events-none"
+            className="opacity-0 absolute inset-0 w-full h-full cursor-text z-30 pointer-events-auto resize-none select-none"
             value={input}
             onChange={handleInputChange}
             onBlur={focusInput}
+            onKeyDown={(e) => {
+              if (e.key === 'Tab') {
+                e.preventDefault();
+                onRestart();
+              }
+              if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && startTime) {
+                e.preventDefault();
+                finishTestRef.current?.();
+              }
+            }}
             autoComplete="off"
             autoCorrect="off"
             autoCapitalize="off"
@@ -1296,7 +1313,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({
 
       {!isZenMode && showHands && (
         <div className="w-full max-w-4xl mx-auto flex justify-center py-2">
-          <HandsGuide nextChar={nextChar} />
+          <HandsGuide nextChar={nextChar} focusHand={hardcoreMode === 'RIGHT_HAND_FOCUS' ? 'right' : undefined} />
         </div>
       )}
 

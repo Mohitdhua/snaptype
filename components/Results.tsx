@@ -15,6 +15,8 @@ interface ResultsProps {
   onNewImage: () => void;
   onPractice: (type: 'words' | 'keys') => void;
   onLaunchBooster?: (text: string, title: string, hardcore?: HardcoreMode) => void;
+  onNextLesson?: () => void;
+  nextLessonLabel?: string;
 }
 
 const roundTo = (value: number, precision = 1) => {
@@ -69,7 +71,7 @@ const HEATMAP_LAYOUT = [
   ['Space']
 ];
 
-export const Results: React.FC<ResultsProps> = ({ results, onReset, onNewImage, onPractice, onLaunchBooster }) => {
+export const Results: React.FC<ResultsProps> = ({ results, onReset, onNewImage, onPractice, onLaunchBooster, onNextLesson, nextLessonLabel }) => {
   const [showCertificate, setShowCertificate] = useState(false);
   const [showDiagnosticModal, setShowDiagnosticModal] = useState(false);
   const [showExamEval, setShowExamEval] = useState(results.isSSC || false);
@@ -275,6 +277,32 @@ export const Results: React.FC<ResultsProps> = ({ results, onReset, onNewImage, 
             }`}>
               {results.netWpm >= results.ghostWpm ? 'PACER BEATEN ⚡' : 'CADENCE RECOVERY 🎯'}
             </span>
+          </div>
+        )}
+
+        {/* Next Exercise / Lesson Banner */}
+        {onNextLesson && nextLessonLabel && (
+          <div className="w-full mb-6 p-4 md:p-5 rounded-2xl bg-gradient-to-r from-emerald-950/40 via-teal-950/30 to-neutral-950/50 border border-emerald-500/40 shadow-xl flex flex-col sm:flex-row justify-between items-center gap-4 animate-fade-in">
+            <div className="flex items-center gap-3 text-left">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-xl shrink-0">
+                🚀
+              </div>
+              <div>
+                <span className="text-[10px] font-mono uppercase tracking-widest text-emerald-400 font-bold">
+                  Curriculum Advancement
+                </span>
+                <h4 className="text-sm md:text-base font-bold text-white">
+                  Exercise Complete! Ready for the next drill?
+                </h4>
+              </div>
+            </div>
+
+            <button
+              onClick={onNextLesson}
+              className="w-full sm:w-auto px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 hover:brightness-110 text-black transition-all shadow-[0_0_20px_rgba(52,211,153,0.35)] flex items-center justify-center gap-2 font-mono shrink-0"
+            >
+              <span>{nextLessonLabel}</span>
+            </button>
           </div>
         )}
 
@@ -790,6 +818,14 @@ export const Results: React.FC<ResultsProps> = ({ results, onReset, onNewImage, 
         )}
 
         <div className="flex flex-col sm:flex-row flex-wrap gap-4 w-full justify-center">
+            {onNextLesson && nextLessonLabel && (
+              <button
+                onClick={onNextLesson}
+                className="w-full sm:w-auto px-7 py-3 rounded-2xl font-bold text-xs uppercase tracking-widest bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 hover:brightness-110 text-black transition-all shadow-[0_0_25px_rgba(52,211,153,0.35)] flex items-center justify-center gap-2 font-mono"
+              >
+                <span>{nextLessonLabel}</span>
+              </button>
+            )}
             <Button onClick={onReset} className="w-full sm:w-auto">
                 Retry Same Test
             </Button>

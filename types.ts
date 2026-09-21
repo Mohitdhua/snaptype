@@ -8,7 +8,7 @@ export enum GameState {
 
 export type GameMode = 'DIGITAL' | 'PHYSICAL';
 
-export type HardcoreMode = 'NONE' | 'NO_BACKSPACE' | 'SUDDEN_DEATH' | 'STOP_ON_ERROR';
+export type HardcoreMode = 'NONE' | 'NO_BACKSPACE' | 'SUDDEN_DEATH' | 'STOP_ON_ERROR' | 'RIGHT_HAND_FOCUS';
 
 export interface ExamEvaluation {
   kdph: number;
@@ -135,7 +135,7 @@ export type LessonProgressMap = Record<string, LessonProgress>;
 
 // --- Practice Passage Types ---
 
-export type PassageCategory = 'legal' | 'ssc' | 'literature' | 'tech' | 'numbers' | 'hindi' | 'collision';
+export type PassageCategory = 'legal' | 'ssc' | 'literature' | 'tech' | 'numbers' | 'hindi' | 'collision' | 'righthand';
 
 export interface PracticePassage {
   id: string;

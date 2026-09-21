@@ -4,7 +4,7 @@ import { extractTextFromImage } from './services/geminiService';
 import { deleteSavedTest, getHistory, getSavedTests, getUserStats, saveLessonProgress, saveResult, saveTest, updateAdaptiveProfile } from './services/storageService';
 import { Theme, getStoredTheme, applyTheme } from './services/themeService';
 import { GameMode, GameState, HardcoreMode, PracticePassage, SavedTest, StoredResult, TestResults, TimeLimit, UserStats } from './types';
-import { LESSONS } from './data/lessonsData';
+import { LESSONS, getNextLessonTarget } from './data/lessonsData';
 
 type HomeTab = 'LESSONS' | 'PRACTICE' | 'CREATE' | 'SAVED' | 'PROGRESS';
 type AppHistoryState = {
@@ -65,6 +65,7 @@ const App: React.FC = () => {
   const [hardcoreMode, setHardcoreMode] = useState<HardcoreMode>('NONE');
   const [activeTestId, setActiveTestId] = useState<string | null>(null);
   const [activeLessonId, setActiveLessonId] = useState<string | null>(null);
+  const [activeExerciseIndex, setActiveExerciseIndex] = useState<number>(0);
   const [theme, setTheme] = useState<Theme>(() => getStoredTheme());
 
   useEffect(() => {
@@ -193,6 +194,7 @@ const App: React.FC = () => {
     setHardcoreMode('NONE');
     setActiveTestId(null);
     setActiveLessonId(null);
+    setActiveExerciseIndex(0);
   };
 
   const handleImageSelect = async (
@@ -292,8 +294,10 @@ const App: React.FC = () => {
     exerciseText: string,
     lessonId: string,
     title: string,
-    hardcore: HardcoreMode = 'NONE'
+    hardcore: HardcoreMode = 'NONE',
+    exerciseIndex: number = 0
   ) => {
+    setActiveExerciseIndex(exerciseIndex);
     startGame({
       rawText: exerciseText,
       imageSrc: null,
@@ -304,6 +308,22 @@ const App: React.FC = () => {
       lessonId,
       hardcore,
     });
+  };
+
+  const nextLessonTarget = useMemo(() => {
+    if (!activeLessonId) return null;
+    return getNextLessonTarget(activeLessonId, activeExerciseIndex);
+  }, [activeLessonId, activeExerciseIndex]);
+
+  const handleNextLesson = () => {
+    if (!nextLessonTarget) return;
+    handleSelectLessonExercise(
+      nextLessonTarget.text,
+      nextLessonTarget.lessonId,
+      `${nextLessonTarget.lessonTitle} - ${nextLessonTarget.exerciseTitle}`,
+      hardcoreMode,
+      nextLessonTarget.exerciseIndex
+    );
   };
 
   const handleStartPassage = (
@@ -524,6 +544,7 @@ const App: React.FC = () => {
     <div className="min-h-screen bg-stitch-dark text-stitch-accent font-sans relative overflow-hidden">
       <div className="mesh-bg" />
 
+      {gameState === GameState.UPLOAD && (
       <header className="fixed top-0 left-0 right-0 p-3 md:p-4 z-50 pointer-events-none">
         <div className="max-w-7xl mx-auto flex flex-col gap-2 pointer-events-auto items-center">
 
@@ -639,13 +660,14 @@ const App: React.FC = () => {
 
         </div>
       </header>
+      )}
 
       <main
         className={
           gameState === GameState.PLAYING
-            ? 'container relative z-10 mx-auto px-3 md:px-4 pt-16 pb-3 h-screen overflow-hidden flex flex-col items-center'
+            ? 'container relative z-10 mx-auto px-2 md:px-4 pt-1.5 pb-2 h-screen overflow-hidden flex flex-col items-center'
             : `container mx-auto px-4 pb-12 min-h-screen flex flex-col items-center justify-start ${
-                gameState === GameState.UPLOAD ? 'pt-24 md:pt-28 relative z-10' : 'pt-20 relative z-10'
+                gameState === GameState.UPLOAD ? 'pt-24 md:pt-28 relative z-10' : 'pt-8 relative z-10'
               }`
         }
       >
@@ -664,6 +686,8 @@ const App: React.FC = () => {
                 initialHardcoreMode={hardcoreMode}
                 theme={theme}
                 onToggleTheme={toggleTheme}
+                onNextLesson={nextLessonTarget ? handleNextLesson : undefined}
+                nextLessonLabel={nextLessonTarget?.label}
               />
             ) : (
               <PhysicalTypingTest
@@ -684,6 +708,8 @@ const App: React.FC = () => {
               onNewImage={goHomeCreate}
               onPractice={handlePractice}
               onLaunchBooster={handleLaunchBooster}
+              onNextLesson={nextLessonTarget ? handleNextLesson : undefined}
+              nextLessonLabel={nextLessonTarget?.label}
             />
           )}
         </Suspense>
