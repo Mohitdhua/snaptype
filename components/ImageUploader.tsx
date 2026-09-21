@@ -15,7 +15,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageSelect, onT
   const [preview, setPreview] = useState<string | null>(null);
   const [customText, setCustomText] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [timeLimit, setTimeLimit] = useState<TimeLimit>(0);
+  const [timeLimit, setTimeLimit] = useState<TimeLimit>(900);
   const [isSSCMode, setIsSSCMode] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const supportedImageTypes = new Set(['image/png', 'image/jpeg', 'image/jpg', 'image/webp']);
@@ -58,11 +58,12 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageSelect, onT
   };
 
   const timeOptions: { label: string; value: TimeLimit }[] = [
-    { label: 'Endless / Finish Text', value: 0 },
-    { label: '1 Min', value: 60 },
-    { label: '2 Min', value: 120 },
-    { label: '5 Min', value: 300 },
+    { label: '15 Min (Exam)', value: 900 },
     { label: '10 Min', value: 600 },
+    { label: '5 Min', value: 300 },
+    { label: '2 Min', value: 120 },
+    { label: '1 Min', value: 60 },
+    { label: 'Endless / Finish Text', value: 0 },
   ];
 
   const hasContent = inputMode === 'image' ? !!preview : !!customText.trim();

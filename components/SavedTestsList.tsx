@@ -12,18 +12,19 @@ export const SavedTestsList: React.FC<SavedTestsListProps> = ({ tests, onPlay, o
 
   const timeOptions = useMemo(
     () => [
-      { label: 'Finish Text', value: 0 as TimeLimit },
-      { label: '1 Min', value: 60 as TimeLimit },
-      { label: '2 Min', value: 120 as TimeLimit },
-      { label: '5 Min', value: 300 as TimeLimit },
+      { label: '15 Min (Exam)', value: 900 as TimeLimit },
       { label: '10 Min', value: 600 as TimeLimit },
+      { label: '5 Min', value: 300 as TimeLimit },
+      { label: '2 Min', value: 120 as TimeLimit },
+      { label: '1 Min', value: 60 as TimeLimit },
+      { label: 'Finish Text', value: 0 as TimeLimit },
     ],
     []
   );
 
   const getOptions = (test: SavedTest) =>
     playOptions[test.id] || {
-      timeLimit: 60 as TimeLimit,
+      timeLimit: 900 as TimeLimit,
       mode: test.gameMode || 'DIGITAL',
       isSSC: false,
     };
@@ -32,7 +33,7 @@ export const SavedTestsList: React.FC<SavedTestsListProps> = ({ tests, onPlay, o
     setPlayOptions(prev => ({
       ...prev,
       [test.id]: {
-        timeLimit: prev[test.id]?.timeLimit ?? 60,
+        timeLimit: prev[test.id]?.timeLimit ?? 900,
         mode: prev[test.id]?.mode ?? test.gameMode ?? 'DIGITAL',
         isSSC: prev[test.id]?.isSSC ?? false,
         ...next,

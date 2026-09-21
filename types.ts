@@ -98,7 +98,7 @@ export interface ExtractedContent {
   text: string;
 }
 
-export type TimeLimit = 0 | 60 | 120 | 300 | 600; // 0 means "Finish Text"
+export type TimeLimit = 0 | 60 | 120 | 300 | 600 | 900; // 0 means "Finish Text", 900 means 15 Min Exam
 
 // --- Typing Master Lesson Types ---
 

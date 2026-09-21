@@ -32,6 +32,36 @@ const getNoiseBuffer = (ctx: AudioContext): AudioBuffer => {
   return buffer;
 };
 
+// Pre-warms Web Audio hardware output to prevent first-keystroke lag
+export const warmupAudio = () => {
+  try {
+    const ctx = initAudio();
+    getNoiseBuffer(ctx);
+    // Silent inaudible pulse to wake up audio hardware thread without delay
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    gain.gain.value = 0.00001;
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(0);
+    osc.stop(0.001);
+  } catch {
+    // Ignore autoplay restrictions prior to user gesture
+  }
+};
+
+if (typeof window !== 'undefined') {
+  const triggerEarlyWarmup = () => {
+    warmupAudio();
+    window.removeEventListener('pointerdown', triggerEarlyWarmup);
+    window.removeEventListener('keydown', triggerEarlyWarmup);
+    window.removeEventListener('touchstart', triggerEarlyWarmup);
+  };
+  window.addEventListener('pointerdown', triggerEarlyWarmup, { once: true, passive: true });
+  window.addEventListener('keydown', triggerEarlyWarmup, { once: true, passive: true });
+  window.addEventListener('touchstart', triggerEarlyWarmup, { once: true, passive: true });
+}
+
 export const getSoundProfile = (): SoundProfile => {
   try {
     const saved = localStorage.getItem(SOUND_PROFILE_KEY);

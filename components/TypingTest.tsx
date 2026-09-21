@@ -4,7 +4,7 @@ import { HardcoreMode, TestResults, TimeLimit, GhostPacerMode } from '../types';
 import { levenshteinDistance } from '../utils/stringUtils';
 import { VirtualKeyboard } from './VirtualKeyboard';
 import { HandsGuide } from './HandsGuide';
-import { playSound, playKeystrokeSound, getSoundProfile, setSoundProfile, SoundProfile, startMetronome, stopMetronome } from '../services/soundService';
+import { playSound, playKeystrokeSound, getSoundProfile, setSoundProfile, SoundProfile, startMetronome, stopMetronome, warmupAudio } from '../services/soundService';
 import { getUserStats } from '../services/storageService';
 import { Theme, getStoredTheme, applyTheme } from '../services/themeService';
 
@@ -546,11 +546,6 @@ export const TypingTest: React.FC<TypingTestProps> = ({
     }
   }, [input, targetText, timeLimit, finishTest]);
 
-  // Auto-focus input
-  useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
-
   // Session shortcuts: Esc to restart, Ctrl/Cmd+Enter to submit
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -576,24 +571,27 @@ export const TypingTest: React.FC<TypingTestProps> = ({
     const cursorEl = container.querySelector(`[data-char-idx="${charIndexToMeasure}"]`) as HTMLSpanElement | null;
     if (!cursorEl) return;
 
-    // First check if auto-scrolling is needed to keep the cursor in view
-    const initialContainerRect = container.getBoundingClientRect();
-    const initialCursorRect = cursorEl.getBoundingClientRect();
+    let containerRect = container.getBoundingClientRect();
+    let cursorRect = cursorEl.getBoundingClientRect();
 
     const topMargin = 32;
     const bottomMargin = 52;
-    const cursorTopInView = initialCursorRect.top - initialContainerRect.top;
-    const cursorBottomInView = initialCursorRect.bottom - initialContainerRect.top;
+    const cursorTopInView = cursorRect.top - containerRect.top;
+    const cursorBottomInView = cursorRect.bottom - containerRect.top;
 
+    let didScroll = false;
     if (cursorBottomInView > container.clientHeight - bottomMargin) {
       container.scrollTop += (cursorBottomInView - (container.clientHeight - bottomMargin));
-    } else if (cursorTopInView < topMargin) {
+      didScroll = true;
+    } else if (cursorTopInView < topMargin && container.scrollTop > 0) {
       container.scrollTop -= (topMargin - cursorTopInView);
+      didScroll = true;
     }
 
-    // Always re-measure fresh rects AFTER any potential scroll adjustment
-    const containerRect = container.getBoundingClientRect();
-    const cursorRect = cursorEl.getBoundingClientRect();
+    if (didScroll) {
+      containerRect = container.getBoundingClientRect();
+      cursorRect = cursorEl.getBoundingClientRect();
+    }
 
     let newLeft = cursorRect.left - containerRect.left + container.scrollLeft;
     if (currIndex >= chars.length) {
@@ -616,6 +614,13 @@ export const TypingTest: React.FC<TypingTestProps> = ({
     if (!container) return;
     container.addEventListener('scroll', updateCaret, { passive: true });
     return () => container.removeEventListener('scroll', updateCaret);
+  }, [updateCaret]);
+
+  // Auto-focus input & warm up audio immediately on mount
+  useEffect(() => {
+    warmupAudio();
+    inputRef.current?.focus();
+    requestAnimationFrame(updateCaret);
   }, [updateCaret]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {

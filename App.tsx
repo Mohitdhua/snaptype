@@ -57,7 +57,7 @@ const App: React.FC = () => {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [results, setResults] = useState<TestResults | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [timeLimit, setTimeLimit] = useState<TimeLimit>(0);
+  const [timeLimit, setTimeLimit] = useState<TimeLimit>(900);
   const [history, setHistory] = useState<StoredResult[]>([]);
   const [userStats, setUserStats] = useState<UserStats | null>(null);
   const [savedTests, setSavedTests] = useState<SavedTest[]>([]);
@@ -186,7 +186,7 @@ const App: React.FC = () => {
     setGameState(GameState.UPLOAD);
     setIsProcessing(false);
     setResults(null);
-    setTimeLimit(0);
+    setTimeLimit(900);
     setText('');
     setOriginalText('');
     setImagePreview(null);
@@ -302,7 +302,7 @@ const App: React.FC = () => {
       rawText: exerciseText,
       imageSrc: null,
       mode: 'DIGITAL',
-      selectedTimeLimit: 0,
+      selectedTimeLimit: 900,
       sscEnabled: false,
       testId: null,
       lessonId,
@@ -333,11 +333,12 @@ const App: React.FC = () => {
     hardcore: HardcoreMode = 'NONE'
   ) => {
     const isSSC = passage.category === 'ssc' || passage.category === 'legal';
+    const finalTimeLimit = selectedTimeLimit || 900;
     startGame({
       rawText: passage.text,
       imageSrc: null,
       mode,
-      selectedTimeLimit,
+      selectedTimeLimit: finalTimeLimit,
       sscEnabled: isSSC,
       testId: passage.id,
       lessonId: null,
