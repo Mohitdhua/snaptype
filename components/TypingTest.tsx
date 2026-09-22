@@ -81,12 +81,19 @@ interface CharItemProps {
 
 const CharItemBase: React.FC<CharItemProps> = ({ char, status, index }) => {
     const isNewline = char === '\n';
-    let className = "relative transition-colors duration-75 inline-block ";
+    const isSpace = char === ' ';
+    let className = "relative transition-colors duration-75 ";
+    
+    if (isSpace) {
+      className += "inline ";
+    } else {
+      className += "inline-block ";
+    }
     
     if (status === 'pending') {
       className += "char-pending";
     } else if (status === 'correct') {
-      className += "char-correct font-medium";
+      className += "char-correct";
     } else if (status === 'incorrect') {
       className += "char-incorrect rounded-[2px]";
     }
@@ -179,7 +186,19 @@ export const TypingTest: React.FC<TypingTestProps> = ({
   const [currIndex, setCurrIndex] = useState(0);
   const [hardKeys, setHardKeys] = useState<Record<string, number>>({});
   const [caretPos, setCaretPos] = useState({ top: 0, left: 0, width: 2.5, height: 32 });
-  const [showKeyboard, setShowKeyboard] = useState(true);
+  const [showKeyboard, setShowKeyboard] = useState(() => {
+    try {
+      return localStorage.getItem('snaptype_show_keyboard_v1') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('snaptype_show_keyboard_v1', String(showKeyboard));
+    } catch {}
+  }, [showKeyboard]);
   const [showHands, setShowHands] = useState(false);
   const [hardcoreMode, setHardcoreMode] = useState<HardcoreMode>(initialHardcoreMode);
   const [backspaceBlockedToast, setBackspaceBlockedToast] = useState(false);
@@ -626,11 +645,18 @@ export const TypingTest: React.FC<TypingTestProps> = ({
     return () => container.removeEventListener('scroll', updateCaret);
   }, [updateCaret]);
 
-  // Auto-focus input & warm up audio immediately on mount
+  // Auto-focus input & warm up audio immediately on mount, lock body overflow
   useEffect(() => {
     warmupAudio();
     inputRef.current?.focus();
     requestAnimationFrame(updateCaret);
+
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    window.scrollTo(0, 0);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+    };
   }, [updateCaret]);
 
   const syncCaretToEnd = useCallback(() => {
@@ -1270,7 +1296,9 @@ export const TypingTest: React.FC<TypingTestProps> = ({
         {/* Scrollable Text Viewport */}
         <div 
           ref={containerRef}
-          className="w-full flex-1 min-h-0 relative p-6 md:p-10 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-600"
+          onClick={focusInput}
+          className="w-full flex-1 min-h-0 relative p-6 md:p-10 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-600 typing-scroll-viewport"
+          style={{ scrollbarGutter: 'stable' }}
         >
           {/* Caret Styles */}
           {caretStyle === 'line' && (
@@ -1329,10 +1357,10 @@ export const TypingTest: React.FC<TypingTestProps> = ({
             {suffixText && <span className="char-pending">{suffixText}</span>}
           </div>
           
-          {/* Hidden Textarea (supports native focus and keyboard events, strictly pinned to append-only) */}
+          {/* Hidden Textarea (supports native focus and keyboard events, strictly pinned to append-only and fixed at viewport top) */}
           <textarea
             ref={inputRef}
-            className="opacity-0 absolute inset-0 w-full h-full cursor-text z-30 pointer-events-auto resize-none select-none"
+            className="opacity-0 fixed top-0 left-0 w-1 h-1 pointer-events-none -z-50 resize-none select-none"
             value={input}
             onChange={handleInputChange}
             onBlur={focusInput}

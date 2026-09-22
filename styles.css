@@ -48,7 +48,11 @@ body {
 .char-incorrect {
   color: #fb7185;
   background-color: rgba(244, 63, 94, 0.18);
-  border-bottom: 2px solid #f43f5e;
+  box-shadow: inset 0 -2px 0 0 #f43f5e;
+}
+
+.typing-scroll-viewport {
+  scrollbar-gutter: stable;
 }
 
 /* Modern Clean Card Utilities (Subtle, Eye-Soothing, Non-Boxy) */

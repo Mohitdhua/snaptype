@@ -542,7 +542,9 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className={`min-h-screen font-sans relative overflow-x-hidden transition-colors duration-200 ${
+    <div className={`font-sans relative transition-colors duration-200 ${
+      gameState === GameState.PLAYING ? 'h-screen max-h-screen overflow-hidden' : 'min-h-screen overflow-x-hidden'
+    } ${
       theme === 'light' ? 'bg-[#f8fafc] text-slate-900' : 'bg-[#0c1017] text-slate-100'
     }`}>
       <div className="mesh-bg" />
@@ -684,7 +686,7 @@ const App: React.FC = () => {
       <main
         className={
           gameState === GameState.PLAYING
-            ? 'container relative z-10 mx-auto px-2 md:px-4 pt-1.5 pb-2 h-screen overflow-hidden flex flex-col items-center'
+            ? 'w-full max-w-7xl mx-auto px-2 md:px-4 pt-1.5 pb-2 h-full flex-1 min-h-0 overflow-hidden flex flex-col items-center justify-between'
             : `container mx-auto px-4 pb-12 min-h-screen flex flex-col items-center justify-start ${
                 gameState === GameState.UPLOAD ? 'pt-24 md:pt-28 relative z-10' : 'pt-8 relative z-10'
               }`
@@ -734,9 +736,11 @@ const App: React.FC = () => {
         </Suspense>
       </main>
 
-      <footer className="fixed bottom-3 right-4 text-[10px] font-mono text-neutral-500 pointer-events-none">
-        SnapType Touch Typing Engine • AI Calibrated
-      </footer>
+      {gameState !== GameState.PLAYING && (
+        <footer className="fixed bottom-3 right-4 text-[10px] font-mono text-neutral-500 pointer-events-none">
+          SnapType Touch Typing Engine • AI Calibrated
+        </footer>
+      )}
     </div>
   );
 };
