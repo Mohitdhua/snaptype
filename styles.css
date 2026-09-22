@@ -414,6 +414,26 @@ body.light {
   background-color: rgba(0, 0, 0, 0.28);
 }
 
+/* Pause Overlay Styles */
+.pause-overlay {
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.light .pause-overlay,
+[data-theme="light"] .pause-overlay {
+  background-color: rgba(255, 255, 255, 0.94) !important;
+  border-color: rgba(245, 158, 11, 0.5) !important;
+  color: #0f172a !important;
+}
+
+.light .pause-card,
+[data-theme="light"] .pause-card {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
 @media print {
   body {
     background: #ffffff !important;

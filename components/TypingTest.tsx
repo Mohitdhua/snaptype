@@ -10,6 +10,9 @@ import { Theme, getStoredTheme, applyTheme } from '../services/themeService';
 
 const TYPING_TEXT_SCALE_KEY = 'snaptype_typing_text_scale_v1';
 const TYPING_FONT_KEY = 'snaptype_typing_font_v1';
+export const AUTOPAUSE_ENABLED_KEY = 'snaptype_autopause_enabled_v1';
+export const AUTOPAUSE_DELAY_KEY = 'snaptype_autopause_delay_v1';
+export type PauseReason = 'manual' | 'auto_idle' | 'auto_blur' | null;
 const WINDOW_PRE_CHARS = 900;
 const WINDOW_POST_CHARS = 1800;
 const ENTER_SYMBOL = '\u23CE';
@@ -249,6 +252,46 @@ export const TypingTest: React.FC<TypingTestProps> = ({
   const [pacerMode, setPacerMode] = useState<GhostPacerMode>('OFF');
   const [isMetronomeOn, setIsMetronomeOn] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const [pauseReason, setPauseReason] = useState<PauseReason>(null);
+  const [autoPauseEnabled, setAutoPauseEnabled] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem(AUTOPAUSE_ENABLED_KEY);
+      return saved !== null ? saved === 'true' : true;
+    } catch {
+      return true;
+    }
+  });
+  const [autoPauseDelay, setAutoPauseDelay] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem(AUTOPAUSE_DELAY_KEY);
+      const parsed = saved ? parseInt(saved, 10) : 5;
+      return [3, 5, 10].includes(parsed) ? parsed : 5;
+    } catch {
+      return 5;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(AUTOPAUSE_ENABLED_KEY, String(autoPauseEnabled));
+    } catch {}
+  }, [autoPauseEnabled]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(AUTOPAUSE_DELAY_KEY, String(autoPauseDelay));
+    } catch {}
+  }, [autoPauseDelay]);
+
+  // Segmented timer tracking to ensure pause duration never distorts WPM/accuracy
+  const accumulatedTimeMsRef = useRef<number>(0);
+  const activeSegmentStartTimeRef = useRef<number | null>(null);
+  const autoPauseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isPausedRef = useRef<boolean>(false);
+  useEffect(() => {
+    isPausedRef.current = isPaused;
+  }, [isPaused]);
 
   // Latency & reaction time tracking refs
   const lastKeystrokeTimeRef = useRef<number | null>(null);
@@ -281,6 +324,14 @@ export const TypingTest: React.FC<TypingTestProps> = ({
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const hasCompletedRef = useRef(false);
+
+  const focusInput = useCallback(() => {
+    if (inputRef.current) {
+      inputRef.current.focus();
+      const len = inputRef.current.value.length;
+      inputRef.current.setSelectionRange(len, len);
+    }
+  }, []);
 
   useEffect(() => {
     try {
@@ -349,6 +400,14 @@ export const TypingTest: React.FC<TypingTestProps> = ({
     correctedErrorsRef.current = 0;
     hasCompletedRef.current = false;
     setInputRevision(0);
+    accumulatedTimeMsRef.current = 0;
+    activeSegmentStartTimeRef.current = null;
+    setIsPaused(false);
+    setPauseReason(null);
+    if (autoPauseTimeoutRef.current) {
+      clearTimeout(autoPauseTimeoutRef.current);
+      autoPauseTimeoutRef.current = null;
+    }
   }, [targetText]);
 
   // Next expected character for Virtual Keyboard & hands guide
@@ -369,7 +428,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({
 
   // Metronome sync effect
   useEffect(() => {
-    if (isMetronomeOn && startTime && !hasCompletedRef.current) {
+    if (isMetronomeOn && startTime && !hasCompletedRef.current && !isPaused) {
       const targetSpeed = ghostTargetWpm > 0 ? ghostTargetWpm : 35;
       startMetronome(targetSpeed);
     } else {
@@ -378,14 +437,92 @@ export const TypingTest: React.FC<TypingTestProps> = ({
     return () => {
       stopMetronome();
     };
-  }, [isMetronomeOn, startTime, ghostTargetWpm]);
+  }, [isMetronomeOn, startTime, ghostTargetWpm, isPaused]);
+
+  // Segmented timer calculations
+  const getPreciseElapsedSecs = useCallback((): number => {
+    let totalMs = accumulatedTimeMsRef.current;
+    if (activeSegmentStartTimeRef.current !== null && !isPausedRef.current) {
+      totalMs += (Date.now() - activeSegmentStartTimeRef.current);
+    }
+    return totalMs / 1000;
+  }, []);
+
+  const pauseTest = useCallback((reason: PauseReason = 'manual') => {
+    if (hasCompletedRef.current || !startTime || isPausedRef.current) return;
+    if (activeSegmentStartTimeRef.current !== null) {
+      accumulatedTimeMsRef.current += (Date.now() - activeSegmentStartTimeRef.current);
+      activeSegmentStartTimeRef.current = null;
+    }
+    if (autoPauseTimeoutRef.current) {
+      clearTimeout(autoPauseTimeoutRef.current);
+      autoPauseTimeoutRef.current = null;
+    }
+    isPausedRef.current = true;
+    setIsPaused(true);
+    setPauseReason(reason);
+    stopMetronome();
+  }, [startTime]);
+
+  const resumeTest = useCallback(() => {
+    if (hasCompletedRef.current || !isPausedRef.current) return;
+    activeSegmentStartTimeRef.current = Date.now();
+    isPausedRef.current = false;
+    setIsPaused(false);
+    setPauseReason(null);
+
+    if (isMetronomeOn) {
+      const targetSpeed = ghostTargetWpm > 0 ? ghostTargetWpm : 35;
+      startMetronome(targetSpeed);
+    }
+
+    focusInput();
+  }, [isMetronomeOn, ghostTargetWpm, focusInput]);
+
+  const resetAutoPauseTimer = useCallback(() => {
+    if (autoPauseTimeoutRef.current) {
+      clearTimeout(autoPauseTimeoutRef.current);
+      autoPauseTimeoutRef.current = null;
+    }
+    if (!autoPauseEnabled || !startTime || isPausedRef.current || hasCompletedRef.current) {
+      return;
+    }
+    autoPauseTimeoutRef.current = setTimeout(() => {
+      if (!isPausedRef.current && !hasCompletedRef.current) {
+        pauseTest('auto_idle');
+      }
+    }, autoPauseDelay * 1000);
+  }, [autoPauseEnabled, startTime, autoPauseDelay, pauseTest]);
+
+  // Auto-pause on window blur or tab visibility change
+  useEffect(() => {
+    const handleBlur = () => {
+      if (autoPauseEnabled && startTime && !isPausedRef.current && !hasCompletedRef.current) {
+        pauseTest('auto_blur');
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden && autoPauseEnabled && startTime && !isPausedRef.current && !hasCompletedRef.current) {
+        pauseTest('auto_blur');
+      }
+    };
+
+    window.addEventListener('blur', handleBlur);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('blur', handleBlur);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (autoPauseTimeoutRef.current) {
+        clearTimeout(autoPauseTimeoutRef.current);
+      }
+    };
+  }, [autoPauseEnabled, startTime, pauseTest]);
 
   // Stats calculation
   const calculateStats = useCallback((useLevenshtein = false): TestResults => {
-    const timeNow = Date.now();
-    const start = startTime || timeNow;
-    
-    let timeElapsedSecs = (timeNow - start) / 1000;
+    let timeElapsedSecs = getPreciseElapsedSecs();
     if (timeLimit > 0 && timeElapsedSecs > timeLimit) {
         timeElapsedSecs = timeLimit;
     }
@@ -440,6 +577,14 @@ export const TypingTest: React.FC<TypingTestProps> = ({
   const finishTest = useCallback(() => {
      if (hasCompletedRef.current) return;
      hasCompletedRef.current = true;
+     if (autoPauseTimeoutRef.current) {
+       clearTimeout(autoPauseTimeoutRef.current);
+       autoPauseTimeoutRef.current = null;
+     }
+     if (activeSegmentStartTimeRef.current !== null) {
+       accumulatedTimeMsRef.current += (Date.now() - activeSegmentStartTimeRef.current);
+       activeSegmentStartTimeRef.current = null;
+     }
      const partialStats = calculateStats(false);
      
      // Full missed words calculation
@@ -521,7 +666,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({
   // Real-time update loop (Timer & History)
   useEffect(() => {
     let interval: ReturnType<typeof setInterval>;
-    if (startTime) {
+    if (startTime && !isPaused) {
       interval = setInterval(() => {
         if (hasCompletedRef.current) return;
         setTick(t => t + 1);
@@ -545,18 +690,17 @@ export const TypingTest: React.FC<TypingTestProps> = ({
         }
 
         if (timeLimit > 0) {
-          const elapsed = (Date.now() - startTime) / 1000;
-          if (elapsed >= timeLimit) {
+          if (stats.timeElapsed >= timeLimit) {
             clearInterval(interval);
             if (finishTestRef.current) {
                 finishTestRef.current();
             }
           }
         }
-      }, 1000); 
+      }, 500); 
     }
     return () => clearInterval(interval);
-  }, [startTime, timeLimit]);
+  }, [startTime, isPaused, timeLimit]);
 
   // Check for text completion
   useEffect(() => {
@@ -565,7 +709,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({
     }
   }, [input, targetText, timeLimit, finishTest]);
 
-  // Session shortcuts: Esc to restart, Ctrl/Cmd+Enter to submit, Tab to restart, and block Home/End/PageUp/PageDown
+  // Session shortcuts: Esc to pause/resume or restart, Ctrl/Cmd+Enter to submit, Tab to restart, and block Home/End/PageUp/PageDown
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (['Home', 'End', 'PageUp', 'PageDown'].includes(event.key)) {
@@ -576,11 +720,41 @@ export const TypingTest: React.FC<TypingTestProps> = ({
         }
         return;
       }
-      if (event.key === 'Escape' || event.key === 'Tab') {
+
+      // If currently paused, Escape, Space, Enter, or any typing key resumes
+      if (isPausedRef.current) {
+        if (event.key === 'Escape' || event.key === ' ' || event.key === 'Enter') {
+          event.preventDefault();
+          resumeTest();
+          return;
+        }
+        if (event.key === 'Tab') {
+          event.preventDefault();
+          onRestart();
+          return;
+        }
+        if (event.key.length === 1 || event.key === 'Backspace') {
+          resumeTest();
+          return;
+        }
+      }
+
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        if (startTime && !hasCompletedRef.current) {
+          pauseTest('manual');
+        } else {
+          onRestart();
+        }
+        return;
+      }
+
+      if (event.key === 'Tab') {
         event.preventDefault();
         onRestart();
         return;
       }
+
       if ((event.ctrlKey || event.metaKey) && event.key === 'Enter' && startTime) {
         event.preventDefault();
         finishTestRef.current?.();
@@ -589,7 +763,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [onRestart, startTime]);
+  }, [onRestart, startTime, resumeTest, pauseTest]);
 
   // Keep caret aligned to the active character and scroll smoothly when needed.
   const updateCaret = useCallback(() => {
@@ -666,19 +840,20 @@ export const TypingTest: React.FC<TypingTestProps> = ({
     }
   }, []);
 
-  const focusInput = useCallback(() => {
-    if (inputRef.current) {
-      inputRef.current.focus();
-      const len = inputRef.current.value.length;
-      inputRef.current.setSelectionRange(len, len);
-    }
-  }, []);
-
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     if (hasCompletedRef.current) return;
     const rawVal = e.target.value.slice(0, targetText.length);
     const prevInput = input;
-    if (!startTime) setStartTime(Date.now());
+    if (isPausedRef.current) {
+      resumeTest();
+    }
+    if (!startTime) {
+      const now = Date.now();
+      setStartTime(now);
+      accumulatedTimeMsRef.current = 0;
+      activeSegmentStartTimeRef.current = now;
+    }
+    resetAutoPauseTimer();
 
     // Defensive check: if cursor was somehow displaced (e.g. Home key pressed or mouse clicked)
     // and a character was inserted at index 0 or mid-text, never shift existing text!
@@ -841,6 +1016,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({
 
     setInput(val);
     setCurrIndex(val.length);
+    resetAutoPauseTimer();
   };
   const stats = calculateStats(false);
   const progressPercent = targetText.length === 0 ? 0 : Math.min(100, Math.round((input.length / targetText.length) * 100));
@@ -862,10 +1038,9 @@ export const TypingTest: React.FC<TypingTestProps> = ({
 
   let displayTime = Math.floor(stats.timeElapsed);
   if (timeLimit > 0) {
-      displayTime = Math.max(0, timeLimit - Math.floor((Date.now() - (startTime || Date.now())) / 1000));
+      displayTime = Math.max(0, Math.ceil(timeLimit - stats.timeElapsed));
       if (!startTime) displayTime = timeLimit;
   }
-
 
   const formatTime = (secs: number) => {
       const m = Math.floor(secs / 60);
@@ -883,14 +1058,36 @@ export const TypingTest: React.FC<TypingTestProps> = ({
             <span className={stats.accuracy >= 95 ? 'text-emerald-400 font-bold' : 'text-amber-400 font-bold'}>
               {stats.accuracy}% ACC {stats.realAccuracy !== undefined && stats.realAccuracy !== stats.accuracy ? `(${stats.realAccuracy}% real)` : ''}
             </span>
-            <span className="text-neutral-400">{formatTime(displayTime)}</span>
+            <div className="flex items-center gap-2">
+              <span className="text-neutral-400">{formatTime(displayTime)}</span>
+              {isPaused && (
+                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 uppercase animate-pulse">
+                  Paused
+                </span>
+              )}
+            </div>
           </div>
-          <button
-            onClick={(e) => { e.stopPropagation(); setIsZenMode(false); }}
-            className="text-xs font-mono px-3 py-1 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/10 transition-colors"
-          >
-            Exit Zen Mode
-          </button>
+          <div className="flex items-center gap-2">
+            {startTime && (
+              <button
+                onClick={(e) => { e.stopPropagation(); if (isPaused) resumeTest(); else pauseTest('manual'); }}
+                className={`text-xs font-mono px-3 py-1 rounded-xl border transition-colors flex items-center gap-1.5 ${
+                  isPaused
+                    ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-sm animate-pulse'
+                    : 'bg-white/10 hover:bg-white/20 text-white border-white/10'
+                }`}
+                title={isPaused ? 'Resume Test (Esc / Space)' : 'Pause Test (Esc)'}
+              >
+                <span>{isPaused ? '▶ Resume' : '⏸ Pause'}</span>
+              </button>
+            )}
+            <button
+              onClick={(e) => { e.stopPropagation(); setIsZenMode(false); }}
+              className="text-xs font-mono px-3 py-1 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/10 transition-colors"
+            >
+              Exit Zen Mode
+            </button>
+          </div>
         </div>
       ) : (
       <>
@@ -934,12 +1131,17 @@ export const TypingTest: React.FC<TypingTestProps> = ({
           <div className="w-px h-5 bg-white/10 hidden sm:block" />
 
           {/* Timer */}
-          <div className="flex items-baseline gap-1" title={timeLimit > 0 ? 'Remaining Time' : 'Elapsed Time'}>
+          <div className="flex items-center gap-1.5" title={timeLimit > 0 ? 'Remaining Time' : 'Elapsed Time'}>
             <span className={`text-lg font-bold tabular-nums leading-none font-mono ${
               timeLimit > 0 && displayTime < 10 ? 'text-rose-500 animate-pulse font-black' : 'text-neutral-300'
             }`}>
               {formatTime(displayTime)}
             </span>
+            {isPaused && (
+              <span className="px-1.5 py-0.5 rounded text-[9px] font-bold font-mono bg-amber-500/20 text-amber-300 border border-amber-500/30 uppercase tracking-wider animate-pulse">
+                Paused
+              </span>
+            )}
           </div>
 
           {/* Active Mode Pill if not standard */}
@@ -968,6 +1170,29 @@ export const TypingTest: React.FC<TypingTestProps> = ({
 
         {/* Quick Actions */}
         <div className="flex items-center gap-1.5 shrink-0">
+          {/* Pause / Resume Button */}
+          {startTime && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                if (isPaused) {
+                  resumeTest();
+                } else {
+                  pauseTest('manual');
+                }
+              }}
+              className={`h-8 px-2.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
+                isPaused
+                  ? 'bg-amber-500/25 text-amber-300 border border-amber-500/40 shadow-[0_0_12px_rgba(245,158,11,0.3)] animate-pulse'
+                  : 'text-neutral-400 hover:text-white bg-white/5 hover:bg-white/10 border border-white/8'
+              }`}
+              title={isPaused ? 'Resume Test (Esc / Space)' : 'Pause Test (Esc)'}
+            >
+              <span className="text-xs">{isPaused ? '▶' : '⏸'}</span>
+              <span className="hidden sm:inline">{isPaused ? 'Resume' : 'Pause'}</span>
+            </button>
+          )}
+
           {/* Settings Toggle Button */}
           <button
             onClick={(e) => { e.stopPropagation(); setShowSettings(p => !p); }}
@@ -1112,6 +1337,41 @@ export const TypingTest: React.FC<TypingTestProps> = ({
                 <option value="50_WPM" className="bg-neutral-900">Ghost: 50 WPM (Pro)</option>
                 <option value="PERSONAL_BEST" className="bg-neutral-900">Ghost: Personal Best</option>
               </select>
+              <div className="flex items-center justify-between p-1.5 rounded-lg bg-white/5 border border-white/10">
+                <span className="text-[11px] font-medium text-neutral-300 flex items-center gap-1">
+                  <span>⏸️</span> Auto-Pause
+                </span>
+                <button
+                  onClick={(e) => { e.stopPropagation(); setAutoPauseEnabled(p => !p); }}
+                  className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono transition-colors ${
+                    autoPauseEnabled
+                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                      : 'bg-white/5 text-neutral-400 border border-white/10'
+                  }`}
+                >
+                  {autoPauseEnabled ? 'ON' : 'OFF'}
+                </button>
+              </div>
+              {autoPauseEnabled && (
+                <div className="flex items-center justify-between gap-1 text-[10px] font-mono text-neutral-400 px-0.5">
+                  <span>Idle delay:</span>
+                  <div className="flex gap-1">
+                    {[3, 5, 10].map(delay => (
+                      <button
+                        key={delay}
+                        onClick={(e) => { e.stopPropagation(); setAutoPauseDelay(delay); }}
+                        className={`px-1.5 py-0.5 rounded text-[10px] transition-colors ${
+                          autoPauseDelay === delay
+                            ? 'bg-indigo-500 text-white font-bold'
+                            : 'bg-white/5 text-neutral-400 hover:text-white'
+                        }`}
+                      >
+                        {delay}s
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Column 3: Specialized Training Modes */}
@@ -1282,7 +1542,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({
       )}
 
       {/* Typing Card Wrapper with top Progress Bar */}
-      <div className={`w-full flex-1 min-h-0 flex flex-col bento-card bg-neutral-950/60 backdrop-blur-2xl rounded-3xl border border-white/10 hover:border-white/15 transition-all duration-150 shadow-[0_12px_40px_rgba(0,0,0,0.6)] overflow-hidden ${
+      <div className={`w-full flex-1 min-h-0 flex flex-col bento-card bg-neutral-950/60 backdrop-blur-2xl rounded-3xl border border-white/10 hover:border-white/15 transition-all duration-150 shadow-[0_12px_40px_rgba(0,0,0,0.6)] overflow-hidden relative ${
         hasErrorShake ? 'animate-shake border-rose-500/60 shadow-[0_0_25px_rgba(244,63,94,0.3)]' : ''
       }`}>
         {/* Sleek Progress Line fixed at the very top edge of the card */}
@@ -1292,6 +1552,106 @@ export const TypingTest: React.FC<TypingTestProps> = ({
             style={{ width: `${progressPercent}%` }}
           />
         </div>
+
+        {/* Pause Overlay (Displays when isPaused is true) */}
+        {isPaused && (
+          <div
+            className="absolute inset-0 z-50 flex flex-col items-center justify-center p-6 md:p-8 bg-neutral-950/85 backdrop-blur-xl border border-amber-500/30 rounded-3xl pause-overlay text-neutral-100 animate-fade-in select-none"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Pause Icon & Title */}
+            <div className="flex flex-col items-center text-center mb-6">
+              <div className="w-14 h-14 rounded-2xl bg-amber-500/15 border border-amber-500/35 text-amber-400 flex items-center justify-center text-2xl shadow-[0_0_25px_rgba(245,158,11,0.25)] mb-3 animate-pulse">
+                ⏸️
+              </div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-xl md:text-2xl font-black tracking-tight text-white">
+                  {pauseReason === 'auto_idle'
+                    ? 'Auto-Paused (Inactivity)'
+                    : pauseReason === 'auto_blur'
+                    ? 'Auto-Paused (Tab Switched)'
+                    : 'Test Paused'}
+                </h3>
+                <span className="text-[10px] font-mono uppercase font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                  Frozen
+                </span>
+              </div>
+              <p className="text-xs md:text-sm text-neutral-400 mt-1 max-w-md">
+                {pauseReason === 'auto_idle'
+                  ? `Detected ${autoPauseDelay} seconds of inactivity. Timer and WPM are paused.`
+                  : pauseReason === 'auto_blur'
+                  ? 'Window or tab lost focus. Your typing stats are safely preserved.'
+                  : 'Timer and speed metrics are frozen. Take a breath and resume when ready.'}
+              </p>
+            </div>
+
+            {/* Snapshot Metrics Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full max-w-xl mb-6">
+              <div className="p-3.5 rounded-2xl bg-white/5 border border-white/10 pause-card text-center flex flex-col">
+                <span className="text-[10px] uppercase font-mono font-bold text-neutral-400 tracking-wider">Speed</span>
+                <span className="text-2xl font-black text-indigo-400 font-mono mt-0.5">{stats.netWpm}</span>
+                <span className="text-[10px] text-neutral-500">Net WPM</span>
+              </div>
+              <div className="p-3.5 rounded-2xl bg-white/5 border border-white/10 pause-card text-center flex flex-col">
+                <span className="text-[10px] uppercase font-mono font-bold text-neutral-400 tracking-wider">Accuracy</span>
+                <span className={`text-2xl font-black font-mono mt-0.5 ${stats.accuracy >= 95 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                  {stats.accuracy}%
+                </span>
+                <span className="text-[10px] text-neutral-500">{stats.realAccuracy !== undefined ? `${stats.realAccuracy}% real` : 'accuracy'}</span>
+              </div>
+              <div className="p-3.5 rounded-2xl bg-white/5 border border-white/10 pause-card text-center flex flex-col">
+                <span className="text-[10px] uppercase font-mono font-bold text-neutral-400 tracking-wider">
+                  {timeLimit > 0 ? 'Remaining' : 'Elapsed'}
+                </span>
+                <span className="text-2xl font-black text-neutral-200 font-mono mt-0.5">{formatTime(displayTime)}</span>
+                <span className="text-[10px] text-neutral-500">Timer</span>
+              </div>
+              <div className="p-3.5 rounded-2xl bg-white/5 border border-white/10 pause-card text-center flex flex-col">
+                <span className="text-[10px] uppercase font-mono font-bold text-neutral-400 tracking-wider">Progress</span>
+                <span className="text-2xl font-black text-cyan-400 font-mono mt-0.5">{progressPercent}%</span>
+                <span className="text-[10px] text-neutral-500">{input.length}/{targetText.length} chars</span>
+              </div>
+            </div>
+
+            {/* Primary Action Buttons */}
+            <div className="flex flex-wrap items-center justify-center gap-3 w-full max-w-md">
+              <button
+                onClick={(e) => { e.stopPropagation(); resumeTest(); }}
+                className="flex-1 py-3 px-6 rounded-2xl font-bold text-sm bg-gradient-to-r from-indigo-500 via-indigo-600 to-cyan-500 hover:from-indigo-600 hover:to-cyan-600 text-white shadow-[0_0_25px_rgba(99,102,241,0.4)] transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+              >
+                <span>▶ Resume Typing</span>
+                <kbd className="hidden sm:inline-block text-[10px] font-mono bg-white/20 px-1.5 py-0.5 rounded text-white font-normal">
+                  Esc / Space
+                </kbd>
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); onRestart(); }}
+                className="py-3 px-5 rounded-2xl font-semibold text-sm bg-white/10 hover:bg-white/15 text-neutral-300 hover:text-white border border-white/10 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+                title="Restart Session (Tab)"
+              >
+                <span>↺ Restart</span>
+                <kbd className="hidden sm:inline-block text-[10px] font-mono bg-white/10 px-1.5 py-0.5 rounded text-neutral-400 font-normal">
+                  Tab
+                </kbd>
+              </button>
+              {input.length >= 10 && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); finishTestRef.current?.(); }}
+                  className="py-3 px-4 rounded-2xl font-semibold text-xs bg-white/5 hover:bg-white/10 text-neutral-400 hover:text-white border border-white/8 transition-all flex items-center justify-center gap-1 cursor-pointer"
+                  title="Submit current test results now"
+                >
+                  <span>Submit Early</span>
+                </button>
+              )}
+            </div>
+
+            {/* Quick Resume Helper Footnote */}
+            <div className="mt-4 text-[11px] font-mono text-neutral-500 flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span>Tip: Simply start typing any character to resume</span>
+            </div>
+          </div>
+        )}
 
         {/* Scrollable Text Viewport */}
         <div 
