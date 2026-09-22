@@ -69,6 +69,19 @@ body {
   border-color: rgba(255, 255, 255, 0.12);
 }
 
+.light .bento-card,
+[data-theme="light"] .bento-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 1px 2px -1px rgba(0, 0, 0, 0.04);
+  color: #0f172a;
+}
+
+.light .bento-card:hover,
+[data-theme="light"] .bento-card:hover {
+  border-color: #cbd5e1;
+}
+
 .mesh-bg {
   position: fixed;
   top: 0;
