@@ -54,7 +54,13 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageSelect, onT
   };
 
   const toggleSSC = () => {
-      setIsSSCMode(prev => !prev);
+    setIsSSCMode(prev => {
+      const next = !prev;
+      if (next) {
+        setGameMode('EXAM_SCREEN');
+      }
+      return next;
+    });
   };
 
   const timeOptions: { label: string; value: TimeLimit }[] = [
@@ -166,7 +172,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageSelect, onT
                         🏛️ Punjab & Haryana Court Clerk Exam Mode (SSSC)
                         <span className="text-[10px] bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full uppercase font-bold tracking-wide border border-red-500/30">Official Rules</span>
                      </span>
-                     <span className="text-xs text-stitch-muted mt-1">10 min countdown • 30 WPM cutoff • Max 10% mistakes • 1 word penalty/error</span>
+                     <span className="text-xs text-stitch-muted mt-1">10 min countdown • 30 WPM cutoff • Max 5% mistakes • 1 word penalty/error</span>
                  </div>
                  <div className={`w-11 h-6 rounded-full p-1 transition-colors ${isSSCMode ? 'bg-white' : 'bg-white/10 border border-white/20'}`}>
                      <div className={`w-4 h-4 bg-black rounded-full shadow-md transform transition-transform ${isSSCMode ? 'translate-x-5' : 'translate-x-0 bg-stitch-muted'}`}></div>
@@ -175,30 +181,54 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageSelect, onT
 
              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                  <div className="bento-card p-4 flex flex-col gap-3">
-                     <label className="text-xs font-bold uppercase tracking-wider text-stitch-muted">Typing Mode</label>
-                     <div className="flex flex-col gap-2">
-                         <button
-                             onClick={() => setGameMode('DIGITAL')}
-                             className={`p-3 rounded-xl border text-left transition-all ${
-                                 gameMode === 'DIGITAL'
-                                 ? 'border-white bg-white text-black'
-                                 : 'border-white/10 hover:border-white/30 text-stitch-muted hover:text-stitch-accent'
-                             }`}
-                         >
-                             <div className="font-medium text-sm">Digital Mode</div>
-                         </button>
+                      <label className="text-xs font-bold uppercase tracking-wider text-stitch-muted">Typing Mode</label>
+                      <div className="flex flex-col gap-2">
+                          <button
+                              type="button"
+                              onClick={() => setGameMode('EXAM_SCREEN')}
+                              className={`p-3 rounded-xl border text-left transition-all ${
+                                  gameMode === 'EXAM_SCREEN'
+                                  ? 'border-indigo-400 bg-indigo-500/20 text-white shadow-sm ring-1 ring-indigo-400'
+                                  : 'border-white/10 hover:border-white/30 text-stitch-muted hover:text-stitch-accent'
+                              }`}
+                          >
+                              <div className="flex items-center justify-between">
+                                  <span className="font-bold text-sm text-white flex items-center gap-1.5">
+                                      🏛️ On-Screen Dual Box
+                                  </span>
+                                  <span className="text-[10px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 px-1.5 py-0.5 rounded">
+                                      Official Exam
+                                  </span>
+                              </div>
+                              <p className="text-[11px] text-neutral-400 mt-0.5">Top reference box + Bottom blank typing box (Times 12pt)</p>
+                          </button>
 
-                         <button
-                             onClick={() => setGameMode('PHYSICAL')}
-                             className={`p-3 rounded-xl border text-left transition-all ${
-                                 gameMode === 'PHYSICAL'
-                                 ? 'border-white bg-white text-black'
-                                 : 'border-white/10 hover:border-white/30 text-stitch-muted hover:text-stitch-accent'
-                             }`}
-                         >
-                             <div className="font-medium text-sm">Paper Mode</div>
-                         </button>
-                     </div>
+                          <button
+                              type="button"
+                              onClick={() => setGameMode('DIGITAL')}
+                              className={`p-3 rounded-xl border text-left transition-all ${
+                                  gameMode === 'DIGITAL'
+                                  ? 'border-white bg-white text-black'
+                                  : 'border-white/10 hover:border-white/30 text-stitch-muted hover:text-stitch-accent'
+                              }`}
+                          >
+                              <div className="font-medium text-sm">Digital Overlay Mode</div>
+                              <p className={`text-[11px] mt-0.5 ${gameMode === 'DIGITAL' ? 'text-neutral-700' : 'text-neutral-400'}`}>Type directly over text characters (Monkeytype style)</p>
+                          </button>
+
+                          <button
+                              type="button"
+                              onClick={() => setGameMode('PHYSICAL')}
+                              className={`p-3 rounded-xl border text-left transition-all ${
+                                  gameMode === 'PHYSICAL'
+                                  ? 'border-white bg-white text-black'
+                                  : 'border-white/10 hover:border-white/30 text-stitch-muted hover:text-stitch-accent'
+                              }`}
+                          >
+                              <div className="font-medium text-sm">Paper Print / Image Mode</div>
+                              <p className={`text-[11px] mt-0.5 ${gameMode === 'PHYSICAL' ? 'text-neutral-700' : 'text-neutral-400'}`}>Print passage on physical A4 sheet or split view</p>
+                          </button>
+                      </div>
                  </div>
 
                  <div className="bento-card p-4 flex flex-col gap-3">

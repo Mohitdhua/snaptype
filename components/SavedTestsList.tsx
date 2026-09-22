@@ -77,14 +77,29 @@ export const SavedTestsList: React.FC<SavedTestsListProps> = ({ tests, onPlay, o
                             {test.text}
                         </p>
                         <div className="space-y-3">
-                            <div className="grid grid-cols-3 gap-2">
+                            <div className="grid grid-cols-3 gap-1.5">
+                                <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      updateOptions(test, { mode: 'EXAM_SCREEN', isSSC: true });
+                                    }}
+                                    className={`min-w-0 truncate whitespace-nowrap text-xs font-bold rounded-md px-1.5 py-1.5 border transition-colors ${
+                                      selected.mode === 'EXAM_SCREEN'
+                                        ? 'border-emerald-500 bg-emerald-500/20 text-emerald-300'
+                                        : 'border-white/10 text-stitch-muted hover:text-white'
+                                    }`}
+                                    title="On-Screen Dual-Box Exam (Master passage top, blank response bottom)"
+                                >
+                                    🏛️ Dual Box
+                                </button>
                                 <button
                                     type="button"
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       updateOptions(test, { mode: 'DIGITAL' });
                                     }}
-                                    className={`min-w-0 truncate whitespace-nowrap text-xs font-semibold rounded-md px-2 py-1.5 border transition-colors ${
+                                    className={`min-w-0 truncate whitespace-nowrap text-xs font-semibold rounded-md px-1.5 py-1.5 border transition-colors ${
                                       selected.mode === 'DIGITAL'
                                         ? 'border-white bg-white text-black'
                                         : 'border-white/10 text-stitch-muted hover:text-white'
@@ -98,7 +113,7 @@ export const SavedTestsList: React.FC<SavedTestsListProps> = ({ tests, onPlay, o
                                       e.stopPropagation();
                                       updateOptions(test, { mode: 'PHYSICAL' });
                                     }}
-                                    className={`min-w-0 truncate whitespace-nowrap text-xs font-semibold rounded-md px-2 py-1.5 border transition-colors ${
+                                    className={`min-w-0 truncate whitespace-nowrap text-xs font-semibold rounded-md px-1.5 py-1.5 border transition-colors ${
                                       selected.mode === 'PHYSICAL'
                                         ? 'border-white bg-white text-black'
                                         : 'border-white/10 text-stitch-muted hover:text-white'
@@ -106,32 +121,35 @@ export const SavedTestsList: React.FC<SavedTestsListProps> = ({ tests, onPlay, o
                                 >
                                     Paper
                                 </button>
+                            </div>
+                            <div>
                                 <button
                                     type="button"
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       updateOptions(test, { isSSC: !selected.isSSC });
                                     }}
-                                    className={`min-w-0 truncate whitespace-nowrap text-xs font-semibold rounded-md px-2 py-1.5 border transition-colors ${
-                                      selected.isSSC
-                                        ? 'border-indigo-500 bg-indigo-500/20 text-indigo-300'
+                                    className={`w-full text-left text-[11px] font-semibold rounded-md px-2 py-1 border transition-colors flex items-center justify-between ${
+                                      selected.isSSC || selected.mode === 'EXAM_SCREEN'
+                                        ? 'border-indigo-500/50 bg-indigo-500/15 text-indigo-300'
                                         : 'border-white/10 text-stitch-muted hover:text-white'
                                     }`}
-                                    title="Punjab & Haryana Court Clerk 10-Minute Exam Mode"
+                                    title="Punjab & Haryana Court Clerk 10-Minute Exam Rules (Max 5% Mistakes)"
                                 >
-                                    Court (SSSC)
+                                    <span>⚖️ Court Rules (≤5% errors)</span>
+                                    <span>{selected.isSSC || selected.mode === 'EXAM_SCREEN' ? '✓ Active' : 'Off'}</span>
                                 </button>
                             </div>
                             <div>
                                 <label className="text-[10px] uppercase tracking-wider text-stitch-muted mb-1 block">
-                                  Time {selected.isSSC ? '(Fixed 10m)' : ''}
+                                  Time {(selected.isSSC || selected.mode === 'EXAM_SCREEN') ? '(Fixed 10m)' : ''}
                                 </label>
                                 <select
-                                    value={selected.isSSC ? 600 : selected.timeLimit}
+                                    value={(selected.isSSC || selected.mode === 'EXAM_SCREEN') ? 600 : selected.timeLimit}
                                     onChange={(e) =>
                                       updateOptions(test, { timeLimit: Number(e.target.value) as TimeLimit })
                                     }
-                                    disabled={selected.isSSC}
+                                    disabled={selected.isSSC || selected.mode === 'EXAM_SCREEN'}
                                     className="w-full bg-white/5 border border-white/10 rounded-md px-2 py-1.5 text-xs text-white focus:outline-none focus:border-white/30"
                                 >
                                     {timeOptions.map(option => (
@@ -151,7 +169,8 @@ export const SavedTestsList: React.FC<SavedTestsListProps> = ({ tests, onPlay, o
                                 type="button"
                                 onClick={(e) => {
                                     e.stopPropagation();
-                                    onPlay(test, selected.isSSC ? 600 : selected.timeLimit, selected.mode, selected.isSSC);
+                                    const isCourt = selected.isSSC || selected.mode === 'EXAM_SCREEN';
+                                    onPlay(test, isCourt ? 600 : selected.timeLimit, selected.mode, isCourt);
                                 }} 
                                 className="flex-1 bg-white hover:bg-white/90 text-black text-xs font-bold py-2 rounded-lg transition-colors flex items-center justify-center gap-1"
                             >

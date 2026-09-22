@@ -6,7 +6,9 @@ export enum GameState {
   RESULTS = 'RESULTS'
 }
 
-export type GameMode = 'DIGITAL' | 'PHYSICAL';
+export type GameMode = 'DIGITAL' | 'PHYSICAL' | 'EXAM_SCREEN';
+
+export type Theme = 'dark' | 'light';
 
 export type HardcoreMode = 'NONE' | 'NO_BACKSPACE' | 'SUDDEN_DEATH' | 'STOP_ON_ERROR' | 'RIGHT_HAND_FOCUS';
 

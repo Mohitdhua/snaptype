@@ -163,23 +163,30 @@ export const PracticeLibraryView: React.FC<PracticeLibraryViewProps> = ({ onStar
             </div>
 
             {/* Launch Buttons */}
-            <div className="flex gap-2 pt-2 border-t border-slate-100 dark:border-white/5">
+            <div className="flex flex-wrap sm:flex-nowrap gap-2 pt-2 border-t border-slate-100 dark:border-white/5">
+              <button
+                onClick={() => onStartPassage(passage, 'EXAM_SCREEN', selectedTimeLimit, isAccuracyFirst ? 'NO_BACKSPACE' : 'NONE')}
+                className="flex-1 py-2 px-3 rounded-xl text-xs font-bold uppercase tracking-wider bg-emerald-600 hover:bg-emerald-700 text-white transition-all shadow-sm flex items-center justify-center gap-1.5 keep-white"
+                title="Official On-Screen Dual-Box Exam (Question box on top, blank answer box below)"
+              >
+                <span>🏛️ Court Exam</span>
+              </button>
               <button
                 onClick={() => onStartPassage(passage, 'DIGITAL', selectedTimeLimit, isAccuracyFirst ? 'NO_BACKSPACE' : 'NONE')}
-                className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all shadow-sm flex items-center justify-center gap-1.5 keep-white ${
+                className={`py-2 px-3 rounded-xl text-xs font-semibold uppercase tracking-wider transition-all shadow-sm flex items-center justify-center gap-1.5 keep-white ${
                   isAccuracyFirst
                     ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-amber-500/20'
                     : 'bg-indigo-600 hover:bg-indigo-700 text-white'
                 }`}
               >
-                <span>{isAccuracyFirst ? 'Digital (No ⌫)' : 'Digital Mode'}</span>
+                <span>{isAccuracyFirst ? 'Digital (No ⌫)' : 'Digital'}</span>
               </button>
               <button
                 onClick={() => onStartPassage(passage, 'PHYSICAL', selectedTimeLimit, isAccuracyFirst ? 'NO_BACKSPACE' : 'NONE')}
                 className="py-2 px-3 rounded-xl text-xs font-semibold uppercase tracking-wider bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-700 dark:text-neutral-300 border border-slate-200 dark:border-white/10 transition-colors flex items-center justify-center gap-1.5"
                 title="Type in Split Paper / Exam Mode"
               >
-                <span>Paper Mode</span>
+                <span>Paper</span>
               </button>
             </div>
           </div>

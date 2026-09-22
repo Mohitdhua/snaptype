@@ -30,6 +30,7 @@ const normalizeHardKey = (key: string) => {
   return key;
 };
 
+const CourtExamScreenTest = lazy(() => import('./components/CourtExamScreenTest').then(module => ({ default: module.CourtExamScreenTest })));
 const LessonsView = lazy(() => import('./components/LessonsView').then(module => ({ default: module.LessonsView })));
 const PracticeLibraryView = lazy(() => import('./components/PracticeLibraryView').then(module => ({ default: module.PracticeLibraryView })));
 const AnalyticsDashboard = lazy(() => import('./components/AnalyticsDashboard').then(module => ({ default: module.AnalyticsDashboard })));
@@ -373,14 +374,14 @@ const App: React.FC = () => {
 
   const handlePlaySavedTest = (test: SavedTest, selectedTimeLimit: TimeLimit, selectedMode: GameMode, isSSC: boolean) => {
     const finalMode: GameMode = selectedMode;
-    const finalTimeLimit: TimeLimit = isSSC ? 600 : selectedTimeLimit;
+    const finalTimeLimit: TimeLimit = (isSSC || finalMode === 'EXAM_SCREEN') ? 600 : selectedTimeLimit;
     const gameText = prepareTextForGame(test.text, finalTimeLimit);
     setOriginalText(test.text);
     setText(gameText);
     setImagePreview(test.imageSrc);
     setTimeLimit(finalTimeLimit);
     setGameMode(finalMode);
-    setIsSSCMode(isSSC);
+    setIsSSCMode(isSSC || finalMode === 'EXAM_SCREEN');
     setActiveTestId(test.id);
     setGameState(GameState.PLAYING);
   };
@@ -697,7 +698,16 @@ const App: React.FC = () => {
 
         <Suspense fallback={<SectionLoader />}>
           {gameState === GameState.PLAYING &&
-            (gameMode === 'DIGITAL' ? (
+            (gameMode === 'EXAM_SCREEN' ? (
+              <CourtExamScreenTest
+                passageText={text}
+                timeLimit={timeLimit}
+                onComplete={handleComplete}
+                onRestart={goHomeCreate}
+                theme={theme}
+                onToggleTheme={toggleTheme}
+              />
+            ) : gameMode === 'DIGITAL' ? (
               <TypingTest
                 text={text}
                 timeLimit={timeLimit}

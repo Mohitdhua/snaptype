@@ -260,7 +260,7 @@ export const PhysicalTypingTest: React.FC<PhysicalTypingTestProps> = ({ ocrText,
           </div>
           <div class="meta">
             <span>Passage Length: ~${count} Words</span>
-            <span>Permissible Error Threshold: Max 10.00%</span>
+            <span>Permissible Error Threshold: Max 5.00%</span>
           </div>
           <div class="content">
             ${(passageToPrint || '').replace(/\n/g, '<br/><br/>')}

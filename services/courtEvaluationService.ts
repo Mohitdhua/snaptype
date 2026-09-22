@@ -171,7 +171,7 @@ export function alignCourtPassage(
  * 7. Net Words = Gross Words - Mistakes
  * 8. Net Speed (WPM) = (Gross Words - Mistakes) / Test Duration (min)
  * 9. Error % = (Mistakes / Gross Words) * 100
- * 10. Qualifying criteria: Net Speed >= 30.00 WPM AND Error % <= 10.00%
+ * 10. Qualifying criteria: Net Speed >= 30.00 WPM AND Error % <= 5.00%
  */
 export function evaluateCourtTypingTest(
   originalText: string,
@@ -214,9 +214,9 @@ export function evaluateCourtTypingTest(
 
   // Qualifying rules:
   // 1. Net Speed >= 30.00 WPM
-  // 2. Error % <= 10.00%
+  // 2. Error % <= 5.00%
   const isSpeedQualified = netWpm >= 30.0;
-  const isAccuracyQualified = errorPercentage <= 10.0;
+  const isAccuracyQualified = errorPercentage <= 5.0;
   const status = isSpeedQualified && isAccuracyQualified ? 'QUALIFIED' : 'DISQUALIFIED';
 
   const disqualificationReasons: string[] = [];
@@ -227,7 +227,7 @@ export function evaluateCourtTypingTest(
   }
   if (!isAccuracyQualified) {
     disqualificationReasons.push(
-      `Total error rate of ${errorPercentage.toFixed(2)}% (${totalMistakes} mistakes) exceeds the permissible limit of 10.00%.`
+      `Total error rate of ${errorPercentage.toFixed(2)}% (${totalMistakes} mistakes) exceeds the permissible limit of 5.00%.`
     );
   }
 

@@ -152,7 +152,7 @@ export const Results: React.FC<ResultsProps> = ({ results, onReset, onNewImage, 
           </div>
           <div class="verdict-box">
             <div class="verdict-title">${courtEvaluation.status === 'QUALIFIED' ? 'QUALIFIED / PASSED' : 'DISQUALIFIED'}</div>
-            <div style="margin-top: 6px; font-size: 11pt;">${courtEvaluation.status === 'QUALIFIED' ? 'Candidate meets both Net Speed (≥ 30.00 WPM) and Accuracy (Mistakes ≤ 10.00%) standards.' : courtEvaluation.disqualificationReasons.join(' • ')}</div>
+            <div style="margin-top: 6px; font-size: 11pt;">${courtEvaluation.status === 'QUALIFIED' ? 'Candidate meets both Net Speed (≥ 30.00 WPM) and Accuracy (Mistakes ≤ 5.00%) standards.' : courtEvaluation.disqualificationReasons.join(' • ')}</div>
           </div>
           <table class="stats-table">
             <tr><th>Examination Parameter</th><th>Candidate Performance</th><th>Official Qualifying Benchmark</th></tr>
@@ -162,8 +162,8 @@ export const Results: React.FC<ResultsProps> = ({ results, onReset, onNewImage, 
             <tr><td>Total Mistakes (Omissions + Substitutions + Additions)</td><td>${courtEvaluation.totalMistakes} (O:${courtEvaluation.omissionsCount}, S:${courtEvaluation.substitutionsCount}, A:${courtEvaluation.additionsCount})</td><td>1 word penalty / mistake</td></tr>
             <tr><td>Net Words (Gross - Mistakes)</td><td>${courtEvaluation.netWords} words</td><td>—</td></tr>
             <tr><td><strong>Net Speed (WPM)</strong></td><td><strong>${courtEvaluation.netWpm} WPM</strong></td><td><strong>Minimum 30.00 WPM</strong></td></tr>
-            <tr><td><strong>Error Rate (%)</strong></td><td><strong>${courtEvaluation.errorPercentage}%</strong></td><td><strong>Maximum 10.00%</strong></td></tr>
-            <tr><td>Final Accuracy</td><td>${courtEvaluation.accuracy}%</td><td>Minimum 90.00%</td></tr>
+            <tr><td><strong>Error Rate (%)</strong></td><td><strong>${courtEvaluation.errorPercentage}%</strong></td><td><strong>Maximum 5.00%</strong></td></tr>
+            <tr><td>Final Accuracy</td><td>${courtEvaluation.accuracy}%</td><td>Minimum 95.00%</td></tr>
           </table>
           <div class="formula-box">
             Formula: Net Speed = (Gross Words - Total Mistakes) / 10 Minutes = (${courtEvaluation.grossWords} - ${courtEvaluation.totalMistakes}) / 10 = ${courtEvaluation.netWpm} WPM
@@ -432,22 +432,22 @@ export const Results: React.FC<ResultsProps> = ({ results, onReset, onNewImage, 
               {/* Error Rate */}
               <div className="flex flex-col items-center justify-center p-3.5 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-200 dark:border-white/10">
                 <div className="text-[10px] text-slate-500 dark:text-neutral-400 uppercase font-bold tracking-wider mb-1">Error Rate</div>
-                <div className={`text-2xl font-mono font-black ${courtEvaluation.errorPercentage <= 10 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                <div className={`text-2xl font-mono font-black ${courtEvaluation.errorPercentage <= 5 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
                   {courtEvaluation.errorPercentage}%
                 </div>
                 <div className="text-[10px] font-mono font-bold mt-0.5 text-slate-400 dark:text-neutral-400">
-                  Limit: ≤ 10.00%
+                  Limit: ≤ 5.00%
                 </div>
               </div>
 
               {/* Accuracy */}
               <div className="flex flex-col items-center justify-center p-3.5 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-200 dark:border-white/10">
                 <div className="text-[10px] text-slate-500 dark:text-neutral-400 uppercase font-bold tracking-wider mb-1">Accuracy</div>
-                <div className={`text-2xl font-mono font-black ${courtEvaluation.accuracy >= 90 ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`}>
+                <div className={`text-2xl font-mono font-black ${courtEvaluation.accuracy >= 95 ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`}>
                   {courtEvaluation.accuracy}%
                 </div>
                 <div className="text-[10px] font-mono font-bold mt-0.5 text-slate-400 dark:text-neutral-400">
-                  Cutoff: ≥ 90%
+                  Cutoff: ≥ 95%
                 </div>
               </div>
             </div>
