@@ -268,6 +268,32 @@ body.light {
   color: #64748b !important;
 }
 
+/* Court Exam High-Contrast Text Visibility Guards */
+.court-exam-passage-text {
+  color: #020617 !important;
+}
+.dark .court-exam-passage-text,
+[data-theme="dark"] .court-exam-passage-text {
+  color: #f8fafc !important;
+}
+
+.court-exam-textarea {
+  color: #020617 !important;
+}
+.dark .court-exam-textarea,
+[data-theme="dark"] .court-exam-textarea {
+  color: #f8fafc !important;
+}
+
+.light .court-exam-textarea::placeholder,
+[data-theme="light"] .court-exam-textarea::placeholder {
+  color: #64748b !important;
+}
+.dark .court-exam-textarea::placeholder,
+[data-theme="dark"] .court-exam-textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
 .light .bg-stitch-dark {
   background-color: #f8fafc !important;
   color: #0f172a !important;

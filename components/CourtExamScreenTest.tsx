@@ -359,27 +359,27 @@ export const CourtExamScreenTest: React.FC<CourtExamScreenTestProps> = ({
   const activeFontSizePx = FONT_SIZE_MAP[fontSize].px;
 
   return (
-    <div className="w-full flex-1 flex flex-col h-full gap-2 max-w-6xl mx-auto select-none">
+    <div className="w-full flex-1 flex flex-col h-full gap-2 max-w-6xl mx-auto select-none pt-1">
       {/* ── Top Official Exam Header HUD ── */}
-      <div className="w-full shrink-0 bento-card bg-neutral-950/85 backdrop-blur-xl border border-white/10 p-3 md:p-3.5 rounded-2xl flex flex-wrap items-center justify-between shadow-2xl gap-3 text-neutral-200">
+      <div className="w-full shrink-0 bento-card bg-white dark:bg-[#121721] border border-slate-300 dark:border-white/10 p-2.5 md:p-3 rounded-2xl flex flex-wrap items-center justify-between shadow-sm dark:shadow-2xl gap-3 text-slate-800 dark:text-neutral-200">
         {/* Left: Court Badge & Title */}
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400 flex items-center justify-center text-xl shadow-[0_0_15px_rgba(245,158,11,0.2)]">
+        <div className="flex items-center gap-2.5">
+          <div className="w-9 h-9 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-600 dark:text-amber-400 flex items-center justify-center text-lg shadow-xs shrink-0">
             ⚖️
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-xs md:text-sm font-black uppercase tracking-tight text-white flex items-center gap-1.5">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h2 className="text-xs md:text-sm font-black uppercase tracking-tight text-slate-900 dark:text-white flex items-center gap-1.5">
                 <span>Punjab & Haryana High Court (SSSC)</span>
-                <span className="hidden sm:inline-block text-[10px] font-mono font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-2 py-0.5 rounded-md">
-                  Dual-Box CPT
-                </span>
               </h2>
+              <span className="text-[10px] font-mono font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-500/20 dark:text-indigo-300 dark:border-indigo-500/30 px-2 py-0.5 rounded-md">
+                Dual-Box CPT
+              </span>
             </div>
-            <div className="flex items-center gap-2 text-[11px] text-neutral-400 font-mono mt-0.5">
+            <div className="flex items-center gap-2 text-[11px] text-slate-600 dark:text-neutral-400 font-mono mt-0.5 flex-wrap">
               <span>Cutoff: ≥ 30 WPM</span>
               <span>•</span>
-              <span className="text-amber-400 font-bold">Max Error: ≤ 5.00%</span>
+              <span className="text-amber-600 dark:text-amber-400 font-bold">Max Error: ≤ 5.00%</span>
               <span>•</span>
               <span>10 Min Exam</span>
             </div>
@@ -389,40 +389,40 @@ export const CourtExamScreenTest: React.FC<CourtExamScreenTestProps> = ({
         {/* Center: Live Countdown Timer & Strokes */}
         <div className="flex items-center gap-3">
           <div
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl border font-mono transition-all ${
+            className={`flex items-center gap-2 px-3 py-1 rounded-xl border font-mono transition-all ${
               isTimeUrgent
-                ? 'bg-rose-500/20 text-rose-300 border-rose-500/40 animate-pulse shadow-[0_0_15px_rgba(244,63,94,0.4)]'
+                ? 'bg-rose-50 text-rose-600 border-rose-300 dark:bg-rose-500/20 dark:text-rose-300 dark:border-rose-500/40 animate-pulse shadow-[0_0_15px_rgba(244,63,94,0.3)]'
                 : isPaused
-                ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-sm'
-                : 'bg-white/5 text-neutral-100 border-white/10'
+                ? 'bg-amber-50 text-amber-600 border-amber-300 dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-500/40 shadow-sm'
+                : 'bg-slate-100 text-slate-900 border-slate-300 dark:bg-white/5 dark:text-neutral-100 dark:border-white/10'
             }`}
           >
             <span className="text-sm">⏱️</span>
-            <span className="text-xl md:text-2xl font-black tracking-tight">
+            <span className="text-lg md:text-xl font-black tracking-tight">
               {timeLimit > 0 ? formatTime(remainingSeconds) : formatTime(Math.floor(elapsed))}
             </span>
           </div>
 
-          <div className="hidden sm:flex flex-col text-right font-mono text-[11px] text-neutral-400">
+          <div className="hidden sm:flex flex-col text-right font-mono text-[11px] text-slate-600 dark:text-neutral-400">
             <div>
-              Strokes: <span className="text-white font-bold">{totalKeystrokesRef.current}</span>
+              Strokes: <span className="text-slate-900 dark:text-white font-bold">{totalKeystrokesRef.current}</span>
             </div>
             <div>
-              Words: <span className="text-indigo-400 font-bold">{typedWords}</span> / {passageWords}
+              Words: <span className="text-indigo-600 dark:text-indigo-400 font-bold">{typedWords}</span> / {passageWords}
             </div>
           </div>
         </div>
 
         {/* Right: Exam Controls & Font Selectors */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 flex-wrap">
           {/* Font Family Switcher */}
-          <div className="flex items-center bg-white/5 border border-white/10 rounded-xl p-0.5 text-xs font-mono">
+          <div className="flex items-center bg-slate-100 dark:bg-white/5 border border-slate-300 dark:border-white/10 rounded-xl p-0.5 text-xs font-mono">
             <button
               onClick={() => setFontFamily('times')}
               className={`px-2 py-1 rounded-lg transition-all ${
                 fontFamily === 'times'
-                  ? 'bg-indigo-500 text-white font-bold shadow-sm'
-                  : 'text-neutral-400 hover:text-white'
+                  ? 'bg-indigo-600 text-white font-bold shadow-xs keep-white'
+                  : 'text-slate-600 dark:text-neutral-400 hover:text-slate-900 dark:hover:text-white'
               }`}
               title="Times New Roman (Official Legal Standard)"
             >
@@ -432,23 +432,34 @@ export const CourtExamScreenTest: React.FC<CourtExamScreenTestProps> = ({
               onClick={() => setFontFamily('arial')}
               className={`px-2 py-1 rounded-lg transition-all ${
                 fontFamily === 'arial'
-                  ? 'bg-indigo-500 text-white font-bold shadow-sm'
-                  : 'text-neutral-400 hover:text-white'
+                  ? 'bg-indigo-600 text-white font-bold shadow-xs keep-white'
+                  : 'text-slate-600 dark:text-neutral-400 hover:text-slate-900 dark:hover:text-white'
               }`}
               title="Arial (TCS iON Standard)"
             >
               Arial
             </button>
+            <button
+              onClick={() => setFontFamily('courier')}
+              className={`px-2 py-1 rounded-lg transition-all ${
+                fontFamily === 'courier'
+                  ? 'bg-indigo-600 text-white font-bold shadow-xs keep-white'
+                  : 'text-slate-600 dark:text-neutral-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+              title="Courier New (Traditional Monospace)"
+            >
+              Courier
+            </button>
           </div>
 
           {/* Font Size Switcher */}
-          <div className="flex items-center bg-white/5 border border-white/10 rounded-xl p-0.5 text-xs font-mono">
+          <div className="flex items-center bg-slate-100 dark:bg-white/5 border border-slate-300 dark:border-white/10 rounded-xl p-0.5 text-xs font-mono">
             <button
               onClick={() => setFontSize('11pt')}
               className={`px-1.5 py-1 rounded-lg transition-all ${
                 fontSize === '11pt'
-                  ? 'bg-white/20 text-white font-bold'
-                  : 'text-neutral-400 hover:text-white'
+                  ? 'bg-white dark:bg-white/20 text-slate-900 dark:text-white font-bold shadow-xs'
+                  : 'text-slate-600 dark:text-neutral-400 hover:text-slate-900 dark:hover:text-white'
               }`}
               title="11 pt (Compact)"
             >
@@ -458,8 +469,8 @@ export const CourtExamScreenTest: React.FC<CourtExamScreenTestProps> = ({
               onClick={() => setFontSize('12pt')}
               className={`px-1.5 py-1 rounded-lg transition-all ${
                 fontSize === '12pt'
-                  ? 'bg-white/20 text-white font-bold'
-                  : 'text-neutral-400 hover:text-white'
+                  ? 'bg-white dark:bg-white/20 text-slate-900 dark:text-white font-bold shadow-xs'
+                  : 'text-slate-600 dark:text-neutral-400 hover:text-slate-900 dark:hover:text-white'
               }`}
               title="12 pt (Official Exam Standard)"
             >
@@ -469,8 +480,8 @@ export const CourtExamScreenTest: React.FC<CourtExamScreenTestProps> = ({
               onClick={() => setFontSize('14pt')}
               className={`px-1.5 py-1 rounded-lg transition-all ${
                 fontSize === '14pt'
-                  ? 'bg-white/20 text-white font-bold'
-                  : 'text-neutral-400 hover:text-white'
+                  ? 'bg-white dark:bg-white/20 text-slate-900 dark:text-white font-bold shadow-xs'
+                  : 'text-slate-600 dark:text-neutral-400 hover:text-slate-900 dark:hover:text-white'
               }`}
               title="14 pt (Large)"
             >
@@ -482,8 +493,8 @@ export const CourtExamScreenTest: React.FC<CourtExamScreenTestProps> = ({
           {onToggleTheme && (
             <button
               onClick={onToggleTheme}
-              className="p-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-neutral-400 hover:text-white border border-white/10 transition-colors"
-              title="Toggle Light / Dark Exam Screen"
+              className="p-1.5 rounded-xl bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-700 dark:text-neutral-300 border border-slate-300 dark:border-white/10 transition-colors"
+              title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
             >
               {theme === 'dark' ? '☀️' : '🌙'}
             </button>
@@ -496,21 +507,30 @@ export const CourtExamScreenTest: React.FC<CourtExamScreenTestProps> = ({
                 if (isPaused) resumeTest();
                 else pauseTest('manual');
               }}
-              className="h-8 px-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-neutral-300 hover:text-white border border-white/10 text-xs font-semibold transition-all flex items-center gap-1"
+              className="h-8 px-2.5 rounded-xl bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-700 dark:text-neutral-300 border border-slate-300 dark:border-white/10 text-xs font-semibold transition-all flex items-center gap-1"
               title="Pause (Esc)"
             >
               <span>{isPaused ? '▶' : '⏸'}</span>
             </button>
           )}
 
+          {/* Exit Exam Button */}
+          <button
+            onClick={onRestart}
+            className="h-8 px-2.5 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 border border-slate-300 dark:bg-white/5 dark:hover:bg-rose-500/20 dark:text-neutral-400 dark:hover:text-rose-300 dark:border-white/10 text-xs font-semibold transition-all flex items-center gap-1"
+            title="Exit Exam to Home"
+          >
+            <span>✕ Exit</span>
+          </button>
+
           {/* Submit Test Button */}
           <button
             onClick={() => setShowSubmitModal(true)}
-            className="h-8 px-3 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 hover:text-emerald-200 border border-emerald-500/40 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95"
+            className="h-8 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition-all flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95 keep-white"
             title="Submit Exam (Ctrl+Enter)"
           >
             <span>Submit</span>
-            <kbd className="hidden md:inline-block text-[9px] font-mono bg-emerald-500/30 px-1 py-0.5 rounded text-emerald-200 font-normal">
+            <kbd className="hidden md:inline-block text-[9px] font-mono bg-emerald-700/80 px-1 py-0.5 rounded text-white font-normal keep-white">
               Ctrl+↵
             </kbd>
           </button>
@@ -518,37 +538,37 @@ export const CourtExamScreenTest: React.FC<CourtExamScreenTestProps> = ({
       </div>
 
       {/* ── Main Dual-Box Workplace (Stacked Top & Bottom) ── */}
-      <div className="w-full flex-1 flex flex-col gap-3 min-h-0 relative">
+      <div className="w-full flex-1 flex flex-col gap-2.5 min-h-0 relative">
         {/* Paste Blocked Alert Toast */}
         {pasteBlockedToast && (
-          <div className="absolute top-2 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-xl bg-rose-600/90 text-white font-mono text-xs shadow-2xl flex items-center gap-2 border border-rose-400 animate-bounce">
+          <div className="absolute top-2 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-xl bg-rose-600 text-white font-mono text-xs shadow-2xl flex items-center gap-2 border border-rose-400 animate-bounce keep-white">
             <span>🚫</span>
             <span>Copy / Paste is strictly disabled in Court Exam Mode!</span>
           </div>
         )}
 
         {/* ── BOX 1: Master Question Passage Box (Read-Only) ── */}
-        <div className="flex-1 min-h-[35%] flex flex-col bento-card bg-neutral-900/60 dark:bg-neutral-950/70 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden shadow-lg">
+        <div className="flex-1 min-h-[35%] flex flex-col bento-card bg-white dark:bg-[#121721] border border-slate-300 dark:border-white/10 rounded-2xl overflow-hidden shadow-sm dark:shadow-lg">
           {/* Box Header */}
-          <div className="w-full shrink-0 px-4 py-2 bg-white/5 border-b border-white/5 flex items-center justify-between text-xs font-mono">
-            <div className="flex items-center gap-2 text-neutral-300">
-              <span className="text-amber-400">📖</span>
+          <div className="w-full shrink-0 px-4 py-2 bg-slate-100 dark:bg-white/5 border-b border-slate-200 dark:border-white/10 flex items-center justify-between text-xs font-mono">
+            <div className="flex items-center gap-2 text-slate-800 dark:text-neutral-200">
+              <span className="text-amber-600 dark:text-amber-400">📖</span>
               <span className="font-bold uppercase tracking-wider text-[11px]">
                 Question Passage (Read-Only)
               </span>
-              <span className="text-neutral-500 hidden sm:inline">•</span>
-              <span className="text-neutral-400 hidden sm:inline">{FONT_FAMILY_MAP[fontFamily].name} {fontSize}</span>
+              <span className="text-slate-400 dark:text-neutral-500 hidden sm:inline">•</span>
+              <span className="text-slate-600 dark:text-neutral-400 hidden sm:inline">{FONT_FAMILY_MAP[fontFamily].name} {fontSize}</span>
             </div>
-            <div className="flex items-center gap-2 text-neutral-400 text-[11px]">
+            <div className="flex items-center gap-2 text-slate-600 dark:text-neutral-400 text-[11px]">
               <span>Passage Length:</span>
-              <span className="text-indigo-400 font-bold">{passageWords} words</span>
+              <span className="text-indigo-600 dark:text-indigo-400 font-bold">{passageWords} words</span>
             </div>
           </div>
 
           {/* Scrollable Passage Body */}
           <div
             ref={passageBoxRef}
-            className="flex-1 p-5 md:p-6 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-600 text-neutral-100 select-none"
+            className="flex-1 p-5 md:p-6 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-600 select-none bg-white dark:bg-transparent"
             style={{
               fontFamily: activeFontFamilyCss,
               fontSize: `${activeFontSizePx}px`,
@@ -558,35 +578,35 @@ export const CourtExamScreenTest: React.FC<CourtExamScreenTestProps> = ({
             onCopy={handlePasteAttempt}
             onContextMenu={(e) => e.preventDefault()}
           >
-            <div className="whitespace-pre-wrap break-normal leading-relaxed text-slate-100 dark:text-neutral-100">
+            <div className="court-exam-passage-text whitespace-pre-wrap break-normal leading-relaxed text-slate-950 dark:text-slate-100 font-normal">
               {passageText}
             </div>
           </div>
         </div>
 
         {/* ── BOX 2: Candidate Typing Area (Starts Blank) ── */}
-        <div className="flex-1 min-h-[42%] flex flex-col bento-card bg-neutral-950/90 backdrop-blur-xl border border-indigo-500/30 focus-within:border-indigo-500/60 focus-within:shadow-[0_0_25px_rgba(99,102,241,0.2)] rounded-2xl overflow-hidden shadow-2xl transition-all">
+        <div className="flex-1 min-h-[42%] flex flex-col bento-card bg-white dark:bg-[#0c1017] border border-indigo-400 dark:border-indigo-500/40 focus-within:border-indigo-600 dark:focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-500/20 rounded-2xl overflow-hidden shadow-sm dark:shadow-2xl transition-all">
           {/* Box Header */}
-          <div className="w-full shrink-0 px-4 py-2 bg-indigo-500/10 border-b border-indigo-500/20 flex items-center justify-between text-xs font-mono">
-            <div className="flex items-center gap-2 text-indigo-300">
-              <span>⌨️</span>
+          <div className="w-full shrink-0 px-4 py-2 bg-indigo-50/90 dark:bg-indigo-950/30 border-b border-indigo-100 dark:border-indigo-500/20 flex items-center justify-between text-xs font-mono">
+            <div className="flex items-center gap-2 text-indigo-950 dark:text-indigo-200">
+              <span className="text-indigo-600 dark:text-indigo-400">⌨️</span>
               <span className="font-bold uppercase tracking-wider text-[11px]">
                 Candidate Response Console
               </span>
-              <span className="text-neutral-500 hidden sm:inline">•</span>
-              <span className="text-neutral-400 text-[11px] hidden sm:inline">
+              <span className="text-indigo-300 dark:text-neutral-500 hidden sm:inline">•</span>
+              <span className="text-indigo-700 dark:text-neutral-400 text-[11px] hidden sm:inline">
                 Type text from the upper box here
               </span>
             </div>
-            <div className="flex items-center gap-3 text-neutral-400 text-[11px]">
-              <span>Typed: <strong className="text-white">{typedWords}</strong> words</span>
+            <div className="flex items-center gap-3 text-slate-600 dark:text-neutral-400 text-[11px]">
+              <span>Typed: <strong className="text-slate-950 dark:text-white">{typedWords}</strong> words</span>
               <span>•</span>
-              <span>Strokes: <strong className="text-cyan-400">{input.length}</strong></span>
+              <span>Strokes: <strong className="text-cyan-700 dark:text-cyan-400">{input.length}</strong></span>
             </div>
           </div>
 
           {/* Active Typing Textarea */}
-          <div className="flex-1 relative p-4 md:p-5 flex flex-col">
+          <div className="flex-1 relative p-4 md:p-5 flex flex-col bg-white dark:bg-transparent">
             <textarea
               ref={textareaRef}
               value={input}
@@ -595,7 +615,7 @@ export const CourtExamScreenTest: React.FC<CourtExamScreenTestProps> = ({
               onDrop={(e) => e.preventDefault()}
               onContextMenu={(e) => e.preventDefault()}
               placeholder="Look at the upper box and start typing here. 10-minute exam timer will start automatically on your first keystroke..."
-              className="w-full flex-1 bg-transparent text-slate-100 dark:text-neutral-100 placeholder:text-neutral-600 focus:outline-none resize-none scrollbar-thin scrollbar-thumb-slate-600"
+              className="court-exam-textarea w-full flex-1 bg-transparent text-slate-950 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-neutral-500 focus:outline-none resize-none scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-600 font-normal"
               style={{
                 fontFamily: activeFontFamilyCss,
                 fontSize: `${activeFontSizePx}px`,
@@ -609,8 +629,8 @@ export const CourtExamScreenTest: React.FC<CourtExamScreenTestProps> = ({
             />
 
             {!startTime && (
-              <div className="absolute bottom-4 right-6 pointer-events-none text-xs font-mono text-neutral-400 flex items-center gap-2 bg-black/60 px-3 py-1.5 rounded-full border border-white/10">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <div className="absolute bottom-4 right-6 pointer-events-none text-xs font-mono text-slate-600 dark:text-neutral-400 flex items-center gap-2 bg-slate-100/90 dark:bg-black/60 px-3 py-1.5 rounded-full border border-slate-300 dark:border-white/10 shadow-xs">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse" />
                 <span>Timer starts on first keypress</span>
               </div>
             )}
@@ -621,20 +641,20 @@ export const CourtExamScreenTest: React.FC<CourtExamScreenTestProps> = ({
       {/* ── Submit Confirmation Modal ── */}
       {showSubmitModal && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 dark:bg-black/80 backdrop-blur-md animate-fade-in"
           onClick={() => setShowSubmitModal(false)}
         >
           <div
-            className="w-full max-w-md bento-card bg-neutral-900 border border-white/20 p-6 rounded-3xl shadow-2xl flex flex-col gap-4 text-neutral-100"
+            className="w-full max-w-md bento-card bg-white dark:bg-neutral-900 border border-slate-300 dark:border-white/20 p-6 rounded-3xl shadow-2xl flex flex-col gap-4 text-slate-900 dark:text-neutral-100"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-2xl bg-amber-500/15 border border-amber-500/35 text-amber-400 flex items-center justify-center text-2xl">
+              <div className="w-12 h-12 rounded-2xl bg-amber-500/15 border border-amber-500/35 text-amber-500 flex items-center justify-center text-2xl shrink-0">
                 ⚠️
               </div>
               <div>
-                <h3 className="text-lg font-bold text-white">Submit Typing Test?</h3>
-                <p className="text-xs text-neutral-400">
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Submit Typing Test?</h3>
+                <p className="text-xs text-slate-600 dark:text-neutral-400">
                   {timeLimit > 0
                     ? `You have ${formatTime(remainingSeconds)} remaining.`
                     : 'Are you sure you want to finish your exam now?'}
@@ -642,11 +662,11 @@ export const CourtExamScreenTest: React.FC<CourtExamScreenTestProps> = ({
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 text-xs font-mono bg-white/5 p-3 rounded-xl border border-white/5">
-              <div>Words Typed: <strong className="text-white">{typedWords}</strong></div>
-              <div>Total Strokes: <strong className="text-cyan-400">{totalKeystrokesRef.current}</strong></div>
-              <div>Elapsed Time: <strong className="text-amber-400">{formatTime(Math.floor(elapsed))}</strong></div>
-              <div>Error Cutoff: <strong className="text-emerald-400">≤ 5.00%</strong></div>
+            <div className="grid grid-cols-2 gap-2 text-xs font-mono bg-slate-100 dark:bg-white/5 p-3 rounded-xl border border-slate-200 dark:border-white/5 text-slate-800 dark:text-neutral-300">
+              <div>Words Typed: <strong className="text-slate-950 dark:text-white">{typedWords}</strong></div>
+              <div>Total Strokes: <strong className="text-cyan-700 dark:text-cyan-400">{totalKeystrokesRef.current}</strong></div>
+              <div>Elapsed Time: <strong className="text-amber-600 dark:text-amber-400">{formatTime(Math.floor(elapsed))}</strong></div>
+              <div>Error Cutoff: <strong className="text-emerald-600 dark:text-emerald-400">≤ 5.00%</strong></div>
             </div>
 
             <div className="flex items-center justify-end gap-3 mt-2">
@@ -655,7 +675,7 @@ export const CourtExamScreenTest: React.FC<CourtExamScreenTestProps> = ({
                   setShowSubmitModal(false);
                   focusInput();
                 }}
-                className="py-2.5 px-4 rounded-xl text-xs font-semibold text-neutral-300 hover:text-white bg-white/5 hover:bg-white/10 transition-colors"
+                className="py-2.5 px-4 rounded-xl text-xs font-semibold text-slate-700 dark:text-neutral-300 hover:text-slate-950 dark:hover:text-white bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 transition-colors"
               >
                 Keep Typing
               </button>
@@ -664,7 +684,7 @@ export const CourtExamScreenTest: React.FC<CourtExamScreenTestProps> = ({
                   setShowSubmitModal(false);
                   finishTestRef.current?.();
                 }}
-                className="py-2.5 px-5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 shadow-lg shadow-emerald-500/25 transition-all"
+                className="py-2.5 px-5 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-md shadow-emerald-600/25 transition-all keep-white"
               >
                 Confirm & Submit Scorecard
               </button>
@@ -676,19 +696,19 @@ export const CourtExamScreenTest: React.FC<CourtExamScreenTestProps> = ({
       {/* ── Pause Overlay ── */}
       {isPaused && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fade-in"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 dark:bg-black/85 backdrop-blur-md animate-fade-in"
           onClick={resumeTest}
         >
           <div
-            className="w-full max-w-sm bento-card bg-neutral-900 border border-amber-500/30 p-6 rounded-3xl shadow-2xl flex flex-col items-center text-center gap-4 text-neutral-100"
+            className="w-full max-w-sm bento-card bg-white dark:bg-neutral-900 border border-amber-500/40 dark:border-amber-500/30 p-6 rounded-3xl shadow-2xl flex flex-col items-center text-center gap-4 text-slate-900 dark:text-neutral-100"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="w-14 h-14 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center text-3xl border border-amber-500/40 animate-pulse">
+            <div className="w-14 h-14 rounded-2xl bg-amber-500/20 text-amber-500 flex items-center justify-center text-3xl border border-amber-500/40 animate-pulse">
               ⏸️
             </div>
             <div>
-              <h3 className="text-lg font-black text-white">Test Paused</h3>
-              <p className="text-xs text-neutral-400 mt-1">
+              <h3 className="text-lg font-black text-slate-900 dark:text-white">Test Paused</h3>
+              <p className="text-xs text-slate-600 dark:text-neutral-400 mt-1">
                 {pauseReason === 'auto_idle'
                   ? 'Paused due to inactivity. Timer is frozen.'
                   : pauseReason === 'auto_blur'
@@ -699,13 +719,13 @@ export const CourtExamScreenTest: React.FC<CourtExamScreenTestProps> = ({
             <div className="flex items-center gap-3 w-full">
               <button
                 onClick={resumeTest}
-                className="flex-1 py-3 rounded-xl font-bold text-xs bg-indigo-500 hover:bg-indigo-600 text-white shadow-lg shadow-indigo-500/30 transition-all"
+                className="flex-1 py-3 rounded-xl font-bold text-xs bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-600/30 transition-all keep-white"
               >
                 ▶ Resume (Esc)
               </button>
               <button
                 onClick={onRestart}
-                className="py-3 px-4 rounded-xl font-semibold text-xs bg-white/10 hover:bg-white/15 text-neutral-300 transition-all"
+                className="py-3 px-4 rounded-xl font-semibold text-xs bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/15 text-slate-700 dark:text-neutral-300 transition-all"
               >
                 ↺ Restart
               </button>

@@ -688,7 +688,7 @@ const App: React.FC = () => {
       <main
         className={
           gameState === GameState.PLAYING
-            ? 'w-full max-w-7xl mx-auto px-2 md:px-4 pt-1.5 pb-2 h-full flex-1 min-h-0 overflow-hidden flex flex-col items-center justify-between'
+            ? 'w-full max-w-7xl mx-auto px-2 md:px-4 pt-2 md:pt-3 pb-2 h-full flex-1 min-h-0 overflow-hidden flex flex-col items-center justify-start'
             : `container mx-auto px-4 pb-12 min-h-screen flex flex-col items-center justify-start ${
                 gameState === GameState.UPLOAD ? 'pt-24 md:pt-28 relative z-10' : 'pt-8 relative z-10'
               }`
