@@ -57,7 +57,7 @@ const App: React.FC = () => {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [results, setResults] = useState<TestResults | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [timeLimit, setTimeLimit] = useState<TimeLimit>(900);
+  const [timeLimit, setTimeLimit] = useState<TimeLimit>(600);
   const [history, setHistory] = useState<StoredResult[]>([]);
   const [userStats, setUserStats] = useState<UserStats | null>(null);
   const [savedTests, setSavedTests] = useState<SavedTest[]>([]);
@@ -186,7 +186,7 @@ const App: React.FC = () => {
     setGameState(GameState.UPLOAD);
     setIsProcessing(false);
     setResults(null);
-    setTimeLimit(900);
+    setTimeLimit(600);
     setText('');
     setOriginalText('');
     setImagePreview(null);
@@ -302,7 +302,7 @@ const App: React.FC = () => {
       rawText: exerciseText,
       imageSrc: null,
       mode: 'DIGITAL',
-      selectedTimeLimit: 900,
+      selectedTimeLimit: 600,
       sscEnabled: false,
       testId: null,
       lessonId,
@@ -334,7 +334,7 @@ const App: React.FC = () => {
   ) => {
     const isCourtClerk = passage.category === 'court-clerk';
     const isSSC = isCourtClerk || passage.category === 'ssc' || passage.category === 'legal';
-    const finalTimeLimit = isCourtClerk ? 600 : (selectedTimeLimit || 900);
+    const finalTimeLimit = selectedTimeLimit || 600;
     startGame({
       rawText: passage.text,
       imageSrc: null,

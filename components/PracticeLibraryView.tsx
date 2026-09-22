@@ -22,7 +22,7 @@ const CATEGORIES: { id: 'all' | PassageCategory; label: string }[] = [
 export const PracticeLibraryView: React.FC<PracticeLibraryViewProps> = ({ onStartPassage }) => {
   const [selectedCategory, setSelectedCategory] = useState<'all' | PassageCategory>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedTimeLimit, setSelectedTimeLimit] = useState<TimeLimit>(900);
+  const [selectedTimeLimit, setSelectedTimeLimit] = useState<TimeLimit>(600);
   const [isAccuracyFirst, setIsAccuracyFirst] = useState(false);
 
   const filteredPassages = useMemo(() => {
@@ -79,7 +79,7 @@ export const PracticeLibraryView: React.FC<PracticeLibraryViewProps> = ({ onStar
 
           <div className="flex items-center gap-1 bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 p-1 rounded-xl">
             <span className="text-xs font-mono text-slate-500 dark:text-neutral-400 pl-2 pr-1">Timer:</span>
-            {([900, 600, 300, 120, 60, 0] as TimeLimit[]).map(t => (
+            {([600, 900, 300, 120, 60, 0] as TimeLimit[]).map(t => (
               <button
                 key={t}
                 onClick={() => setSelectedTimeLimit(t)}
@@ -89,7 +89,7 @@ export const PracticeLibraryView: React.FC<PracticeLibraryViewProps> = ({ onStar
                     : 'text-slate-600 dark:text-neutral-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
-                {t === 900 ? '15m (Exam)' : t === 0 ? 'Full' : `${t / 60}m`}
+                {t === 600 ? '10m (Exam)' : t === 900 ? '15m' : t === 0 ? 'Full' : `${t / 60}m`}
               </button>
             ))}
           </div>
