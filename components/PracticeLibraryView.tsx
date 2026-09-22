@@ -8,6 +8,7 @@ interface PracticeLibraryViewProps {
 
 const CATEGORIES: { id: 'all' | PassageCategory; label: string }[] = [
   { id: 'all', label: 'All Passages' },
+  { id: 'court-clerk', label: '🏛️ Punjab & Haryana Court Clerk (SSSC)' },
   { id: 'righthand', label: '✋ Right Hand Special (दायां हाथ)' },
   { id: 'collision', label: '🎯 Finger Collision Fix (उंगली भ्रम)' },
   { id: 'legal', label: 'Court & Legal' },

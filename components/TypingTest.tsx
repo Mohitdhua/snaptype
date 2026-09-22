@@ -7,6 +7,7 @@ import { HandsGuide } from './HandsGuide';
 import { playSound, playKeystrokeSound, getSoundProfile, setSoundProfile, SoundProfile, startMetronome, stopMetronome, warmupAudio } from '../services/soundService';
 import { getUserStats } from '../services/storageService';
 import { Theme, getStoredTheme, applyTheme } from '../services/themeService';
+import { evaluateCourtTypingTest } from '../services/courtEvaluationService';
 
 const TYPING_TEXT_SCALE_KEY = 'snaptype_typing_text_scale_v1';
 const TYPING_FONT_KEY = 'snaptype_typing_font_v1';
@@ -54,6 +55,7 @@ interface TypingTestProps {
   onComplete: (results: TestResults) => void;
   onRestart: () => void;
   isSSC?: boolean;
+  isCourtExam?: boolean;
   lessonId?: string;
   initialHardcoreMode?: HardcoreMode;
   theme?: Theme;
@@ -176,6 +178,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({
   onComplete,
   onRestart,
   isSSC = false,
+  isCourtExam = false,
   lessonId,
   initialHardcoreMode = 'NONE',
   theme,
@@ -626,30 +629,25 @@ export const TypingTest: React.FC<TypingTestProps> = ({
       kdph: partialStats.kdph,
     };
 
-    if (isSSC) {
-        const effectiveMins = Math.max(0.001, partialStats.timeElapsed / 60);
-        const tentativeSpeed = (partialStats.totalChars / 5) / effectiveMins;
-        const sscRawWpm = Math.round(tentativeSpeed);
-        const errorPenaltyWpm = (partialStats.incorrectChars / 5) / effectiveMins;
-        const sscNetWpm = Math.max(0, Math.round(tentativeSpeed - errorPenaltyWpm));
+    if (isSSC || isCourtExam) {
+        const courtEval = evaluateCourtTypingTest(
+          targetText,
+          input,
+          partialStats.timeElapsed,
+          partialStats.totalKeystrokes
+        );
 
-        let sscMarks = 0;
-        const speed = sscNetWpm;
-        if (speed >= 30) sscMarks = 10;
-        if (speed >= 31) sscMarks = 12;
-        if (speed >= 36) sscMarks = 15;
-        if (speed >= 41) sscMarks = 18;
-        if (speed >= 46) sscMarks = 21;
-        if (speed > 50) sscMarks = 25;
-
-        finalResults.rawWpm = sscRawWpm;
-        finalResults.netWpm = sscNetWpm;
+        finalResults.isCourtExam = true;
         finalResults.isSSC = true;
-        finalResults.sscMarks = sscMarks;
+        finalResults.courtExam = courtEval;
+        finalResults.rawWpm = courtEval.grossWpm;
+        finalResults.netWpm = courtEval.netWpm;
+        finalResults.accuracy = courtEval.accuracy;
+        finalResults.incorrectChars = courtEval.totalMistakes;
     }
 
     onComplete(finalResults);
-  }, [calculateStats, input, targetText, onComplete, isSSC, lessonId, hardcoreMode, pacerMode, ghostTargetWpm]);
+  }, [calculateStats, input, targetText, onComplete, isSSC, isCourtExam, lessonId, hardcoreMode, pacerMode, ghostTargetWpm]);
 
   // Ref to hold the latest version of finishTest
   const finishTestRef = useRef(finishTest);

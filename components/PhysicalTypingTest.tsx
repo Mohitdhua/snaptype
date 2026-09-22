@@ -3,6 +3,7 @@ import { Button } from './Button';
 import { TestResults, TimeLimit } from '../types';
 import { levenshteinDistance } from '../utils/stringUtils';
 import { TYPING_FONTS, TypingFont, AUTOPAUSE_ENABLED_KEY, AUTOPAUSE_DELAY_KEY, PauseReason } from './TypingTest';
+import { evaluateCourtTypingTest } from '../services/courtEvaluationService';
 
 interface PhysicalTypingTestProps {
   ocrText: string;
@@ -10,11 +11,12 @@ interface PhysicalTypingTestProps {
   referenceText?: string | null;
   timeLimit: TimeLimit;
   isSSC?: boolean;
+  isCourtExam?: boolean;
   onComplete: (results: TestResults) => void;
   onRestart: () => void;
 }
 
-export const PhysicalTypingTest: React.FC<PhysicalTypingTestProps> = ({ ocrText, imageSrc, referenceText = null, timeLimit, isSSC = false, onComplete, onRestart }) => {
+export const PhysicalTypingTest: React.FC<PhysicalTypingTestProps> = ({ ocrText, imageSrc, referenceText = null, timeLimit, isSSC = false, isCourtExam = false, onComplete, onRestart }) => {
   const [input, setInput] = useState('');
   const [startTime, setStartTime] = useState<number | null>(null);
   const [showReference, setShowReference] = useState(true);
@@ -197,6 +199,86 @@ export const PhysicalTypingTest: React.FC<PhysicalTypingTestProps> = ({ ocrText,
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [onRestart, resumeTest, pauseTest]);
 
+  const handlePrintPassage = () => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+    const passageToPrint = referenceText || ocrText;
+    const count = (passageToPrint || '').split(/\s+/).filter(Boolean).length;
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Punjab & Haryana High Court Clerk - English Typing Test Passage</title>
+          <style>
+            @page { size: A4; margin: 25mm 25mm 25mm 25mm; }
+            body {
+              font-family: 'Times New Roman', Times, Georgia, serif;
+              font-size: 13.5pt;
+              line-height: 2.2;
+              color: #111;
+              margin: 0;
+              padding: 24px;
+            }
+            .header {
+              text-align: center;
+              border-bottom: 2px solid #000;
+              padding-bottom: 12px;
+              margin-bottom: 24px;
+            }
+            .header h2 { margin: 0; font-size: 15pt; text-transform: uppercase; letter-spacing: 0.5px; }
+            .header p { margin: 4px 0 0 0; font-size: 11pt; color: #333; }
+            .meta {
+              display: flex;
+              justify-content: space-between;
+              margin-bottom: 24px;
+              font-size: 11pt;
+              font-style: italic;
+              border-bottom: 1px dashed #666;
+              padding-bottom: 6px;
+            }
+            .content {
+              text-align: justify;
+              text-justify: inter-word;
+              letter-spacing: 0.3px;
+              word-spacing: 1px;
+            }
+            .footer {
+              margin-top: 48px;
+              text-align: center;
+              font-size: 9.5pt;
+              color: #666;
+              border-top: 1px solid #ccc;
+              padding-top: 10px;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h2>HIGH COURT OF PUNJAB AND HARYANA AT CHANDIGARH</h2>
+            <p>Society for Centralized Recruitment of Staff in Subordinate Courts (S.S.S.C.)</p>
+            <p><strong>English Typing Test (Duration: 10 Minutes &bull; Qualifying Speed: 30 W.P.M.)</strong></p>
+          </div>
+          <div class="meta">
+            <span>Passage Length: ~${count} Words</span>
+            <span>Permissible Error Threshold: Max 10.00%</span>
+          </div>
+          <div class="content">
+            ${(passageToPrint || '').replace(/\n/g, '<br/><br/>')}
+          </div>
+          <div class="footer">
+            Printed for authentic Paper-to-Screen typing examination practice &bull; SnapType High Court Clerk Module
+          </div>
+          <script>
+            window.onload = function() {
+              window.print();
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
   const finishTest = useCallback((finalTime?: number) => {
       if (hasCompletedRef.current) return;
       hasCompletedRef.current = true;
@@ -227,14 +309,14 @@ export const PhysicalTypingTest: React.FC<PhysicalTypingTestProps> = ({ ocrText,
               hardKeys: {}, missedWords: {}, history: [],
               originalText: '', typedText: currentInput,
               isSSC: isSSC ? true : undefined,
-              sscMarks: isSSC ? 0 : undefined
+              isCourtExam: (isCourtExam || isSSC) ? true : undefined,
           });
           return;
       }
 
       const comparisonTarget = cleanTargetFull.slice(0, compareLen);
       const distance = levenshteinDistance(cleanInput, comparisonTarget);
-      const errors = distance;
+      let errors = distance;
       const correctChars = Math.max(0, cleanInput.length - errors);
       
       // Calculate Missed Words and Truncate Original Text
@@ -301,8 +383,9 @@ export const PhysicalTypingTest: React.FC<PhysicalTypingTestProps> = ({ ocrText,
       const truncatedOriginalRaw = ocrText.slice(0, charLimit);
 
       let rawWpm = Math.round((normalizedCharCount / 5) / minutes);
-      let netWpm = Math.max(0, Math.round(((normalizedCharCount - errors) / 5) / minutes));
-      const accuracy = Math.max(0, Math.round((correctChars / cleanInput.length) * 100));
+      const effectiveErrors = errors;
+      let netWpm = Math.max(0, Math.round(((normalizedCharCount / 5) - effectiveErrors) / minutes));
+      let accuracy = Math.max(0, Math.round((correctChars / cleanInput.length) * 100));
       
       const totalKeystrokes = Math.max(cleanInput.length, totalKeystrokesRef.current);
       const totalRawErrors = errors + backspaceCountRef.current;
@@ -310,21 +393,18 @@ export const PhysicalTypingTest: React.FC<PhysicalTypingTestProps> = ({ ocrText,
         ? Math.max(0, Math.min(100, Math.round(((totalKeystrokes - totalRawErrors) / totalKeystrokes) * 100)))
         : accuracy;
       
-      let sscMarks: number | undefined;
-
-      if (isSSC) {
-          const tentativeSpeed = (normalizedCharCount / 5) / minutes;
-          rawWpm = Math.round(tentativeSpeed);
-          netWpm = Math.max(0, Math.round(tentativeSpeed - errors));
-
-          let marks = 0;
-          if (netWpm >= 30) marks = 10;
-          if (netWpm >= 31) marks = 12;
-          if (netWpm >= 36) marks = 15;
-          if (netWpm >= 41) marks = 18;
-          if (netWpm >= 46) marks = 21;
-          if (netWpm > 50) marks = 25;
-          sscMarks = marks;
+      let courtExamEval;
+      if (isSSC || isCourtExam) {
+          courtExamEval = evaluateCourtTypingTest(
+              truncatedOriginalRaw,
+              currentInput,
+              effectiveTime,
+              totalKeystrokes
+          );
+          rawWpm = courtExamEval.grossWpm;
+          netWpm = courtExamEval.netWpm;
+          accuracy = courtExamEval.accuracy;
+          errors = courtExamEval.totalMistakes;
       }
 
       const results: TestResults = {
@@ -341,12 +421,13 @@ export const PhysicalTypingTest: React.FC<PhysicalTypingTestProps> = ({ ocrText,
           history: [],
           originalText: truncatedOriginalRaw,
           typedText: currentInput,
-          isSSC: isSSC ? true : undefined,
-          sscMarks
+          isSSC: (isSSC || isCourtExam) ? true : undefined,
+          isCourtExam: (isCourtExam || isSSC) ? true : undefined,
+          courtExam: courtExamEval
       };
 
       onComplete(results);
-  }, [ocrText, onComplete, isSSC]);
+  }, [ocrText, onComplete, isSSC, isCourtExam]);
 
   const finishTestRef = useRef(finishTest);
   useEffect(() => { finishTestRef.current = finishTest; }, [finishTest]);
@@ -500,6 +581,15 @@ export const PhysicalTypingTest: React.FC<PhysicalTypingTestProps> = ({ ocrText,
                 </div>
               )}
               <button
+                type="button"
+                onClick={handlePrintPassage}
+                className="px-2.5 py-1 rounded-xl bg-indigo-500/15 hover:bg-indigo-500/25 text-indigo-300 border border-indigo-500/30 text-xs font-medium transition-colors flex items-center gap-1.5"
+                title="Print passage on physical paper for true exam simulation"
+              >
+                <span>🖨️</span>
+                <span className="hidden sm:inline">Print Paper</span>
+              </button>
+              <button
                 onClick={() => setShowReference(false)}
                 className="p-1.5 rounded-xl hover:bg-white/10 text-neutral-400 hover:text-white transition-colors"
                 aria-label={`Collapse ${referenceLabel}`}
@@ -576,9 +666,9 @@ export const PhysicalTypingTest: React.FC<PhysicalTypingTestProps> = ({ ocrText,
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-xs font-bold uppercase tracking-widest text-neutral-300">
-                  {isSSC ? 'SSC Exam Mode' : 'Physical / Paper Mode'}
+                  {isCourtExam || isSSC ? '🏛️ Court Clerk Exam Mode (SSSC)' : 'Physical / Paper Mode'}
                 </span>
-                {isSSC && (
+                {(isCourtExam || isSSC) && (
                   <span className="text-[9px] font-mono font-bold bg-amber-500/10 text-amber-300 border border-amber-500/30 px-1.5 py-0.5 rounded">
                     OFFICIAL
                   </span>
@@ -599,6 +689,15 @@ export const PhysicalTypingTest: React.FC<PhysicalTypingTestProps> = ({ ocrText,
           </div>
 
           <div className="flex items-center gap-3">
+            <button
+              onClick={handlePrintPassage}
+              className="h-9 px-3 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all text-neutral-300 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10"
+              title="Print passage on paper for genuine Paper-to-Screen practice"
+            >
+              <span>🖨️</span>
+              <span className="hidden sm:inline">Print Paper</span>
+            </button>
+
             {startTime && (
               <button
                 onClick={(e) => {

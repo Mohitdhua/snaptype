@@ -114,11 +114,12 @@ export const SavedTestsList: React.FC<SavedTestsListProps> = ({ tests, onPlay, o
                                     }}
                                     className={`min-w-0 truncate whitespace-nowrap text-xs font-semibold rounded-md px-2 py-1.5 border transition-colors ${
                                       selected.isSSC
-                                        ? 'border-red-500 bg-red-500/20 text-red-300'
+                                        ? 'border-indigo-500 bg-indigo-500/20 text-indigo-300'
                                         : 'border-white/10 text-stitch-muted hover:text-white'
                                     }`}
+                                    title="Punjab & Haryana Court Clerk 10-Minute Exam Mode"
                                 >
-                                    SSC
+                                    Court (SSSC)
                                 </button>
                             </div>
                             <div>

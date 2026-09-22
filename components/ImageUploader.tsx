@@ -147,7 +147,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageSelect, onT
       {hasContent && (
         <div className="w-full space-y-4 animate-fade-in flex flex-col gap-2">
              
-             {/* SSC Mode Toggle */}
+             {/* Court Clerk Exam Mode Toggle */}
              <div
                  role="switch"
                  aria-checked={isSSCMode}
@@ -163,10 +163,10 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageSelect, onT
              >
                  <div className="flex flex-col">
                      <span className="text-stitch-accent font-medium flex items-center gap-2">
-                        SSC Exam Mode
-                        <span className="text-[10px] bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full uppercase font-bold tracking-wide border border-red-500/30">Strict</span>
+                        🏛️ Punjab & Haryana Court Clerk Exam Mode (SSSC)
+                        <span className="text-[10px] bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full uppercase font-bold tracking-wide border border-red-500/30">Official Rules</span>
                      </span>
-                     <span className="text-xs text-stitch-muted mt-1">10 min duration. 1 WPM penalty per mistake.</span>
+                     <span className="text-xs text-stitch-muted mt-1">10 min countdown • 30 WPM cutoff • Max 10% mistakes • 1 word penalty/error</span>
                  </div>
                  <div className={`w-11 h-6 rounded-full p-1 transition-colors ${isSSCMode ? 'bg-white' : 'bg-white/10 border border-white/20'}`}>
                      <div className={`w-4 h-4 bg-black rounded-full shadow-md transform transition-transform ${isSSCMode ? 'translate-x-5' : 'translate-x-0 bg-stitch-muted'}`}></div>
@@ -234,7 +234,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageSelect, onT
         isLoading={isProcessing && inputMode === 'image'}
         className="w-full"
       >
-        {isSSCMode ? 'Start SSC Exam (10 Min)' : (inputMode === 'image' ? 'Generate Test with AI' : 'Start Typing Test')}
+        {isSSCMode ? 'Start Court Clerk Exam (10 Min)' : (inputMode === 'image' ? 'Generate Test with AI' : 'Start Typing Test')}
       </Button>
     </div>
   );

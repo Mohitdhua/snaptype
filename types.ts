@@ -23,6 +23,35 @@ export interface ExamEvaluation {
   status: 'QUALIFIED' | 'DISQUALIFIED';
 }
 
+export interface CourtWordMistake {
+  type: 'omission' | 'substitution' | 'addition';
+  wordIndex: number;
+  expected?: string;
+  typed?: string;
+}
+
+export interface CourtExamEvaluation {
+  examName: string;
+  durationMinutes: number;
+  totalKeyDepressions: number;
+  grossWords: number;
+  grossWpm: number;
+  totalMistakes: number;
+  omissionsCount: number;
+  substitutionsCount: number;
+  additionsCount: number;
+  mistakesList: CourtWordMistake[];
+  netWords: number;
+  netWpm: number;
+  errorPercentage: number;
+  accuracy: number;
+  isSpeedQualified: boolean;
+  isAccuracyQualified: boolean;
+  status: 'QUALIFIED' | 'DISQUALIFIED';
+  disqualificationReasons: string[];
+  spreadsheetNotice: string;
+}
+
 export type GhostPacerMode = 'OFF' | '30_WPM' | '35_WPM' | '40_WPM' | '50_WPM' | 'PERSONAL_BEST';
 
 export type HindiKeyboardMode = 'ENGLISH' | 'MANGAL_INSCRIPT' | 'KRUTIDEV';
@@ -48,8 +77,10 @@ export interface TestResults {
   // Gamification result display
   badgesUnlocked?: Badge[];
   xpGained?: number;
-  // SSC Mode Specifics & Exam Evaluation
+  // SSC & Court Clerk Exam Mode Specifics
   isSSC?: boolean;
+  isCourtExam?: boolean;
+  courtExam?: CourtExamEvaluation;
   sscMarks?: number;
   examEval?: ExamEvaluation;
   kdph?: number;
@@ -135,7 +166,7 @@ export type LessonProgressMap = Record<string, LessonProgress>;
 
 // --- Practice Passage Types ---
 
-export type PassageCategory = 'legal' | 'ssc' | 'literature' | 'tech' | 'numbers' | 'hindi' | 'collision' | 'righthand';
+export type PassageCategory = 'court-clerk' | 'legal' | 'ssc' | 'literature' | 'tech' | 'numbers' | 'hindi' | 'collision' | 'righthand';
 
 export interface PracticePassage {
   id: string;

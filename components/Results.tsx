@@ -9,6 +9,7 @@ import { CertificateModal } from './CertificateModal';
 import { DiagnosticReportModal } from './DiagnosticReportModal';
 import { ComposedChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { playSound } from '../services/soundService';
+import { evaluateCourtTypingTest } from '../services/courtEvaluationService';
 
 interface ResultsProps {
   results: TestResults;
@@ -95,6 +96,87 @@ export const Results: React.FC<ResultsProps> = ({ results, onReset, onNewImage, 
   const examEval = useMemo(() => {
     return results.examEval || calculateExamEvaluation(results, examCategory);
   }, [results, examCategory]);
+
+  const [showMistakesDetail, setShowMistakesDetail] = useState(false);
+
+  const courtEvaluation = useMemo(() => {
+    if (results.courtExam) return results.courtExam;
+    if (results.isCourtExam || results.isSSC) {
+      return evaluateCourtTypingTest(
+        results.originalText || '',
+        results.typedText || '',
+        results.timeElapsed || 600,
+        results.totalKeystrokes || results.totalChars
+      );
+    }
+    return null;
+  }, [results]);
+
+  const handlePrintScorecard = () => {
+    if (!courtEvaluation) return;
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Punjab & Haryana High Court Clerk - Typing Examination Scorecard</title>
+          <style>
+            @page { size: A4; margin: 20mm; }
+            body { font-family: 'Segoe UI', Arial, sans-serif; color: #111; padding: 20px; line-height: 1.5; }
+            .header { text-align: center; border-bottom: 2px solid #111; padding-bottom: 12px; margin-bottom: 20px; }
+            .header h1 { font-size: 16pt; margin: 0; text-transform: uppercase; }
+            .header p { margin: 4px 0 0; font-size: 11pt; color: #444; }
+            .verdict-box {
+              padding: 14px;
+              text-align: center;
+              border: 2px solid ${courtEvaluation.status === 'QUALIFIED' ? '#059669' : '#dc2626'};
+              background-color: ${courtEvaluation.status === 'QUALIFIED' ? '#ecfdf5' : '#fef2f2'};
+              border-radius: 8px;
+              margin-bottom: 24px;
+            }
+            .verdict-title { font-size: 18pt; font-weight: bold; color: ${courtEvaluation.status === 'QUALIFIED' ? '#059669' : '#dc2626'}; }
+            .stats-table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
+            .stats-table th, .stats-table td { border: 1px solid #ccc; padding: 10px; text-align: left; }
+            .stats-table th { background: #f3f4f6; font-size: 10pt; text-transform: uppercase; }
+            .stats-table td { font-size: 11pt; font-weight: 600; }
+            .formula-box { background: #f9fafb; border: 1px solid #e5e7eb; padding: 12px; border-radius: 6px; font-family: monospace; font-size: 10.5pt; margin-bottom: 20px; }
+            .notice { font-size: 9.5pt; color: #555; border-top: 1px solid #ddd; padding-top: 12px; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>High Court of Punjab and Haryana at Chandigarh</h1>
+            <p>Society for Centralized Recruitment of Staff in Subordinate Courts (S.S.S.C.)</p>
+            <p><strong>Computer Proficiency Test (CPT) &bull; English Typing Examination Scorecard</strong></p>
+          </div>
+          <div class="verdict-box">
+            <div class="verdict-title">${courtEvaluation.status === 'QUALIFIED' ? 'QUALIFIED / PASSED' : 'DISQUALIFIED'}</div>
+            <div style="margin-top: 6px; font-size: 11pt;">${courtEvaluation.status === 'QUALIFIED' ? 'Candidate meets both Net Speed (≥ 30.00 WPM) and Accuracy (Mistakes ≤ 10.00%) standards.' : courtEvaluation.disqualificationReasons.join(' • ')}</div>
+          </div>
+          <table class="stats-table">
+            <tr><th>Examination Parameter</th><th>Candidate Performance</th><th>Official Qualifying Benchmark</th></tr>
+            <tr><td>Total Key Depressions (Strokes)</td><td>${courtEvaluation.totalKeyDepressions}</td><td>—</td></tr>
+            <tr><td>Gross Words (Strokes / 5)</td><td>${courtEvaluation.grossWords} words</td><td>—</td></tr>
+            <tr><td>Gross Speed</td><td>${courtEvaluation.grossWpm} WPM</td><td>—</td></tr>
+            <tr><td>Total Mistakes (Omissions + Substitutions + Additions)</td><td>${courtEvaluation.totalMistakes} (O:${courtEvaluation.omissionsCount}, S:${courtEvaluation.substitutionsCount}, A:${courtEvaluation.additionsCount})</td><td>1 word penalty / mistake</td></tr>
+            <tr><td>Net Words (Gross - Mistakes)</td><td>${courtEvaluation.netWords} words</td><td>—</td></tr>
+            <tr><td><strong>Net Speed (WPM)</strong></td><td><strong>${courtEvaluation.netWpm} WPM</strong></td><td><strong>Minimum 30.00 WPM</strong></td></tr>
+            <tr><td><strong>Error Rate (%)</strong></td><td><strong>${courtEvaluation.errorPercentage}%</strong></td><td><strong>Maximum 10.00%</strong></td></tr>
+            <tr><td>Final Accuracy</td><td>${courtEvaluation.accuracy}%</td><td>Minimum 90.00%</td></tr>
+          </table>
+          <div class="formula-box">
+            Formula: Net Speed = (Gross Words - Total Mistakes) / 10 Minutes = (${courtEvaluation.grossWords} - ${courtEvaluation.totalMistakes}) / 10 = ${courtEvaluation.netWpm} WPM
+          </div>
+          <div class="notice">
+            ${courtEvaluation.spreadsheetNotice}
+          </div>
+          <script>window.onload = function() { window.print(); };</script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
 
   useEffect(() => {
       if ((results.badgesUnlocked && results.badgesUnlocked.length > 0) || (results.isSSC && (results.sscMarks || 0) > 0)) {
@@ -235,33 +317,214 @@ export const Results: React.FC<ResultsProps> = ({ results, onReset, onNewImage, 
             </div>
         ) : null}
         
-        {/* SSC Mode Scorecard */}
-        {results.isSSC && (
-            <div className="w-full bento-card p-6 mb-8 relative overflow-hidden border border-slate-200 dark:border-white/10 shadow-xs">
-                <div className="absolute top-0 right-0 bg-red-600 text-white text-xs font-bold px-3 py-1 rounded-bl-lg">SSC MODE</div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="flex flex-col items-center justify-center p-4 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-200 dark:border-white/10">
-                        <div className="text-xs text-slate-500 dark:text-stitch-muted uppercase font-bold mb-1">Total Strokes</div>
-                        <div className="text-3xl font-mono text-slate-900 dark:text-white font-bold">{results.totalChars}</div>
-                        <div className="text-xs text-slate-400 dark:text-stitch-muted mt-1">Words: {Math.round(results.totalChars / 5)}</div>
-                    </div>
-                    <div className="flex flex-col items-center justify-center p-4 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-200 dark:border-white/10">
-                        <div className="text-xs text-slate-500 dark:text-stitch-muted uppercase font-bold mb-1">Mistakes Penalty</div>
-                        <div className="text-3xl font-mono text-red-500 dark:text-red-400 font-bold">-{results.incorrectChars} <span className="text-sm">WPM</span></div>
-                        <div className="text-xs text-slate-400 dark:text-stitch-muted mt-1">1 WPM per mistake</div>
-                    </div>
-                     <div className="flex flex-col items-center justify-center p-4 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-200 dark:border-white/20">
-                        <div className="text-xs text-slate-500 dark:text-white uppercase font-bold mb-1">Marks Obtained</div>
-                        <div className="text-4xl font-mono font-black text-slate-900 dark:text-white">{results.sscMarks || 0}<span className="text-lg text-slate-400 dark:text-stitch-muted font-normal">/25</span></div>
-                        <div className={`text-xs font-bold mt-1 px-2 py-0.5 rounded ${results.netWpm >= 30 ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-400' : 'bg-red-100 text-red-800 dark:bg-red-500/20 dark:text-red-400'}`}>
-                            {results.netWpm >= 30 ? 'QUALIFIED' : 'DISQUALIFIED'}
-                        </div>
-                    </div>
+        {/* Punjab & Haryana High Court / SSSC Clerk Exam Scorecard */}
+        {(results.isCourtExam || results.isSSC || courtEvaluation) && courtEvaluation && (
+          <div className="w-full bento-card p-6 md:p-7 mb-8 relative overflow-hidden border border-slate-200 dark:border-white/10 shadow-md bg-white dark:bg-[#121721] rounded-2xl animate-fade-in">
+            {/* Ribbon & Official Header */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 border-b border-slate-200 dark:border-white/10">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 dark:bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-2xl shrink-0">
+                  🏛️
                 </div>
-                <div className="mt-4 text-center text-xs text-slate-400 dark:text-stitch-muted">
-                    Formula: (Strokes / 5) / Time - Mistakes = Net Speed
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-mono uppercase tracking-widest text-indigo-600 dark:text-indigo-400 font-bold">
+                      Official Recruitment Standard
+                    </span>
+                    <span className="text-[9px] font-mono font-bold bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-full">
+                      S.S.S.C. CPT
+                    </span>
+                  </div>
+                  <h3 className="text-lg md:text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+                    High Court of Punjab & Haryana / Subordinate Courts
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-neutral-400">
+                    Clerk Computer Proficiency Test (English Typing Test • 10 Minutes Duration)
+                  </p>
                 </div>
+              </div>
+
+              {/* Status Badge & Print Scorecard Button */}
+              <div className="flex items-center gap-3 self-start md:self-auto">
+                <button
+                  onClick={handlePrintScorecard}
+                  className="px-3 py-2 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-700 dark:text-neutral-200 border border-slate-200 dark:border-white/10 transition-all flex items-center gap-1.5 shadow-xs"
+                  title="Print official examination scorecard"
+                >
+                  <span>🖨️</span>
+                  <span>Print Scorecard</span>
+                </button>
+
+                <div className={`px-4 py-2 rounded-xl border font-mono font-black text-sm tracking-wide flex items-center gap-2 ${
+                  courtEvaluation.status === 'QUALIFIED'
+                    ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-700 dark:text-emerald-400 shadow-emerald-500/10'
+                    : 'bg-rose-500/15 border-rose-500/40 text-rose-700 dark:text-rose-400 shadow-rose-500/10'
+                }`}>
+                  <span className="w-2.5 h-2.5 rounded-full animate-ping" style={{ backgroundColor: courtEvaluation.status === 'QUALIFIED' ? '#10b981' : '#f43f5e' }} />
+                  <span>{courtEvaluation.status === 'QUALIFIED' ? 'QUALIFIED / PASSED' : 'DISQUALIFIED'}</span>
+                </div>
+              </div>
             </div>
+
+            {/* Disqualification Reasons Banner if disqualified */}
+            {courtEvaluation.status === 'DISQUALIFIED' && (
+              <div className="mt-4 p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-500/30 text-xs text-rose-800 dark:text-rose-300 flex flex-col gap-1">
+                <span className="font-bold flex items-center gap-1.5">
+                  <span>⚠️</span> Disqualification Specifics:
+                </span>
+                <ul className="list-disc list-inside space-y-0.5 pl-2 font-mono">
+                  {courtEvaluation.disqualificationReasons.map((reason, idx) => (
+                    <li key={idx}>{reason}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Formula Explanation Callout */}
+            <div className="mt-5 p-3.5 rounded-xl bg-slate-50 dark:bg-black/30 border border-slate-200 dark:border-white/5 font-mono text-xs text-slate-700 dark:text-neutral-300 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+              <div>
+                <span className="text-slate-400 dark:text-neutral-500 font-bold uppercase text-[10px] block">
+                  Official SSSC Speed & Penalty Formula
+                </span>
+                <span className="font-bold text-slate-900 dark:text-white">
+                  Net Speed = (Gross Words − Mistakes) ÷ 10 = ({courtEvaluation.grossWords} − {courtEvaluation.totalMistakes}) ÷ 10 = <span className={courtEvaluation.netWpm >= 30 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}>{courtEvaluation.netWpm} WPM</span>
+                </span>
+              </div>
+              <div className="text-[11px] text-slate-500 dark:text-neutral-400 shrink-0">
+                1 Mistake = 1 Full Word (5 strokes) Deduction
+              </div>
+            </div>
+
+            {/* Key 6-Tile Metrics Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mt-5">
+              {/* Total Strokes */}
+              <div className="flex flex-col items-center justify-center p-3.5 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-200 dark:border-white/10">
+                <div className="text-[10px] text-slate-500 dark:text-neutral-400 uppercase font-bold tracking-wider mb-1">Key Depressions</div>
+                <div className="text-2xl font-mono font-black text-slate-900 dark:text-white">{courtEvaluation.totalKeyDepressions}</div>
+                <div className="text-[10px] text-slate-400 dark:text-neutral-400 mt-0.5 font-mono">{courtEvaluation.grossWords} words</div>
+              </div>
+
+              {/* Gross Speed */}
+              <div className="flex flex-col items-center justify-center p-3.5 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-200 dark:border-white/10">
+                <div className="text-[10px] text-slate-500 dark:text-neutral-400 uppercase font-bold tracking-wider mb-1">Gross Speed</div>
+                <div className="text-2xl font-mono font-black text-slate-900 dark:text-white">{courtEvaluation.grossWpm}</div>
+                <div className="text-[10px] text-slate-400 dark:text-neutral-400 mt-0.5 font-mono">WPM (Strokes/50)</div>
+              </div>
+
+              {/* Total Mistakes */}
+              <div className="flex flex-col items-center justify-center p-3.5 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-200 dark:border-white/10">
+                <div className="text-[10px] text-slate-500 dark:text-neutral-400 uppercase font-bold tracking-wider mb-1">Total Mistakes</div>
+                <div className="text-2xl font-mono font-black text-rose-600 dark:text-rose-400">−{courtEvaluation.totalMistakes}</div>
+                <div className="text-[10px] text-slate-400 dark:text-neutral-400 mt-0.5 font-mono">O:{courtEvaluation.omissionsCount} S:{courtEvaluation.substitutionsCount} A:{courtEvaluation.additionsCount}</div>
+              </div>
+
+              {/* Net Speed */}
+              <div className="flex flex-col items-center justify-center p-3.5 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-200 dark:border-white/10">
+                <div className="text-[10px] text-slate-500 dark:text-neutral-400 uppercase font-bold tracking-wider mb-1">Net Speed</div>
+                <div className={`text-2xl font-mono font-black ${courtEvaluation.netWpm >= 30 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                  {courtEvaluation.netWpm}
+                </div>
+                <div className="text-[10px] font-mono font-bold mt-0.5 text-slate-400 dark:text-neutral-400">
+                  Cutoff: ≥ 30 WPM
+                </div>
+              </div>
+
+              {/* Error Rate */}
+              <div className="flex flex-col items-center justify-center p-3.5 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-200 dark:border-white/10">
+                <div className="text-[10px] text-slate-500 dark:text-neutral-400 uppercase font-bold tracking-wider mb-1">Error Rate</div>
+                <div className={`text-2xl font-mono font-black ${courtEvaluation.errorPercentage <= 10 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                  {courtEvaluation.errorPercentage}%
+                </div>
+                <div className="text-[10px] font-mono font-bold mt-0.5 text-slate-400 dark:text-neutral-400">
+                  Limit: ≤ 10.00%
+                </div>
+              </div>
+
+              {/* Accuracy */}
+              <div className="flex flex-col items-center justify-center p-3.5 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-200 dark:border-white/10">
+                <div className="text-[10px] text-slate-500 dark:text-neutral-400 uppercase font-bold tracking-wider mb-1">Accuracy</div>
+                <div className={`text-2xl font-mono font-black ${courtEvaluation.accuracy >= 90 ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`}>
+                  {courtEvaluation.accuracy}%
+                </div>
+                <div className="text-[10px] font-mono font-bold mt-0.5 text-slate-400 dark:text-neutral-400">
+                  Cutoff: ≥ 90%
+                </div>
+              </div>
+            </div>
+
+            {/* Mistakes Detailed Inspection Toggle & List */}
+            {courtEvaluation.mistakesList.length > 0 && (
+              <div className="mt-5 border-t border-slate-200 dark:border-white/10 pt-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-neutral-300">
+                      Mistake Analysis ({courtEvaluation.totalMistakes})
+                    </span>
+                    <span className="text-[10px] text-slate-400 dark:text-neutral-400">
+                      (Omissions: {courtEvaluation.omissionsCount} • Substitutions: {courtEvaluation.substitutionsCount} • Additions: {courtEvaluation.additionsCount})
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => setShowMistakesDetail(!showMistakesDetail)}
+                    className="text-xs font-mono font-semibold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
+                  >
+                    {showMistakesDetail ? 'Hide Word Errors ▲' : 'Inspect Word Errors ▼'}
+                  </button>
+                </div>
+
+                {showMistakesDetail && (
+                  <div className="mt-3 p-3 bg-slate-50 dark:bg-black/30 rounded-xl border border-slate-200 dark:border-white/5 max-h-56 overflow-y-auto scrollbar-thin">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                      {courtEvaluation.mistakesList.map((m, idx) => (
+                        <div
+                          key={idx}
+                          className="p-2 rounded-lg bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-xs font-mono flex flex-col gap-0.5"
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className={`text-[9px] font-bold uppercase px-1.5 py-0.2 rounded ${
+                              m.type === 'omission'
+                                ? 'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-400'
+                                : m.type === 'substitution'
+                                ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400'
+                                : 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400'
+                            }`}>
+                              {m.type}
+                            </span>
+                            <span className="text-[10px] text-slate-400 dark:text-neutral-500">#{idx + 1}</span>
+                          </div>
+                          {m.type === 'omission' && (
+                            <div className="text-rose-600 dark:text-rose-400 truncate">
+                              Skipped: <span className="font-bold underline">{m.expected}</span>
+                            </div>
+                          )}
+                          {m.type === 'substitution' && (
+                            <div className="truncate">
+                              <span className="text-rose-500 line-through mr-1">{m.typed}</span>
+                              <span className="text-emerald-600 dark:text-emerald-400 font-bold">→ {m.expected}</span>
+                            </div>
+                          )}
+                          {m.type === 'addition' && (
+                            <div className="text-blue-600 dark:text-blue-400 truncate">
+                              Extra: <span className="font-bold underline">{m.typed}</span>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Official Spreadsheet Rule Notice */}
+            <div className="mt-5 p-3 rounded-xl bg-amber-500/10 border border-amber-500/25 flex items-start gap-2.5 text-xs text-amber-800 dark:text-amber-300">
+              <span className="text-base shrink-0">📊</span>
+              <div>
+                <span className="font-bold">SSSC Examination Pre-Requisite: </span>
+                <span>{courtEvaluation.spreadsheetNotice}</span>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* Ghost Pacer Race Result Banner */}
@@ -318,14 +581,14 @@ export const Results: React.FC<ResultsProps> = ({ results, onReset, onNewImage, 
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 w-full mb-8">
             <div className="bento-card flex flex-col items-center justify-center py-6 shadow-xs relative overflow-hidden group">
                 <span className="text-slate-900 dark:text-white font-black text-4xl md:text-5xl mb-1">{results.netWpm}</span>
-                <span className="text-slate-500 dark:text-stitch-muted font-bold uppercase tracking-widest text-[11px]">{results.isSSC ? 'Actual Speed' : 'Net WPM'}</span>
-                <span className="text-slate-400 dark:text-stitch-muted text-[10px] mt-1">{results.isSSC ? 'After penalty' : 'Adjusted speed'}</span>
+                <span className="text-slate-500 dark:text-stitch-muted font-bold uppercase tracking-widest text-[11px]">{(results.isCourtExam || results.isSSC) ? 'Net Speed' : 'Net WPM'}</span>
+                <span className="text-slate-400 dark:text-stitch-muted text-[10px] mt-1">{(results.isCourtExam || results.isSSC) ? 'After penalty (SSSC)' : 'Adjusted speed'}</span>
             </div>
 
             <div className="bento-card flex flex-col items-center justify-center py-6 shadow-xs">
                 <span className="text-slate-800 dark:text-stitch-accent font-bold text-3xl mb-1">{results.rawWpm}</span>
-                <span className="text-slate-500 dark:text-stitch-muted font-bold uppercase tracking-widest text-[11px]">{results.isSSC ? 'Tentative Speed' : 'Raw WPM'}</span>
-                 <span className="text-slate-400 dark:text-stitch-muted text-[10px] mt-1">Gross speed</span>
+                <span className="text-slate-500 dark:text-stitch-muted font-bold uppercase tracking-widest text-[11px]">{(results.isCourtExam || results.isSSC) ? 'Gross Speed' : 'Raw WPM'}</span>
+                 <span className="text-slate-400 dark:text-stitch-muted text-[10px] mt-1">{(results.isCourtExam || results.isSSC) ? 'Strokes / 50' : 'Gross speed'}</span>
             </div>
 
              <div className="bento-card flex flex-col items-center justify-center py-6 shadow-xs">

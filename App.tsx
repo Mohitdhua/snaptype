@@ -332,8 +332,9 @@ const App: React.FC = () => {
     selectedTimeLimit: TimeLimit,
     hardcore: HardcoreMode = 'NONE'
   ) => {
-    const isSSC = passage.category === 'ssc' || passage.category === 'legal';
-    const finalTimeLimit = selectedTimeLimit || 900;
+    const isCourtClerk = passage.category === 'court-clerk';
+    const isSSC = isCourtClerk || passage.category === 'ssc' || passage.category === 'legal';
+    const finalTimeLimit = isCourtClerk ? 600 : (selectedTimeLimit || 900);
     startGame({
       rawText: passage.text,
       imageSrc: null,
@@ -703,6 +704,7 @@ const App: React.FC = () => {
                 onComplete={handleComplete}
                 onRestart={goHomeCreate}
                 isSSC={isSSCMode}
+                isCourtExam={isSSCMode}
                 lessonId={activeLessonId || undefined}
                 initialHardcoreMode={hardcoreMode}
                 theme={theme}
@@ -717,6 +719,7 @@ const App: React.FC = () => {
                 referenceText={imagePreview ? null : text}
                 timeLimit={timeLimit}
                 isSSC={isSSCMode}
+                isCourtExam={isSSCMode}
                 onComplete={handleComplete}
                 onRestart={goHomeCreate}
               />
