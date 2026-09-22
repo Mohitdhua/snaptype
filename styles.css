@@ -37,6 +37,12 @@ body {
 }
 
 /* High-Contrast Eye-Soothing Character Tokens */
+.char-token {
+  box-sizing: border-box;
+  vertical-align: top;
+  line-height: inherit;
+}
+
 .char-pending {
   color: rgba(148, 163, 184, 0.6);
 }

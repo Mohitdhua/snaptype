@@ -86,14 +86,7 @@ interface CharItemProps {
 
 const CharItemBase: React.FC<CharItemProps> = ({ char, status, index }) => {
     const isNewline = char === '\n';
-    const isSpace = char === ' ';
-    let className = "relative transition-colors duration-75 ";
-    
-    if (isSpace) {
-      className += "inline ";
-    } else {
-      className += "inline-block ";
-    }
+    let className = "relative transition-colors duration-75 inline-block align-top char-token ";
     
     if (status === 'pending') {
       className += "char-pending";
@@ -106,7 +99,7 @@ const CharItemBase: React.FC<CharItemProps> = ({ char, status, index }) => {
     return (
         <span data-char-idx={index} className={className}>
             {isNewline ? (
-              <span className={status === 'pending' ? "opacity-60 text-[0.8em]" : "text-indigo-500 text-[0.8em]"}>
+              <span className={status === 'pending' ? "opacity-50 text-inherit" : "text-indigo-400 text-inherit"}>
                 {ENTER_SYMBOL}
               </span>
             ) : char}
@@ -146,7 +139,7 @@ const TokenItemBase: React.FC<TokenItemProps> = ({ token, input }) => {
   });
 
   if (token.isWord) {
-    return <span className="inline-block whitespace-nowrap">{renderedChars}</span>;
+    return <span className="inline-block whitespace-nowrap align-top">{renderedChars}</span>;
   }
   return <>{renderedChars}</>;
 };
@@ -192,6 +185,8 @@ export const TypingTest: React.FC<TypingTestProps> = ({
   const [currIndex, setCurrIndex] = useState(0);
   const [hardKeys, setHardKeys] = useState<Record<string, number>>({});
   const [caretPos, setCaretPos] = useState({ top: 0, left: 0, width: 2.5, height: 32 });
+  const [caretTransitionEnabled, setCaretTransitionEnabled] = useState(true);
+  const lastActiveLineTopRef = useRef<number | null>(null);
   const [showKeyboard, setShowKeyboard] = useState(() => {
     try {
       return localStorage.getItem('snaptype_show_keyboard_v1') === 'true';
@@ -366,7 +361,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({
     });
   }, [targetText]);
   const { windowStart, windowEnd } = useMemo(() => {
-    if (targetText.length <= 4000) {
+    if (targetText.length <= 25000) {
       return { windowStart: 0, windowEnd: targetText.length };
     }
     const start = Math.max(0, currIndex - WINDOW_PRE_CHARS);
@@ -407,6 +402,10 @@ export const TypingTest: React.FC<TypingTestProps> = ({
     activeSegmentStartTimeRef.current = null;
     setIsPaused(false);
     setPauseReason(null);
+    lastActiveLineTopRef.current = null;
+    if (containerRef.current) {
+      containerRef.current.scrollTop = 0;
+    }
     if (autoPauseTimeoutRef.current) {
       clearTimeout(autoPauseTimeoutRef.current);
       autoPauseTimeoutRef.current = null;
@@ -708,6 +707,14 @@ export const TypingTest: React.FC<TypingTestProps> = ({
   }, [input, targetText, timeLimit, finishTest]);
 
   // Session shortcuts: Esc to pause/resume or restart, Ctrl/Cmd+Enter to submit, Tab to restart, and block Home/End/PageUp/PageDown
+  const handleRestart = useCallback(() => {
+    lastActiveLineTopRef.current = null;
+    if (containerRef.current) {
+      containerRef.current.scrollTop = 0;
+    }
+    onRestart();
+  }, [onRestart]);
+
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (['Home', 'End', 'PageUp', 'PageDown'].includes(event.key)) {
@@ -728,7 +735,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({
         }
         if (event.key === 'Tab') {
           event.preventDefault();
-          onRestart();
+          handleRestart();
           return;
         }
         if (event.key.length === 1 || event.key === 'Backspace') {
@@ -742,14 +749,14 @@ export const TypingTest: React.FC<TypingTestProps> = ({
         if (startTime && !hasCompletedRef.current) {
           pauseTest('manual');
         } else {
-          onRestart();
+          handleRestart();
         }
         return;
       }
 
       if (event.key === 'Tab') {
         event.preventDefault();
-        onRestart();
+        handleRestart();
         return;
       }
 
@@ -761,9 +768,9 @@ export const TypingTest: React.FC<TypingTestProps> = ({
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [onRestart, startTime, resumeTest, pauseTest]);
+  }, [handleRestart, startTime, resumeTest, pauseTest]);
 
-  // Keep caret aligned to the active character and scroll smoothly when needed.
+  // Keep caret aligned to the active character and scroll discretely line-by-line when needed.
   const updateCaret = useCallback(() => {
     const container = containerRef.current;
     if (!container || chars.length === 0) return;
@@ -772,38 +779,59 @@ export const TypingTest: React.FC<TypingTestProps> = ({
     const cursorEl = container.querySelector(`[data-char-idx="${charIndexToMeasure}"]`) as HTMLSpanElement | null;
     if (!cursorEl) return;
 
-    let containerRect = container.getBoundingClientRect();
-    let cursorRect = cursorEl.getBoundingClientRect();
+    const textFlowEl = container.querySelector('.typing-text-flow') as HTMLDivElement | null;
+    const flowOffsetTop = textFlowEl ? textFlowEl.offsetTop : 0;
 
-    const topMargin = 32;
-    const bottomMargin = 52;
-    const cursorTopInView = cursorRect.top - containerRect.top;
-    const cursorBottomInView = cursorRect.bottom - containerRect.top;
+    // Stable line coordinates: offsetTop is relative to the text flow container
+    const lineTop = cursorEl.offsetTop + flowOffsetTop;
+    const lineHeightPx = Math.round(textScale * 1.65);
+    const caretHeight = Math.max(18, Math.round(textScale * 1.1));
+    const caretTop = lineTop + Math.round((lineHeightPx - caretHeight) / 2);
 
-    let didScroll = false;
-    if (cursorBottomInView > container.clientHeight - bottomMargin) {
-      container.scrollTop += (cursorBottomInView - (container.clientHeight - bottomMargin));
-      didScroll = true;
-    } else if (cursorTopInView < topMargin && container.scrollTop > 0) {
-      container.scrollTop -= (topMargin - cursorTopInView);
-      didScroll = true;
-    }
-
-    if (didScroll) {
-      containerRect = container.getBoundingClientRect();
-      cursorRect = cursorEl.getBoundingClientRect();
-    }
-
+    // Horizontal caret position
+    const containerRect = container.getBoundingClientRect();
+    const cursorRect = cursorEl.getBoundingClientRect();
     let newLeft = cursorRect.left - containerRect.left + container.scrollLeft;
     if (currIndex >= chars.length) {
       newLeft += cursorRect.width;
     }
 
-    const caretHeight = Math.max(16, Math.round(textScale * 0.9));
-    const caretTop = cursorRect.top - containerRect.top + container.scrollTop + (cursorRect.height - caretHeight) / 2;
+    // Caret transition: smooth horizontal gliding within line, instant snap on line change
+    const isLineChange = lastActiveLineTopRef.current === null || Math.abs(lineTop - lastActiveLineTopRef.current) > 8;
+    if (isLineChange) {
+      setCaretTransitionEnabled(false);
+      lastActiveLineTopRef.current = lineTop;
+      requestAnimationFrame(() => {
+        setCaretTransitionEnabled(true);
+      });
+    }
 
-    setCaretPos({ top: caretTop, left: newLeft, width: cursorRect.width || 2.5, height: caretHeight });
-  }, [currIndex, chars.length, textScale, typingFont]);
+    setCaretPos({
+      top: caretTop,
+      left: newLeft,
+      width: cursorRect.width || 2.5,
+      height: caretHeight,
+    });
+
+    // Discrete Line-Locked Viewport Scrolling
+    // CRITICAL: NEVER scroll while typing across the same line!
+    if (isLineChange) {
+      const lineBottomInView = lineTop + lineHeightPx - container.scrollTop;
+      const lineTopInView = lineTop - container.scrollTop;
+      const targetReadingBand = Math.round(container.clientHeight * 0.32);
+
+      // Trigger scroll only when active line moves past lower comfort boundary
+      const lowerBoundary = container.clientHeight - Math.max(70, Math.round(lineHeightPx * 1.4));
+      if (lineBottomInView > lowerBoundary) {
+        const targetScrollTop = Math.max(0, lineTop - targetReadingBand);
+        container.scrollTo({ top: targetScrollTop, behavior: 'smooth' });
+      } else if (lineTopInView < 32 && container.scrollTop > 0) {
+        // Backspaced above the viewport top
+        const targetScrollTop = Math.max(0, lineTop - 32);
+        container.scrollTo({ top: targetScrollTop, behavior: 'smooth' });
+      }
+    }
+  }, [currIndex, chars.length, textScale]);
 
   useEffect(() => {
     const rafId = requestAnimationFrame(updateCaret);
@@ -813,9 +841,17 @@ export const TypingTest: React.FC<TypingTestProps> = ({
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
-    container.addEventListener('scroll', updateCaret, { passive: true });
-    return () => container.removeEventListener('scroll', updateCaret);
+    const handleScroll = () => {
+      updateCaret();
+    };
+    container.addEventListener('scroll', handleScroll, { passive: true });
+    return () => container.removeEventListener('scroll', handleScroll);
   }, [updateCaret]);
+
+  useEffect(() => {
+    lastActiveLineTopRef.current = null;
+    requestAnimationFrame(updateCaret);
+  }, [textScale, updateCaret]);
 
   // Auto-focus input & warm up audio immediately on mount, lock body overflow
   useEffect(() => {
@@ -1232,7 +1268,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({
 
           {/* Exit Test Button */}
           <button 
-            onClick={(e) => { e.stopPropagation(); onRestart(); }} 
+            onClick={(e) => { e.stopPropagation(); handleRestart(); }} 
             className="h-8 w-8 rounded-lg flex items-center justify-center text-neutral-400 hover:text-white bg-white/5 hover:bg-white/10 border border-white/8 transition-all"
             title="Exit Test (Esc)"
           >
@@ -1623,7 +1659,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({
                 </kbd>
               </button>
               <button
-                onClick={(e) => { e.stopPropagation(); onRestart(); }}
+                onClick={(e) => { e.stopPropagation(); handleRestart(); }}
                 className="py-3 px-5 rounded-2xl font-semibold text-sm bg-white/10 hover:bg-white/15 text-neutral-300 hover:text-white border border-white/10 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95"
                 title="Restart Session (Tab)"
               >
@@ -1667,7 +1703,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({
                 top: 0, 
                 left: 0,
                 transform: `translate(${caretPos.left}px, ${caretPos.top}px)`,
-                transition: 'transform 0.08s cubic-bezier(0.16, 1, 0.3, 1)', 
+                transition: caretTransitionEnabled ? 'transform 0.08s cubic-bezier(0.16, 1, 0.3, 1)' : 'none', 
               }}
             />
           )}
@@ -1680,7 +1716,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({
                 top: 0, 
                 left: 0,
                 transform: `translate(${caretPos.left}px, ${caretPos.top}px)`,
-                transition: 'transform 0.08s cubic-bezier(0.16, 1, 0.3, 1)', 
+                transition: caretTransitionEnabled ? 'transform 0.08s cubic-bezier(0.16, 1, 0.3, 1)' : 'none', 
               }}
             />
           )}
@@ -1692,7 +1728,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({
                 top: 0, 
                 left: 0,
                 transform: `translate(${caretPos.left}px, ${caretPos.top + (caretPos.height || textScale * 1.15) - 3}px)`,
-                transition: 'transform 0.08s cubic-bezier(0.16, 1, 0.3, 1)', 
+                transition: caretTransitionEnabled ? 'transform 0.08s cubic-bezier(0.16, 1, 0.3, 1)' : 'none', 
               }}
             />
           )}
@@ -1749,7 +1785,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({
 
               if (e.key === 'Tab') {
                 e.preventDefault();
-                onRestart();
+                handleRestart();
                 return;
               }
 
