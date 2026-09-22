@@ -542,7 +542,9 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-stitch-dark text-stitch-accent font-sans relative overflow-hidden">
+    <div className={`min-h-screen font-sans relative overflow-x-hidden transition-colors duration-200 ${
+      theme === 'light' ? 'bg-[#f8fafc] text-slate-900' : 'bg-[#0c1017] text-slate-100'
+    }`}>
       <div className="mesh-bg" />
 
       {gameState === GameState.UPLOAD && (
@@ -550,25 +552,31 @@ const App: React.FC = () => {
         <div className="max-w-7xl mx-auto flex flex-col gap-2 pointer-events-auto items-center">
 
           {/* Main Top Nav Bar */}
-          <div className="flex items-center justify-between w-full max-w-5xl px-4 md:px-6 py-2.5 rounded-2xl md:rounded-full bg-neutral-950/80 backdrop-blur-xl border border-white/10 shadow-2xl">
+          <div className={`flex items-center justify-between w-full max-w-5xl px-4 md:px-6 py-2.5 rounded-2xl md:rounded-full backdrop-blur-xl border transition-all duration-200 ${
+            theme === 'light'
+              ? 'bg-white/95 border-slate-200/90 shadow-lg shadow-slate-200/40 text-slate-900'
+              : 'bg-[#131924]/90 border-white/10 shadow-2xl text-slate-100'
+          }`}>
             <button
               type="button"
               className="flex items-center gap-2.5 hover:opacity-85 transition-opacity shrink-0"
               onClick={goHomeCreate}
               title="SnapType Typing Master Home"
             >
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-500 to-cyan-400 flex items-center justify-center shadow-md">
-                <span className="text-white font-black text-base leading-none">S</span>
+              <div className="w-8 h-8 rounded-xl bg-indigo-600 flex items-center justify-center shadow-sm">
+                <span className="text-white font-black text-base leading-none keep-white">S</span>
               </div>
               <div className="text-left hidden sm:block">
-                <div className="text-sm font-extrabold tracking-tight text-white leading-tight">SnapType</div>
-                <div className="text-[9px] font-mono text-cyan-400 leading-none">Blind Typing Pro</div>
+                <div className={`text-sm font-extrabold tracking-tight leading-tight ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>SnapType</div>
+                <div className="text-[9px] font-mono text-indigo-500 dark:text-indigo-400 font-semibold leading-none">Blind Typing Pro</div>
               </div>
             </button>
 
             {/* Desktop Navigation Tabs */}
             {gameState === GameState.UPLOAD && (
-              <nav className="hidden md:flex items-center gap-1 bg-white/5 rounded-full p-1 border border-white/10">
+              <nav className={`hidden md:flex items-center gap-1 rounded-full p-1 border ${
+                theme === 'light' ? 'bg-slate-100 border-slate-200' : 'bg-white/5 border-white/10'
+              }`}>
                 {HOME_TABS.map(tab => {
                   const isActive = homeTab === tab.id;
                   return (
@@ -576,10 +584,10 @@ const App: React.FC = () => {
                       key={tab.id}
                       type="button"
                       onClick={() => setHomeTab(tab.id)}
-                      className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 ${
+                      className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 ${
                         isActive
-                          ? 'bg-white text-black shadow-lg shadow-white/10'
-                          : 'text-neutral-400 hover:text-white hover:bg-white/5'
+                          ? (theme === 'light' ? 'bg-white text-slate-900 shadow-sm font-bold' : 'bg-white text-black shadow-md font-bold')
+                          : (theme === 'light' ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60' : 'text-neutral-400 hover:text-white hover:bg-white/5')
                       }`}
                     >
                       <span>{tab.icon}</span>
@@ -596,7 +604,11 @@ const App: React.FC = () => {
               <button
                 type="button"
                 onClick={toggleTheme}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border bg-white/5 hover:bg-white/10 border-white/10 text-xs font-medium transition-all text-neutral-300 hover:text-white"
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-medium transition-all ${
+                  theme === 'light'
+                    ? 'bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-700'
+                    : 'bg-white/5 hover:bg-white/10 border-white/10 text-neutral-300 hover:text-white'
+                }`}
                 title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
                 aria-label="Toggle Light/Dark Theme"
               >
@@ -616,20 +628,22 @@ const App: React.FC = () => {
                 </button>
               )}
               {userStats && (
-                <div className="flex items-center gap-2.5 text-xs font-mono bg-white/5 px-3 py-1.5 rounded-xl border border-white/10">
+                <div className={`flex items-center gap-2.5 text-xs font-mono px-3 py-1.5 rounded-xl border ${
+                  theme === 'light' ? 'bg-slate-100 border-slate-200 text-slate-700' : 'bg-white/5 border-white/10 text-neutral-300'
+                }`}>
                   <div className="flex items-center gap-1" title="Daily Practice Streak">
                     <span>🔥</span>
-                    <span className="text-orange-400 font-bold">{userStats.currentStreak}d</span>
+                    <span className="text-amber-500 font-bold">{userStats.currentStreak}d</span>
                   </div>
-                  <div className="w-px h-3 bg-white/20" />
+                  <div className={`w-px h-3 ${theme === 'light' ? 'bg-slate-300' : 'bg-white/20'}`} />
                   <div className="flex items-center gap-1" title="Earned XP">
-                    <span className="text-amber-400">⭐</span>
-                    <span className="text-white font-bold">{userStats.xp}</span>
+                    <span className="text-amber-500">⭐</span>
+                    <span className={`font-bold ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>{userStats.xp}</span>
                   </div>
                   {userStats.bestWpm > 0 && (
                     <>
-                      <div className="w-px h-3 bg-white/20 hidden sm:block" />
-                      <div className="hidden sm:flex items-center gap-1 text-cyan-300 font-bold" title="Personal Best WPM">
+                      <div className={`w-px h-3 ${theme === 'light' ? 'bg-slate-300' : 'bg-white/20'} hidden sm:block`} />
+                      <div className="hidden sm:flex items-center gap-1 text-indigo-500 dark:text-indigo-400 font-bold" title="Personal Best WPM">
                         <span>⚡</span>
                         <span>{userStats.bestWpm} WPM</span>
                       </div>
@@ -642,14 +656,18 @@ const App: React.FC = () => {
 
           {/* Mobile Nav Bar */}
           {gameState === GameState.UPLOAD && (
-            <nav className="flex md:hidden items-center gap-1 bg-neutral-950/90 backdrop-blur-md rounded-2xl p-1 border border-white/10 w-fit max-w-full overflow-x-auto px-2 scrollbar-none shadow-lg">
+            <nav className={`flex md:hidden items-center gap-1 rounded-2xl p-1 border w-fit max-w-full overflow-x-auto px-2 scrollbar-none shadow-md ${
+              theme === 'light' ? 'bg-white/95 border-slate-200' : 'bg-[#131924]/90 backdrop-blur-md border-white/10'
+            }`}>
               {HOME_TABS.map(tab => (
                 <button
                   key={tab.id}
                   type="button"
                   onClick={() => setHomeTab(tab.id)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1 ${
-                    homeTab === tab.id ? 'bg-white text-black shadow-md' : 'text-neutral-400 hover:text-white'
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1 ${
+                    homeTab === tab.id
+                      ? (theme === 'light' ? 'bg-slate-100 text-slate-900 font-bold' : 'bg-white text-black shadow-md font-bold')
+                      : (theme === 'light' ? 'text-slate-600 hover:text-slate-900' : 'text-neutral-400 hover:text-white')
                   }`}
                 >
                   <span>{tab.icon}</span>
