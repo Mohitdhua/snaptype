@@ -546,16 +546,26 @@ export const TypingTest: React.FC<TypingTestProps> = ({
     }
   }, [input, targetText, timeLimit, finishTest]);
 
-  // Session shortcuts: Esc to restart, Ctrl/Cmd+Enter to submit
+  // Session shortcuts: Esc to restart, Ctrl/Cmd+Enter to submit, Tab to restart, and block Home/End/PageUp/PageDown
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
+      if (['Home', 'End', 'PageUp', 'PageDown'].includes(event.key)) {
+        event.preventDefault();
+        if (inputRef.current) {
+          const len = inputRef.current.value.length;
+          inputRef.current.setSelectionRange(len, len);
+        }
+        return;
+      }
+      if (event.key === 'Escape' || event.key === 'Tab') {
         event.preventDefault();
         onRestart();
+        return;
       }
       if ((event.ctrlKey || event.metaKey) && event.key === 'Enter' && startTime) {
         event.preventDefault();
         finishTestRef.current?.();
+        return;
       }
     };
     window.addEventListener('keydown', onKeyDown);
@@ -623,14 +633,58 @@ export const TypingTest: React.FC<TypingTestProps> = ({
     requestAnimationFrame(updateCaret);
   }, [updateCaret]);
 
+  const syncCaretToEnd = useCallback(() => {
+    if (inputRef.current) {
+      const len = inputRef.current.value.length;
+      inputRef.current.setSelectionRange(len, len);
+    }
+  }, []);
+
+  const focusInput = useCallback(() => {
+    if (inputRef.current) {
+      inputRef.current.focus();
+      const len = inputRef.current.value.length;
+      inputRef.current.setSelectionRange(len, len);
+    }
+  }, []);
+
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     if (hasCompletedRef.current) return;
-    const val = e.target.value.slice(0, targetText.length);
+    const rawVal = e.target.value.slice(0, targetText.length);
     const prevInput = input;
     if (!startTime) setStartTime(Date.now());
 
+    // Defensive check: if cursor was somehow displaced (e.g. Home key pressed or mouse clicked)
+    // and a character was inserted at index 0 or mid-text, never shift existing text!
+    // Instead, extract the newly typed character and append it cleanly to prevInput.
+    let val = rawVal;
+    if (rawVal.length > prevInput.length && !rawVal.startsWith(prevInput)) {
+      let newChar = '';
+      if (rawVal.endsWith(prevInput)) {
+        // Character was inserted at index 0 (e.g. user pressed Home key right before typing)
+        newChar = rawVal.slice(0, rawVal.length - prevInput.length);
+      } else {
+        // Character was inserted mid-text: extract the first differing character
+        for (let i = 0; i < rawVal.length; i++) {
+          if (i >= prevInput.length || rawVal[i] !== prevInput[i]) {
+            newChar = rawVal[i];
+            break;
+          }
+        }
+      }
+      val = (prevInput + newChar).slice(0, targetText.length);
+      if (inputRef.current) {
+        inputRef.current.value = val;
+        inputRef.current.setSelectionRange(val.length, val.length);
+      }
+    }
+
     // Enforce NO_BACKSPACE mode
     if (hardcoreMode === 'NO_BACKSPACE' && val.length < prevInput.length) {
+      if (inputRef.current) {
+        inputRef.current.value = prevInput;
+        inputRef.current.setSelectionRange(prevInput.length, prevInput.length);
+      }
       if (soundProfile !== 'off') playSound('error');
       setHasErrorShake(true);
       setBackspaceBlockedToast(true);
@@ -642,8 +696,13 @@ export const TypingTest: React.FC<TypingTestProps> = ({
 
     // Enforce STOP_ON_ERROR mode
     if (hardcoreMode === 'STOP_ON_ERROR' && val.length > prevInput.length) {
-      const newCharIndex = val.length - 1;
-      if (newCharIndex < targetText.length && val[newCharIndex] !== targetText[newCharIndex]) {
+      const newCharIndex = prevInput.length;
+      const typedChar = val[val.length - 1];
+      if (newCharIndex < targetText.length && typedChar !== targetText[newCharIndex]) {
+        if (inputRef.current) {
+          inputRef.current.value = prevInput;
+          inputRef.current.setSelectionRange(prevInput.length, prevInput.length);
+        }
         if (soundProfile !== 'off') playSound('error');
         setHasErrorShake(true);
         setTimeout(() => setHasErrorShake(false), 180);
@@ -656,8 +715,9 @@ export const TypingTest: React.FC<TypingTestProps> = ({
 
     // Enforce SUDDEN_DEATH mode
     if (hardcoreMode === 'SUDDEN_DEATH' && val.length > prevInput.length) {
-      const newCharIndex = val.length - 1;
-      if (newCharIndex < targetText.length && val[newCharIndex] !== targetText[newCharIndex]) {
+      const newCharIndex = prevInput.length;
+      const typedChar = val[val.length - 1];
+      if (newCharIndex < targetText.length && typedChar !== targetText[newCharIndex]) {
         if (soundProfile !== 'off') playSound('error');
         setHasErrorShake(true);
         setInput(val);
@@ -756,8 +816,6 @@ export const TypingTest: React.FC<TypingTestProps> = ({
     setInput(val);
     setCurrIndex(val.length);
   };
-
-  const focusInput = () => inputRef.current?.focus();
   const stats = calculateStats(false);
   const progressPercent = targetText.length === 0 ? 0 : Math.min(100, Math.round((input.length / targetText.length) * 100));
   const lineHeight = 1.65;
@@ -782,16 +840,6 @@ export const TypingTest: React.FC<TypingTestProps> = ({
       if (!startTime) displayTime = timeLimit;
   }
 
-  useEffect(() => {
-    const handleGlobalKey = (e: KeyboardEvent) => {
-      if (e.key === 'Tab') {
-        e.preventDefault();
-        onRestart();
-      }
-    };
-    window.addEventListener('keydown', handleGlobalKey);
-    return () => window.removeEventListener('keydown', handleGlobalKey);
-  }, [onRestart]);
 
   const formatTime = (secs: number) => {
       const m = Math.floor(secs / 60);
@@ -1281,21 +1329,48 @@ export const TypingTest: React.FC<TypingTestProps> = ({
             {suffixText && <span className="char-pending">{suffixText}</span>}
           </div>
           
-          {/* Hidden Textarea (supports native focus and keyboard events) */}
+          {/* Hidden Textarea (supports native focus and keyboard events, strictly pinned to append-only) */}
           <textarea
             ref={inputRef}
             className="opacity-0 absolute inset-0 w-full h-full cursor-text z-30 pointer-events-auto resize-none select-none"
             value={input}
             onChange={handleInputChange}
             onBlur={focusInput}
+            onSelect={(e) => {
+              const len = e.currentTarget.value.length;
+              if (e.currentTarget.selectionStart !== len || e.currentTarget.selectionEnd !== len) {
+                e.currentTarget.setSelectionRange(len, len);
+              }
+            }}
+            onClick={(e) => {
+              e.preventDefault();
+              focusInput();
+              syncCaretToEnd();
+            }}
+            onMouseDown={() => {
+              focusInput();
+            }}
+            onPaste={(e) => {
+              e.preventDefault();
+            }}
             onKeyDown={(e) => {
+              // Block all cursor displacement keys
+              if (['Home', 'End', 'PageUp', 'PageDown', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) {
+                e.preventDefault();
+                syncCaretToEnd();
+                return;
+              }
+
               if (e.key === 'Tab') {
                 e.preventDefault();
                 onRestart();
+                return;
               }
+
               if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && startTime) {
                 e.preventDefault();
                 finishTestRef.current?.();
+                return;
               }
             }}
             autoComplete="off"
