@@ -32,6 +32,26 @@ export interface CourtWordMistake {
   typed?: string;
 }
 
+export interface ComparisonToken {
+  type: 'correct' | 'substitution' | 'omission' | 'addition';
+  expected?: string;
+  typed?: string;
+  origIndex?: number;
+  typedIndex?: number;
+}
+
+export interface FullComparisonData {
+  tokens: ComparisonToken[];
+  unattemptedWords: string[];
+  totalOriginalWords: number;
+  totalTypedWords: number;
+  correctCount: number;
+  substitutionCount: number;
+  omissionCount: number;
+  additionCount: number;
+  unattemptedCount: number;
+}
+
 export interface CourtExamEvaluation {
   examName: string;
   durationMinutes: number;
@@ -43,6 +63,7 @@ export interface CourtExamEvaluation {
   substitutionsCount: number;
   additionsCount: number;
   mistakesList: CourtWordMistake[];
+  comparisonData?: FullComparisonData;
   netWords: number;
   netWpm: number;
   errorPercentage: number;

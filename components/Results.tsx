@@ -9,7 +9,8 @@ import { CertificateModal } from './CertificateModal';
 import { DiagnosticReportModal } from './DiagnosticReportModal';
 import { ComposedChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { playSound } from '../services/soundService';
-import { evaluateCourtTypingTest } from '../services/courtEvaluationService';
+import { evaluateCourtTypingTest, generateFullComparison } from '../services/courtEvaluationService';
+import { FullPassageComparison } from './FullPassageComparison';
 
 interface ResultsProps {
   results: TestResults;
@@ -97,8 +98,6 @@ export const Results: React.FC<ResultsProps> = ({ results, onReset, onNewImage, 
     return results.examEval || calculateExamEvaluation(results, examCategory);
   }, [results, examCategory]);
 
-  const [showMistakesDetail, setShowMistakesDetail] = useState(false);
-
   const courtEvaluation = useMemo(() => {
     if (results.courtExam) return results.courtExam;
     if (results.isCourtExam || results.isSSC) {
@@ -111,6 +110,18 @@ export const Results: React.FC<ResultsProps> = ({ results, onReset, onNewImage, 
     }
     return null;
   }, [results]);
+
+  const fullComparisonData = useMemo(() => {
+    if (courtEvaluation?.comparisonData) {
+      return courtEvaluation.comparisonData;
+    }
+    const orig = results.originalText || '';
+    const typed = results.typedText || '';
+    if (orig.trim() || typed.trim()) {
+      return generateFullComparison(orig, typed);
+    }
+    return null;
+  }, [courtEvaluation, results.originalText, results.typedText]);
 
   const handlePrintScorecard = () => {
     if (!courtEvaluation) return;
@@ -452,67 +463,20 @@ export const Results: React.FC<ResultsProps> = ({ results, onReset, onNewImage, 
               </div>
             </div>
 
-            {/* Mistakes Detailed Inspection Toggle & List */}
-            {courtEvaluation.mistakesList.length > 0 && (
-              <div className="mt-5 border-t border-slate-200 dark:border-white/10 pt-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-neutral-300">
-                      Mistake Analysis ({courtEvaluation.totalMistakes})
-                    </span>
-                    <span className="text-[10px] text-slate-400 dark:text-neutral-400">
-                      (Omissions: {courtEvaluation.omissionsCount} • Substitutions: {courtEvaluation.substitutionsCount} • Additions: {courtEvaluation.additionsCount})
-                    </span>
-                  </div>
-                  <button
-                    onClick={() => setShowMistakesDetail(!showMistakesDetail)}
-                    className="text-xs font-mono font-semibold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
-                  >
-                    {showMistakesDetail ? 'Hide Word Errors ▲' : 'Inspect Word Errors ▼'}
-                  </button>
+            {/* Quick Summary of Mistake Types */}
+            {courtEvaluation.totalMistakes > 0 && (
+              <div className="mt-5 border-t border-slate-200 dark:border-white/10 pt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-neutral-200">
+                    Mistake Classification:
+                  </span>
+                  <span className="text-[11px] font-mono text-slate-600 dark:text-neutral-300">
+                    Omissions: <strong className="text-amber-600 dark:text-amber-400">{courtEvaluation.omissionsCount}</strong> • Substitutions: <strong className="text-rose-600 dark:text-rose-400">{courtEvaluation.substitutionsCount}</strong> • Additions: <strong className="text-blue-600 dark:text-blue-400">{courtEvaluation.additionsCount}</strong>
+                  </span>
                 </div>
-
-                {showMistakesDetail && (
-                  <div className="mt-3 p-3 bg-slate-50 dark:bg-black/30 rounded-xl border border-slate-200 dark:border-white/5 max-h-56 overflow-y-auto scrollbar-thin">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
-                      {courtEvaluation.mistakesList.map((m, idx) => (
-                        <div
-                          key={idx}
-                          className="p-2 rounded-lg bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-xs font-mono flex flex-col gap-0.5"
-                        >
-                          <div className="flex items-center justify-between">
-                            <span className={`text-[9px] font-bold uppercase px-1.5 py-0.2 rounded ${
-                              m.type === 'omission'
-                                ? 'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-400'
-                                : m.type === 'substitution'
-                                ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400'
-                                : 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400'
-                            }`}>
-                              {m.type}
-                            </span>
-                            <span className="text-[10px] text-slate-400 dark:text-neutral-500">#{idx + 1}</span>
-                          </div>
-                          {m.type === 'omission' && (
-                            <div className="text-rose-600 dark:text-rose-400 truncate">
-                              Skipped: <span className="font-bold underline">{m.expected}</span>
-                            </div>
-                          )}
-                          {m.type === 'substitution' && (
-                            <div className="truncate">
-                              <span className="text-rose-500 line-through mr-1">{m.typed}</span>
-                              <span className="text-emerald-600 dark:text-emerald-400 font-bold">→ {m.expected}</span>
-                            </div>
-                          )}
-                          {m.type === 'addition' && (
-                            <div className="text-blue-600 dark:text-blue-400 truncate">
-                              Extra: <span className="font-bold underline">{m.typed}</span>
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                <div className="text-xs font-mono font-semibold text-indigo-600 dark:text-indigo-400 flex items-center gap-1">
+                  <span>↓ Full word-by-word comparison below</span>
+                </div>
               </div>
             )}
 
@@ -525,6 +489,14 @@ export const Results: React.FC<ResultsProps> = ({ results, onReset, onNewImage, 
               </div>
             </div>
           </div>
+        )}
+
+        {/* Full Word-by-Word Passage & Typo Comparison (Collapsible / Hideable) */}
+        {fullComparisonData && (
+          <FullPassageComparison
+            comparisonData={fullComparisonData}
+            initialExpanded={true}
+          />
         )}
 
         {/* Ghost Pacer Race Result Banner */}

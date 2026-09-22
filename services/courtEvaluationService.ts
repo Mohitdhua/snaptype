@@ -1,4 +1,4 @@
-import { CourtExamEvaluation, CourtWordMistake } from '../types';
+import { CourtExamEvaluation, CourtWordMistake, ComparisonToken, FullComparisonData } from '../types';
 
 /**
  * Tokenizes text into word tokens preserving punctuation attached to words.
@@ -6,6 +6,15 @@ import { CourtExamEvaluation, CourtWordMistake } from '../types';
 export function tokenizeWords(text: string): string[] {
   if (!text) return [];
   return text.trim().split(/\s+/).filter(Boolean);
+}
+
+export interface AlignPassageResult {
+  omissions: string[];
+  substitutions: { expected: string; typed: string }[];
+  additions: string[];
+  mistakesList: CourtWordMistake[];
+  comparisonTokens: ComparisonToken[];
+  unattemptedWords: string[];
 }
 
 /**
@@ -16,17 +25,19 @@ export function tokenizeWords(text: string): string[] {
 export function alignCourtPassage(
   originalWords: string[],
   typedWords: string[]
-): {
-  omissions: string[];
-  substitutions: { expected: string; typed: string }[];
-  additions: string[];
-  mistakesList: CourtWordMistake[];
-} {
+): AlignPassageResult {
   const n = originalWords.length;
   const m = typedWords.length;
 
   if (m === 0) {
-    return { omissions: [], substitutions: [], additions: [], mistakesList: [] };
+    return {
+      omissions: [],
+      substitutions: [],
+      additions: [],
+      mistakesList: [],
+      comparisonTokens: [],
+      unattemptedWords: [...originalWords],
+    };
   }
 
   if (n === 0) {
@@ -36,7 +47,19 @@ export function alignCourtPassage(
       wordIndex: idx,
       typed: w,
     }));
-    return { omissions: [], substitutions: [], additions, mistakesList };
+    const comparisonTokens: ComparisonToken[] = typedWords.map((w, idx) => ({
+      type: 'addition',
+      typed: w,
+      typedIndex: idx,
+    }));
+    return {
+      omissions: [],
+      substitutions: [],
+      additions,
+      mistakesList,
+      comparisonTokens,
+      unattemptedWords: [],
+    };
   }
 
   // DP table: dp[i][j] where i in [0..n], j in [0..m]
@@ -98,6 +121,7 @@ export function alignCourtPassage(
   const substitutions: { expected: string; typed: string }[] = [];
   const additions: string[] = [];
   const mistakesList: CourtWordMistake[] = [];
+  const comparisonTokens: ComparisonToken[] = [];
 
   let curI = bestI;
   let curJ = m;
@@ -118,6 +142,21 @@ export function alignCourtPassage(
             expected: origWord,
             typed: typedWord,
           });
+          comparisonTokens.unshift({
+            type: 'substitution',
+            expected: origWord,
+            typed: typedWord,
+            origIndex: curI - 1,
+            typedIndex: curJ - 1,
+          });
+        } else {
+          comparisonTokens.unshift({
+            type: 'correct',
+            expected: origWord,
+            typed: typedWord,
+            origIndex: curI - 1,
+            typedIndex: curJ - 1,
+          });
         }
         curI--;
         curJ--;
@@ -133,6 +172,11 @@ export function alignCourtPassage(
         wordIndex: curJ - 1,
         typed: typedWord,
       });
+      comparisonTokens.unshift({
+        type: 'addition',
+        typed: typedWord,
+        typedIndex: curJ - 1,
+      });
       curJ--;
       continue;
     }
@@ -145,6 +189,11 @@ export function alignCourtPassage(
         wordIndex: curJ,
         expected: origWord,
       });
+      comparisonTokens.unshift({
+        type: 'omission',
+        expected: origWord,
+        origIndex: curI - 1,
+      });
       curI--;
       continue;
     }
@@ -154,7 +203,45 @@ export function alignCourtPassage(
     else if (curJ > 0) curJ--;
   }
 
-  return { omissions, substitutions, additions, mistakesList };
+  const unattemptedWords = originalWords.slice(bestI);
+
+  return { omissions, substitutions, additions, mistakesList, comparisonTokens, unattemptedWords };
+}
+
+/**
+ * Generates a comprehensive word-by-word diff comparison data between original passage and typed response.
+ */
+export function generateFullComparison(
+  originalText: string,
+  typedText: string
+): FullComparisonData {
+  const origTokens = tokenizeWords(originalText);
+  const typedTokens = tokenizeWords(typedText);
+  const align = alignCourtPassage(origTokens, typedTokens);
+
+  let correctCount = 0;
+  let substitutionCount = 0;
+  let omissionCount = 0;
+  let additionCount = 0;
+
+  for (const t of align.comparisonTokens) {
+    if (t.type === 'correct') correctCount++;
+    else if (t.type === 'substitution') substitutionCount++;
+    else if (t.type === 'omission') omissionCount++;
+    else if (t.type === 'addition') additionCount++;
+  }
+
+  return {
+    tokens: align.comparisonTokens,
+    unattemptedWords: align.unattemptedWords,
+    totalOriginalWords: origTokens.length,
+    totalTypedWords: typedTokens.length,
+    correctCount,
+    substitutionCount,
+    omissionCount,
+    additionCount,
+    unattemptedCount: align.unattemptedWords.length,
+  };
 }
 
 /**
@@ -193,13 +280,27 @@ export function evaluateCourtTypingTest(
   const grossWords = Number((strokes / 5).toFixed(2));
   const grossWpm = Number((grossWords / durationMinutes).toFixed(2));
 
-  // Align words to calculate omissions, substitutions, and additions
-  const { omissions, substitutions, additions, mistakesList } = alignCourtPassage(origTokens, typedTokens);
+  // Align words to calculate omissions, substitutions, additions, and comparison tokens
+  const { omissions, substitutions, additions, mistakesList, comparisonTokens, unattemptedWords } =
+    alignCourtPassage(origTokens, typedTokens);
 
   const omissionsCount = omissions.length;
   const substitutionsCount = substitutions.length;
   const additionsCount = additions.length;
   const totalMistakes = omissionsCount + substitutionsCount + additionsCount;
+
+  // Comparison data structure for full side-by-side / diff audit
+  const comparisonData: FullComparisonData = {
+    tokens: comparisonTokens,
+    unattemptedWords,
+    totalOriginalWords: origTokens.length,
+    totalTypedWords: typedTokens.length,
+    correctCount: comparisonTokens.filter(t => t.type === 'correct').length,
+    substitutionCount: substitutionsCount,
+    omissionCount: omissionsCount,
+    additionCount: additionsCount,
+    unattemptedCount: unattemptedWords.length,
+  };
 
   // Each mistake deducts 1 full word from gross words
   const netWords = Math.max(0, Number((grossWords - totalMistakes).toFixed(2)));
@@ -245,6 +346,7 @@ export function evaluateCourtTypingTest(
     substitutionsCount,
     additionsCount,
     mistakesList,
+    comparisonData,
     netWords,
     netWpm,
     errorPercentage,
