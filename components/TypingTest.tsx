@@ -1266,13 +1266,14 @@ export const TypingTest: React.FC<TypingTestProps> = ({
             <kbd className="hidden md:inline-block text-[9px] font-mono font-normal bg-black/10 px-1 py-0.5 rounded text-neutral-700">Ctrl+↵</kbd>
           </button>
 
-          {/* Exit Test Button */}
+          {/* Back / Exit Test Button */}
           <button 
             onClick={(e) => { e.stopPropagation(); handleRestart(); }} 
-            className="h-8 w-8 rounded-lg flex items-center justify-center text-neutral-400 hover:text-white bg-white/5 hover:bg-white/10 border border-white/8 transition-all"
-            title="Exit Test (Esc)"
+            className="h-8 px-2.5 rounded-lg flex items-center gap-1.5 text-xs font-semibold text-neutral-300 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 transition-all cursor-pointer"
+            title="Back to Menu / Exit Test (Esc)"
           >
-            ✕
+            <span className="text-sm font-bold leading-none">←</span>
+            <span>Back</span>
           </button>
         </div>
       </div>

@@ -69,6 +69,29 @@ const App: React.FC = () => {
   const [activeExerciseIndex, setActiveExerciseIndex] = useState<number>(0);
   const [theme, setTheme] = useState<Theme>(() => getStoredTheme());
 
+  const [tabHistory, setTabHistory] = useState<HomeTab[]>(['LESSONS']);
+
+  const navigateToTab = (nextTab: HomeTab) => {
+    if (nextTab !== homeTab) {
+      setTabHistory(prev => [...prev, nextTab]);
+      setHomeTab(nextTab);
+    }
+  };
+
+  const handleInAppBack = () => {
+    if (gameState === GameState.PLAYING || gameState === GameState.RESULTS) {
+      goHomeCreate();
+    } else if (tabHistory.length > 1) {
+      const nextHistory = [...tabHistory];
+      nextHistory.pop(); // remove current tab
+      const previousTab = nextHistory[nextHistory.length - 1] || 'LESSONS';
+      setTabHistory(nextHistory);
+      setHomeTab(previousTab);
+    }
+  };
+
+  const canGoBack = gameState !== GameState.UPLOAD || tabHistory.length > 1;
+
   useEffect(() => {
     applyTheme(theme);
   }, [theme]);
@@ -100,7 +123,7 @@ const App: React.FC = () => {
       isRestoringFromHistoryRef.current = true;
       setGameState(state.gameState);
       if (state.gameState === GameState.UPLOAD) {
-        setHomeTab(state.homeTab || 'CREATE');
+        setHomeTab(state.homeTab || 'LESSONS');
       }
     };
 
@@ -518,7 +541,7 @@ const App: React.FC = () => {
           ) : (
             <div className="bento-card p-8 text-center flex flex-col items-center">
               <p className="text-stitch-muted mb-4">No saved tests yet. Create one from image or text.</p>
-              <Button onClick={() => setHomeTab('CREATE')}>Create First Test</Button>
+              <Button onClick={() => navigateToTab('CREATE')}>Create First Test</Button>
             </div>
           )}
         </div>
@@ -533,7 +556,7 @@ const App: React.FC = () => {
               history={history}
               stats={userStats}
               onLaunchDrill={handleSelectLessonExercise}
-              onNavigateTab={(tab) => setHomeTab(tab)}
+              onNavigateTab={(tab) => navigateToTab(tab)}
             />
           </Suspense>
         </div>
@@ -551,7 +574,7 @@ const App: React.FC = () => {
     }`}>
       <div className="mesh-bg" />
 
-      {gameState === GameState.UPLOAD && (
+      {gameState !== GameState.PLAYING && (
       <header className="fixed top-0 left-0 right-0 p-3 md:p-4 z-50 pointer-events-none">
         <div className="max-w-7xl mx-auto flex flex-col gap-2 pointer-events-auto items-center">
 
@@ -561,20 +584,38 @@ const App: React.FC = () => {
               ? 'bg-white/95 border-slate-200/90 shadow-lg shadow-slate-200/40 text-slate-900'
               : 'bg-[#131924]/90 border-white/10 shadow-2xl text-slate-100'
           }`}>
-            <button
-              type="button"
-              className="flex items-center gap-2.5 hover:opacity-85 transition-opacity shrink-0"
-              onClick={goHomeCreate}
-              title="SnapType Typing Master Home"
-            >
-              <div className="w-8 h-8 rounded-xl bg-indigo-600 flex items-center justify-center shadow-sm">
-                <span className="text-white font-black text-base leading-none keep-white">S</span>
-              </div>
-              <div className="text-left hidden sm:block">
-                <div className={`text-sm font-extrabold tracking-tight leading-tight ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>SnapType</div>
-                <div className="text-[9px] font-mono text-indigo-500 dark:text-indigo-400 font-semibold leading-none">Blind Typing Pro</div>
-              </div>
-            </button>
+            <div className="flex items-center gap-2 shrink-0">
+              {canGoBack && (
+                <button
+                  type="button"
+                  onClick={handleInAppBack}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer shadow-xs ${
+                    theme === 'light'
+                      ? 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-800'
+                      : 'bg-white/10 hover:bg-white/20 border-white/15 text-white'
+                  }`}
+                  title="Back to Previous View / वापस जाएं"
+                >
+                  <span className="text-sm leading-none font-bold">←</span>
+                  <span className="hidden sm:inline">Back</span>
+                </button>
+              )}
+
+              <button
+                type="button"
+                className="flex items-center gap-2.5 hover:opacity-85 transition-opacity shrink-0"
+                onClick={goHomeCreate}
+                title="SnapType Typing Master Home"
+              >
+                <div className="w-8 h-8 rounded-xl bg-indigo-600 flex items-center justify-center shadow-sm">
+                  <span className="text-white font-black text-base leading-none keep-white">S</span>
+                </div>
+                <div className="text-left hidden sm:block">
+                  <div className={`text-sm font-extrabold tracking-tight leading-tight ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>SnapType</div>
+                  <div className="text-[9px] font-mono text-indigo-500 dark:text-indigo-400 font-semibold leading-none">Blind Typing Pro</div>
+                </div>
+              </button>
+            </div>
 
             {/* Desktop Navigation Tabs */}
             {gameState === GameState.UPLOAD && (
@@ -587,7 +628,7 @@ const App: React.FC = () => {
                     <button
                       key={tab.id}
                       type="button"
-                      onClick={() => setHomeTab(tab.id)}
+                      onClick={() => navigateToTab(tab.id)}
                       className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 ${
                         isActive
                           ? (theme === 'light' ? 'bg-white text-slate-900 shadow-sm font-bold' : 'bg-white text-black shadow-md font-bold')
@@ -602,7 +643,7 @@ const App: React.FC = () => {
               </nav>
             )}
 
-            {/* Gamification Cockpit, Theme Toggle & Close Button */}
+            {/* Gamification Cockpit, Theme Toggle & Back Button */}
             <div className="flex items-center gap-2.5 shrink-0">
               {/* Theme Switcher Button */}
               <button
@@ -622,13 +663,15 @@ const App: React.FC = () => {
                 </span>
               </button>
 
-              {gameState !== GameState.UPLOAD && (
+              {gameState === GameState.RESULTS && (
                 <button
                   type="button"
                   onClick={goHomeCreate}
-                  className="text-xs font-bold px-4 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 transition-all text-white border border-white/10"
+                  className="text-xs font-bold px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 transition-all text-white shadow-xs flex items-center gap-1 cursor-pointer keep-white"
+                  title="Return to Dashboard"
                 >
-                  ✕ Exit Test
+                  <span>←</span>
+                  <span>Dashboard</span>
                 </button>
               )}
               {userStats && (
@@ -667,7 +710,7 @@ const App: React.FC = () => {
                 <button
                   key={tab.id}
                   type="button"
-                  onClick={() => setHomeTab(tab.id)}
+                  onClick={() => navigateToTab(tab.id)}
                   className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1 ${
                     homeTab === tab.id
                       ? (theme === 'light' ? 'bg-slate-100 text-slate-900 font-bold' : 'bg-white text-black shadow-md font-bold')
@@ -689,9 +732,7 @@ const App: React.FC = () => {
         className={
           gameState === GameState.PLAYING
             ? 'w-full max-w-7xl mx-auto px-2 md:px-4 pt-2 md:pt-3 pb-2 h-full flex-1 min-h-0 overflow-hidden flex flex-col items-center justify-start'
-            : `container mx-auto px-4 pb-12 min-h-screen flex flex-col items-center justify-start ${
-                gameState === GameState.UPLOAD ? 'pt-24 md:pt-28 relative z-10' : 'pt-8 relative z-10'
-              }`
+            : `container mx-auto px-4 pb-12 min-h-screen flex flex-col items-center justify-start pt-24 md:pt-28 relative z-10`
         }
       >
         {gameState === GameState.UPLOAD && renderUploadTab()}

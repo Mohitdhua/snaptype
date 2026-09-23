@@ -514,13 +514,14 @@ export const CourtExamScreenTest: React.FC<CourtExamScreenTestProps> = ({
             </button>
           )}
 
-          {/* Exit Exam Button */}
+          {/* Back to Menu / Exit Exam Button */}
           <button
             onClick={onRestart}
-            className="h-8 px-2.5 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 border border-slate-300 dark:bg-white/5 dark:hover:bg-rose-500/20 dark:text-neutral-400 dark:hover:text-rose-300 dark:border-white/10 text-xs font-semibold transition-all flex items-center gap-1"
-            title="Exit Exam to Home"
+            className="h-8 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 border border-slate-300 dark:bg-white/5 dark:hover:bg-white/10 dark:text-neutral-300 dark:hover:text-white dark:border-white/10 text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer"
+            title="Back to Dashboard / Exit Exam"
           >
-            <span>✕ Exit</span>
+            <span className="text-sm font-bold leading-none">←</span>
+            <span>Back</span>
           </button>
 
           {/* Submit Test Button */}

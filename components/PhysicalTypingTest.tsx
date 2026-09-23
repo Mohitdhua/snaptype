@@ -690,6 +690,15 @@ export const PhysicalTypingTest: React.FC<PhysicalTypingTestProps> = ({ ocrText,
 
           <div className="flex items-center gap-3">
             <button
+              onClick={onRestart}
+              className="h-9 px-3 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all text-neutral-300 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 cursor-pointer"
+              title="Back to Dashboard / Exit Test"
+            >
+              <span className="text-sm font-bold leading-none">←</span>
+              <span>Back</span>
+            </button>
+
+            <button
               onClick={handlePrintPassage}
               className="h-9 px-3 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all text-neutral-300 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10"
               title="Print passage on paper for genuine Paper-to-Screen practice"

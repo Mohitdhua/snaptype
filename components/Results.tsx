@@ -301,7 +301,38 @@ export const Results: React.FC<ResultsProps> = ({ results, onReset, onNewImage, 
 
   return (
     <div className="w-full max-w-6xl mx-auto flex flex-col items-center animate-scale-in pb-12">
-        <h2 className="text-4xl font-extrabold text-slate-900 dark:text-stitch-accent mb-8">
+        {/* Top Navigation & Back Bar */}
+        <div className="w-full flex items-center justify-between pb-4 mb-6 border-b border-slate-200 dark:border-white/10 gap-3">
+          <button
+            onClick={onNewImage}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-900 border border-slate-300 dark:bg-white/10 dark:hover:bg-white/15 dark:text-white dark:border-white/15 text-xs font-bold transition-all shadow-xs cursor-pointer group"
+            title="Back to Dashboard / वापस जाएं"
+          >
+            <span className="text-base leading-none transition-transform group-hover:-translate-x-1">←</span>
+            <span>Back to Dashboard / वापस जाएं</span>
+          </button>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onReset}
+              className="px-3.5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs transition-all shadow-xs flex items-center gap-1.5 cursor-pointer keep-white active:scale-95"
+              title="Retry this same passage"
+            >
+              <span>↺</span>
+              <span>Retry Test</span>
+            </button>
+            <button
+              onClick={handlePrintScorecard}
+              className="px-3 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 dark:bg-white/5 dark:hover:bg-white/10 dark:text-neutral-300 dark:border-white/10 text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer"
+              title="Print Official Scorecard"
+            >
+              <span>🖨️</span>
+              <span className="hidden sm:inline">Print Scorecard</span>
+            </button>
+          </div>
+        </div>
+
+        <h2 className="text-3xl md:text-4xl font-extrabold text-slate-900 dark:text-stitch-accent mb-6">
             Session Report
         </h2>
 
@@ -1096,8 +1127,9 @@ export const Results: React.FC<ResultsProps> = ({ results, onReset, onNewImage, 
             >
                 <span>🖨️ Candidate Diagnostic Report</span>
             </button>
-             <Button onClick={onNewImage} variant="secondary" className="w-full sm:w-auto">
-                Upload New Image
+             <Button onClick={onNewImage} variant="secondary" className="w-full sm:w-auto flex items-center justify-center gap-2">
+                <span>←</span>
+                <span>Back to Dashboard / Return Home</span>
             </Button>
         </div>
 
