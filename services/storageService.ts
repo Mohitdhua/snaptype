@@ -880,3 +880,55 @@ export const generateCollisionRepairDrill = (profile: AdaptiveProfile, focusPair
   return parts.join('\n\n');
 };
 
+
+
+// ======== Spelling Quiz Misspelt Pool Storage ========
+
+const SPELLING_MISSPELT_KEY = 'snaptype_spelling_misspelt_v1';
+
+export const getSpellingMisspeltPool = (): string[] => {
+  try {
+    const raw = localStorage.getItem(SPELLING_MISSPELT_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed.map(s => String(s).trim().toLowerCase()).filter(Boolean) : [];
+  } catch (e) {
+    console.error('Failed to load spelling misspelt pool', e);
+    return [];
+  }
+};
+
+export const addWordsToSpellingMisspeltPool = (words: string[]): string[] => {
+  const existing = new Set(getSpellingMisspeltPool());
+  words.forEach(w => {
+    const cleaned = w.trim().toLowerCase();
+    if (cleaned) existing.add(cleaned);
+  });
+  const updated = Array.from(existing);
+  try {
+    localStorage.setItem(SPELLING_MISSPELT_KEY, JSON.stringify(updated));
+  } catch (e) {
+    console.error('Failed to save spelling misspelt pool', e);
+  }
+  return updated;
+};
+
+export const clearSpellingMisspeltPool = (): void => {
+  try {
+    localStorage.removeItem(SPELLING_MISSPELT_KEY);
+  } catch (e) {
+    console.error('Failed to clear spelling misspelt pool', e);
+  }
+};
+
+export const exportSpellingMisspeltPoolTxt = (): void => {
+  const pool = getSpellingMisspeltPool();
+  if (pool.length === 0) return;
+  const content = pool.join('\n');
+  const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'snaptype_misspelled_words.txt';
+  a.click();
+  URL.revokeObjectURL(url);
+};
