@@ -495,6 +495,7 @@ export const CourtExamScreenTest: React.FC<CourtExamScreenTestProps> = ({
               onClick={onToggleTheme}
               className="p-1.5 rounded-xl bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-700 dark:text-neutral-300 border border-slate-300 dark:border-white/10 transition-colors"
               title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+              aria-label={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
             >
               {theme === 'dark' ? '☀️' : '🌙'}
             </button>
@@ -509,6 +510,7 @@ export const CourtExamScreenTest: React.FC<CourtExamScreenTestProps> = ({
               }}
               className="h-8 px-2.5 rounded-xl bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-700 dark:text-neutral-300 border border-slate-300 dark:border-white/10 text-xs font-semibold transition-all flex items-center gap-1"
               title="Pause (Esc)"
+              aria-label={isPaused ? 'Resume Test' : 'Pause Test'}
             >
               <span>{isPaused ? '▶' : '⏸'}</span>
             </button>
