@@ -6,7 +6,7 @@ import { Theme, getStoredTheme, applyTheme } from './services/themeService';
 import { GameMode, GameState, HardcoreMode, PracticePassage, SavedTest, StoredResult, TestResults, TimeLimit, UserStats } from './types';
 import { LESSONS, getNextLessonTarget } from './data/lessonsData';
 
-type HomeTab = 'LESSONS' | 'PRACTICE' | 'CREATE' | 'SAVED' | 'PROGRESS' | 'STUDY';
+type HomeTab = 'LESSONS' | 'PRACTICE' | 'SPELLING' | 'CREATE' | 'SAVED' | 'PROGRESS' | 'STUDY';
 type AppHistoryState = {
   __snaptype: true;
   gameState: GameState;
@@ -16,6 +16,7 @@ type AppHistoryState = {
 const HOME_TABS: { id: HomeTab; label: string; icon: string }[] = [
   { id: 'LESSONS', label: 'Lessons', icon: '🎓' },
   { id: 'PRACTICE', label: 'Passages', icon: '📖' },
+  { id: 'SPELLING', label: 'Spelling Quiz', icon: '🗣️' },
   { id: 'CREATE', label: 'Custom / OCR', icon: '⚡' },
   { id: 'SAVED', label: 'Saved Vault', icon: '📁' },
   { id: 'PROGRESS', label: 'Analytics', icon: '📊' },
@@ -31,6 +32,7 @@ const normalizeHardKey = (key: string) => {
   return key;
 };
 
+const SpellingQuizView = lazy(() => import('./components/SpellingQuizView').then(module => ({ default: module.SpellingQuizView })));
 const CourtExamScreenTest = lazy(() => import('./components/CourtExamScreenTest').then(module => ({ default: module.CourtExamScreenTest })));
 const LessonsView = lazy(() => import('./components/LessonsView').then(module => ({ default: module.LessonsView })));
 const PracticeLibraryView = lazy(() => import('./components/PracticeLibraryView').then(module => ({ default: module.PracticeLibraryView })));
@@ -500,6 +502,16 @@ const App: React.FC = () => {
         <div className="w-full max-w-6xl animate-fade-in">
           <Suspense fallback={<SectionLoader />}>
             <PracticeLibraryView onStartPassage={handleStartPassage} />
+          </Suspense>
+        </div>
+      );
+    }
+
+    if (homeTab === 'SPELLING') {
+      return (
+        <div className="w-full max-w-6xl animate-fade-in">
+          <Suspense fallback={<SectionLoader />}>
+            <SpellingQuizView theme={theme} onBackToHome={goHomeCreate} />
           </Suspense>
         </div>
       );

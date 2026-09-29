@@ -289,3 +289,17 @@ export interface AdaptiveProfile {
   collisionStats?: FingerCollisionSummary;
 }
 
+
+
+// --- Spelling Quiz Types ---
+
+export interface SpellingWordResult {
+  expected: string;
+  typed: string;
+  isCorrect: boolean;
+  timeSpent: number;
+}
+
+export interface SpellingQuizSettings {
+  secondsPerWord: number; // 5 to 10 seconds
+}
