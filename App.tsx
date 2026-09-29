@@ -6,7 +6,7 @@ import { Theme, getStoredTheme, applyTheme } from './services/themeService';
 import { GameMode, GameState, HardcoreMode, PracticePassage, SavedTest, StoredResult, TestResults, TimeLimit, UserStats } from './types';
 import { LESSONS, getNextLessonTarget } from './data/lessonsData';
 
-type HomeTab = 'LESSONS' | 'PRACTICE' | 'CREATE' | 'SAVED' | 'PROGRESS';
+type HomeTab = 'LESSONS' | 'PRACTICE' | 'CREATE' | 'SAVED' | 'PROGRESS' | 'STUDY';
 type AppHistoryState = {
   __snaptype: true;
   gameState: GameState;
@@ -19,6 +19,7 @@ const HOME_TABS: { id: HomeTab; label: string; icon: string }[] = [
   { id: 'CREATE', label: 'Custom / OCR', icon: '⚡' },
   { id: 'SAVED', label: 'Saved Vault', icon: '📁' },
   { id: 'PROGRESS', label: 'Analytics', icon: '📊' },
+  { id: 'STUDY', label: 'Study Mode', icon: '📚' },
 ];
 
 const getRouteKey = (nextGameState: GameState, nextHomeTab: HomeTab) =>
@@ -559,6 +560,27 @@ const App: React.FC = () => {
               onNavigateTab={(tab) => navigateToTab(tab)}
             />
           </Suspense>
+        </div>
+      );
+    }
+
+    if (homeTab === 'STUDY') {
+      return (
+        <div className="w-full max-w-5xl animate-fade-in text-center flex flex-col items-center">
+          <h1 className="text-4xl md:text-5xl font-extrabold text-stitch-accent mb-4">
+            Standalone Study Mode
+          </h1>
+          <p className="text-lg text-stitch-muted mb-8 max-w-xl mx-auto">
+            A dedicated study space separate from typing tests.
+          </p>
+
+          <div className="w-full bento-card p-8 md:p-12 flex flex-col items-center justify-center min-h-[300px]">
+            <div className="text-5xl mb-4">📚</div>
+            <h2 className="text-2xl font-bold text-stitch-accent mb-2">Study Mode - Under Construction</h2>
+            <p className="text-stitch-muted max-w-md text-center">
+              This standalone study hub will feature flashcards, reading materials, and note-taking features. Stay tuned!
+            </p>
+          </div>
         </div>
       );
     }
