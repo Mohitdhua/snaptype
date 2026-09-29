@@ -45,10 +45,11 @@ export const SpellingQuizView: React.FC<SpellingQuizViewProps> = ({
   const [timeLeft, setTimeLeft] = useState<number>(7);
   const [feedbackStatus, setFeedbackStatus] = useState<'none' | 'correct' | 'incorrect'>('none');
 
-  // Timers & Audio
+  // Timers, Audio & Offscreen Input for Mobile Virtual Keyboard
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wordStartTimeRef = useRef<number>(Date.now());
   const inputContainerRef = useRef<HTMLDivElement>(null);
+  const mobileInputRef = useRef<HTMLInputElement>(null);
 
   // Sync misspelt pool
   const refreshPool = () => {
@@ -66,6 +67,15 @@ export const SpellingQuizView: React.FC<SpellingQuizViewProps> = ({
     utterance.rate = 0.9; // slightly clearer pace for spelling
     utterance.lang = 'en-US';
     window.speechSynthesis.speak(utterance);
+  }, []);
+
+  // Focus mobile input to pop up virtual keyboard
+  const focusInput = useCallback(() => {
+    if (mobileInputRef.current) {
+      mobileInputRef.current.focus();
+    } else if (inputContainerRef.current) {
+      inputContainerRef.current.focus();
+    }
   }, []);
 
   // Parse raw text or file input into clean words
@@ -111,11 +121,11 @@ export const SpellingQuizView: React.FC<SpellingQuizViewProps> = ({
     // Speak word
     speakWord(currentWord);
 
-    // Focus input container for keyboard events
-    if (inputContainerRef.current) {
-      inputContainerRef.current.focus();
-    }
-  }, [currentIndex, phase, words, secondsPerWord, speakWord]);
+    // Auto focus for mobile soft keyboard & desktop keyboard
+    setTimeout(() => {
+      focusInput();
+    }, 50);
+  }, [currentIndex, phase, words, secondsPerWord, speakWord, focusInput]);
 
   // Countdown timer per word
   useEffect(() => {
@@ -181,33 +191,29 @@ export const SpellingQuizView: React.FC<SpellingQuizViewProps> = ({
   }, [words, currentIndex, typedLetters]);
 
   // Process key presses
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+  const processKey = useCallback((key: string) => {
     if (phase !== 'PLAYING' || feedbackStatus !== 'none') return;
 
     const currentWord = words[currentIndex];
     if (!currentWord) return;
 
-    if (e.key === 'Backspace') {
-      e.preventDefault();
+    if (key === 'Backspace') {
       setTypedLetters(prev => prev.slice(0, -1));
       return;
     }
 
     // Shortcut to repeat audio
-    if (e.key === ' ' || e.key === 'Enter') {
-      e.preventDefault();
+    if (key === ' ' || key === 'Enter') {
       speakWord(currentWord);
       return;
     }
 
     // Only accept single alphabetic characters
-    if (e.key.length === 1 && /[a-zA-Z]/.test(e.key)) {
-      e.preventDefault();
-      const nextLetter = e.key.toLowerCase();
-      const updatedLetters = [...typedLetters, nextLetter];
-
-      if (updatedLetters.length <= currentWord.length) {
-        setTypedLetters(updatedLetters);
+    if (key.length === 1 && /[a-zA-Z]/.test(key)) {
+      const nextLetter = key.toLowerCase();
+      setTypedLetters(prev => {
+        if (prev.length >= currentWord.length) return prev;
+        const updatedLetters = [...prev, nextLetter];
 
         // Auto-advance as soon as final box is typed!
         if (updatedLetters.length === currentWord.length) {
@@ -218,8 +224,8 @@ export const SpellingQuizView: React.FC<SpellingQuizViewProps> = ({
           setFeedbackStatus(isCorrect ? 'correct' : 'incorrect');
 
           const timeSpent = Math.round((Date.now() - wordStartTimeRef.current) / 1000);
-          setResults(prev => [
-            ...prev,
+          setResults(rPrev => [
+            ...rPrev,
             {
               expected: currentWord,
               typed: typedWord,
@@ -229,11 +235,17 @@ export const SpellingQuizView: React.FC<SpellingQuizViewProps> = ({
           ]);
 
           setTimeout(() => {
-            setCurrentIndex(prev => prev + 1);
+            setCurrentIndex(cPrev => cPrev + 1);
           }, 350);
         }
-      }
+
+        return updatedLetters;
+      });
     }
+  }, [phase, feedbackStatus, words, currentIndex, speakWord]);
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    processKey(e.key);
   };
 
   // Image upload OCR handler
@@ -504,11 +516,32 @@ export const SpellingQuizView: React.FC<SpellingQuizViewProps> = ({
       <div
         ref={inputContainerRef}
         tabIndex={0}
+        onClick={focusInput}
         onKeyDown={handleKeyDown}
-        className="w-full max-w-3xl mx-auto p-4 md:p-8 flex flex-col items-center focus:outline-none select-none animate-fade-in"
+        className="w-full max-w-3xl mx-auto p-4 md:p-8 flex flex-col items-center focus:outline-none select-none animate-fade-in relative"
       >
+        {/* Offscreen / Hidden Input for Mobile Soft Keyboard Focus */}
+        <input
+          ref={mobileInputRef}
+          type="text"
+          value=""
+          onChange={e => {
+            const val = e.target.value;
+            if (val) {
+              processKey(val.slice(-1));
+            }
+          }}
+          onKeyDown={handleKeyDown}
+          autoCapitalize="none"
+          autoCorrect="off"
+          autoComplete="off"
+          spellCheck={false}
+          className="opacity-0 absolute top-0 left-0 w-full h-12 pointer-events-auto cursor-pointer focus:outline-none"
+          aria-label="Tap to open virtual keyboard"
+        />
+
         {/* Top Header & Progress */}
-        <div className="w-full flex items-center justify-between mb-8">
+        <div className="w-full flex items-center justify-between mb-8 z-10">
           <div className="flex items-center gap-3">
             <span className="text-xs font-mono font-extrabold px-3 py-1 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
               Word {currentIndex + 1} of {words.length}
@@ -528,7 +561,7 @@ export const SpellingQuizView: React.FC<SpellingQuizViewProps> = ({
         </div>
 
         {/* Audio Speaker Box */}
-        <div className="bento-card w-full p-8 md:p-12 text-center flex flex-col items-center justify-center relative overflow-hidden mb-8 shadow-2xl">
+        <div className="bento-card w-full p-8 md:p-12 text-center flex flex-col items-center justify-center relative overflow-hidden mb-8 shadow-2xl z-10">
 
           {/* Progress Timer Bar */}
           <div className="absolute top-0 left-0 right-0 h-1.5 bg-slate-800">
@@ -543,7 +576,11 @@ export const SpellingQuizView: React.FC<SpellingQuizViewProps> = ({
           <div className="flex items-center justify-center gap-4 mb-4">
             <button
               type="button"
-              onClick={() => speakWord(currentWord)}
+              onClick={e => {
+                e.stopPropagation();
+                speakWord(currentWord);
+                focusInput();
+              }}
               className="w-20 h-20 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white flex items-center justify-center text-3xl shadow-lg hover:scale-105 transition-all cursor-pointer border border-indigo-400/30"
               title="Click or press Space/Enter to replay audio"
             >
@@ -561,7 +598,10 @@ export const SpellingQuizView: React.FC<SpellingQuizViewProps> = ({
         </div>
 
         {/* Letter Boxes Container */}
-        <div className="flex flex-col items-center justify-center w-full mb-8">
+        <div
+          onClick={focusInput}
+          className="flex flex-col items-center justify-center w-full mb-8 z-10 cursor-pointer"
+        >
           <div className={`flex flex-wrap items-center justify-center gap-2 md:gap-3 p-4 rounded-3xl transition-all ${
             feedbackStatus === 'correct'
               ? 'ring-4 ring-emerald-500/80 bg-emerald-950/20'
@@ -590,8 +630,8 @@ export const SpellingQuizView: React.FC<SpellingQuizViewProps> = ({
             })}
           </div>
 
-          <p className="text-xs text-stitch-muted mt-4 font-mono">
-            Type each letter into the boxes. Advances automatically on the last box!
+          <p className="text-xs text-stitch-muted mt-4 font-mono text-center">
+            Tap boxes or type on mobile keyboard. Advances automatically on last letter!
           </p>
         </div>
       </div>
