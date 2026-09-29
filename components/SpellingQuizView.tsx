@@ -31,6 +31,8 @@ export const SpellingQuizView: React.FC<SpellingQuizViewProps> = ({
   // Words & Settings
   const [words, setWords] = useState<string[]>([]);
   const [secondsPerWord, setSecondsPerWord] = useState<number>(7);
+  const [speechRate, setSpeechRate] = useState<number>(0.75); // Slower, clearer pronunciation speed
+  const [speechPitch, setSpeechPitch] = useState<number>(1.0);
   const [showSettings, setShowSettings] = useState(false);
 
   // Available System / Natural Voices
@@ -98,7 +100,8 @@ export const SpellingQuizView: React.FC<SpellingQuizViewProps> = ({
     setIsPronouncing(true);
 
     const utterance = new SpeechSynthesisUtterance(wordToSpeak);
-    utterance.rate = 0.9;
+    utterance.rate = speechRate;
+    utterance.pitch = speechPitch;
     utterance.lang = 'en-US';
 
     if (selectedVoiceURI) {
@@ -115,7 +118,7 @@ export const SpellingQuizView: React.FC<SpellingQuizViewProps> = ({
     utterance.onerror = onAudioEnd;
 
     window.speechSynthesis.speak(utterance);
-  }, [availableVoices, selectedVoiceURI]);
+  }, [availableVoices, selectedVoiceURI, speechRate, speechPitch]);
 
   // Focus mobile input to pop up virtual keyboard
   const focusInput = useCallback(() => {
@@ -408,7 +411,57 @@ export const SpellingQuizView: React.FC<SpellingQuizViewProps> = ({
                   </div>
                 </div>
 
-                {/* Voice Model Selector */}
+                {/* Speech Speed / Rate Slider */}
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="text-sm font-semibold text-neutral-300">
+                      Speech Speed (Pronunciation Rate)
+                    </label>
+                    <span className="text-indigo-400 font-mono font-bold text-base">
+                      {speechRate.toFixed(2)}x
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min={0.5}
+                    max={1.0}
+                    step={0.05}
+                    value={speechRate}
+                    onChange={e => setSpeechRate(Number(e.target.value))}
+                    className="w-full accent-indigo-500 cursor-pointer h-2 bg-slate-700 rounded-lg"
+                  />
+                  <div className="flex justify-between text-xs text-neutral-500 mt-1 font-mono">
+                    <span>0.50x (Very Slow)</span>
+                    <span>1.00x (Normal)</span>
+                  </div>
+                </div>
+
+                {/* Speech Pitch Slider */}
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="text-sm font-semibold text-neutral-300">
+                      Voice Pitch
+                    </label>
+                    <span className="text-indigo-400 font-mono font-bold text-base">
+                      {speechPitch.toFixed(1)}
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min={0.8}
+                    max={1.2}
+                    step={0.1}
+                    value={speechPitch}
+                    onChange={e => setSpeechPitch(Number(e.target.value))}
+                    className="w-full accent-indigo-500 cursor-pointer h-2 bg-slate-700 rounded-lg"
+                  />
+                  <div className="flex justify-between text-xs text-neutral-500 mt-1 font-mono">
+                    <span>0.8 (Lower Tone)</span>
+                    <span>1.2 (Higher Tone)</span>
+                  </div>
+                </div>
+
+                {/* Voice Model / Accent Selector */}
                 {availableVoices.length > 0 && (
                   <div>
                     <label className="block text-sm font-semibold text-neutral-300 mb-2">
