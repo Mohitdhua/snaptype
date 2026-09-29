@@ -33,6 +33,10 @@ export const SpellingQuizView: React.FC<SpellingQuizViewProps> = ({
   const [secondsPerWord, setSecondsPerWord] = useState<number>(7);
   const [showSettings, setShowSettings] = useState(false);
 
+  // Available System / Natural Voices
+  const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [selectedVoiceURI, setSelectedVoiceURI] = useState<string>('');
+
   // Input / Setup state
   const [inputText, setInputText] = useState('');
   const [isOcrProcessing, setIsOcrProcessing] = useState(false);
@@ -51,6 +55,31 @@ export const SpellingQuizView: React.FC<SpellingQuizViewProps> = ({
   const wordStartTimeRef = useRef<number>(Date.now());
   const inputContainerRef = useRef<HTMLDivElement>(null);
   const mobileInputRef = useRef<HTMLInputElement>(null);
+
+  // Load available system voices
+  useEffect(() => {
+    if (!('speechSynthesis' in window)) return;
+
+    const loadVoices = () => {
+      const voices = window.speechSynthesis.getVoices();
+      const englishVoices = voices.filter(v => v.lang.startsWith('en'));
+      setAvailableVoices(englishVoices.length > 0 ? englishVoices : voices);
+
+      // Auto-select preferred natural / neural / premium voice if none selected
+      if (!selectedVoiceURI && (englishVoices.length > 0 || voices.length > 0)) {
+        const pool = englishVoices.length > 0 ? englishVoices : voices;
+        const preferred = pool.find(v =>
+          /google|natural|neural|samantha|premium|enhanced/i.test(v.name)
+        ) || pool[0];
+        if (preferred) {
+          setSelectedVoiceURI(preferred.voiceURI);
+        }
+      }
+    };
+
+    loadVoices();
+    window.speechSynthesis.onvoiceschanged = loadVoices;
+  }, [selectedVoiceURI]);
 
   // Sync misspelt pool
   const refreshPool = () => {
@@ -72,6 +101,11 @@ export const SpellingQuizView: React.FC<SpellingQuizViewProps> = ({
     utterance.rate = 0.9;
     utterance.lang = 'en-US';
 
+    if (selectedVoiceURI) {
+      const chosen = availableVoices.find(v => v.voiceURI === selectedVoiceURI);
+      if (chosen) utterance.voice = chosen;
+    }
+
     const onAudioEnd = () => {
       setIsPronouncing(false);
       wordStartTimeRef.current = Date.now();
@@ -81,7 +115,7 @@ export const SpellingQuizView: React.FC<SpellingQuizViewProps> = ({
     utterance.onerror = onAudioEnd;
 
     window.speechSynthesis.speak(utterance);
-  }, []);
+  }, [availableVoices, selectedVoiceURI]);
 
   // Focus mobile input to pop up virtual keyboard
   const focusInput = useCallback(() => {
@@ -373,6 +407,26 @@ export const SpellingQuizView: React.FC<SpellingQuizViewProps> = ({
                     <span>10 sec (Relaxed)</span>
                   </div>
                 </div>
+
+                {/* Voice Model Selector */}
+                {availableVoices.length > 0 && (
+                  <div>
+                    <label className="block text-sm font-semibold text-neutral-300 mb-2">
+                      Voice Engine / Accent
+                    </label>
+                    <select
+                      value={selectedVoiceURI}
+                      onChange={e => setSelectedVoiceURI(e.target.value)}
+                      className="w-full p-2.5 rounded-xl bg-slate-900 border border-white/15 text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    >
+                      {availableVoices.map(v => (
+                        <option key={v.voiceURI} value={v.voiceURI}>
+                          {v.name} ({v.lang})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
 
                 <div className="pt-2 border-t border-white/10 flex justify-end">
                   <Button onClick={() => setShowSettings(false)}>
