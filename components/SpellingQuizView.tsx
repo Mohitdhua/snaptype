@@ -43,6 +43,7 @@ export const SpellingQuizView: React.FC<SpellingQuizViewProps> = ({
   const [typedLetters, setTypedLetters] = useState<string[]>([]);
   const [results, setResults] = useState<SpellingWordResult[]>([]);
   const [timeLeft, setTimeLeft] = useState<number>(7);
+  const [isPronouncing, setIsPronouncing] = useState(false);
   const [feedbackStatus, setFeedbackStatus] = useState<'none' | 'correct' | 'incorrect'>('none');
 
   // Timers, Audio & Offscreen Input for Mobile Virtual Keyboard
@@ -56,16 +57,29 @@ export const SpellingQuizView: React.FC<SpellingQuizViewProps> = ({
     setMisspeltPool(getSpellingMisspeltPool());
   };
 
-  // Speech synthesis helper
+  // Speech synthesis helper: sets isPronouncing = true and starts timer ONLY when speech completes
   const speakWord = useCallback((wordToSpeak: string) => {
     if (!('speechSynthesis' in window)) {
       console.warn('Text-to-speech not supported in this browser.');
+      setIsPronouncing(false);
+      wordStartTimeRef.current = Date.now();
       return;
     }
     window.speechSynthesis.cancel();
+    setIsPronouncing(true);
+
     const utterance = new SpeechSynthesisUtterance(wordToSpeak);
-    utterance.rate = 0.9; // slightly clearer pace for spelling
+    utterance.rate = 0.9;
     utterance.lang = 'en-US';
+
+    const onAudioEnd = () => {
+      setIsPronouncing(false);
+      wordStartTimeRef.current = Date.now();
+    };
+
+    utterance.onend = onAudioEnd;
+    utterance.onerror = onAudioEnd;
+
     window.speechSynthesis.speak(utterance);
   }, []);
 
@@ -116,9 +130,8 @@ export const SpellingQuizView: React.FC<SpellingQuizViewProps> = ({
     setTypedLetters([]);
     setFeedbackStatus('none');
     setTimeLeft(secondsPerWord);
-    wordStartTimeRef.current = Date.now();
 
-    // Speak word
+    // Speak word first
     speakWord(currentWord);
 
     // Auto focus for mobile soft keyboard & desktop keyboard
@@ -127,9 +140,9 @@ export const SpellingQuizView: React.FC<SpellingQuizViewProps> = ({
     }, 50);
   }, [currentIndex, phase, words, secondsPerWord, speakWord, focusInput]);
 
-  // Countdown timer per word
+  // Countdown timer per word: ONLY runs when NOT pronouncing speech
   useEffect(() => {
-    if (phase !== 'PLAYING' || feedbackStatus !== 'none') return;
+    if (phase !== 'PLAYING' || feedbackStatus !== 'none' || isPronouncing) return;
 
     if (timeLeft <= 0) {
       // Time expired! Mark word as incorrect
@@ -144,7 +157,7 @@ export const SpellingQuizView: React.FC<SpellingQuizViewProps> = ({
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [timeLeft, phase, feedbackStatus]);
+  }, [timeLeft, phase, feedbackStatus, isPronouncing]);
 
   // Finish Quiz and save incorrect words to pool
   const finishQuiz = () => {
@@ -340,7 +353,7 @@ export const SpellingQuizView: React.FC<SpellingQuizViewProps> = ({
                 <div>
                   <div className="flex justify-between items-center mb-2">
                     <label className="text-sm font-semibold text-neutral-300">
-                      Time limit per word
+                      Time limit per word (starts after audio)
                     </label>
                     <span className="text-indigo-400 font-mono font-bold text-base">
                       {secondsPerWord}s
@@ -518,7 +531,7 @@ export const SpellingQuizView: React.FC<SpellingQuizViewProps> = ({
         tabIndex={0}
         onClick={focusInput}
         onKeyDown={handleKeyDown}
-        className="w-full max-w-3xl mx-auto p-4 md:p-8 flex flex-col items-center focus:outline-none select-none animate-fade-in relative"
+        className="w-full max-w-3xl mx-auto p-2 md:p-6 flex flex-col items-center focus:outline-none select-none animate-fade-in relative"
       >
         {/* Offscreen / Hidden Input for Mobile Soft Keyboard Focus */}
         <input
@@ -540,69 +553,42 @@ export const SpellingQuizView: React.FC<SpellingQuizViewProps> = ({
           aria-label="Tap to open virtual keyboard"
         />
 
-        {/* Top Header & Progress */}
-        <div className="w-full flex items-center justify-between mb-8 z-10">
-          <div className="flex items-center gap-3">
-            <span className="text-xs font-mono font-extrabold px-3 py-1 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-              Word {currentIndex + 1} of {words.length}
+        {/* Top Progress Bar & Timer */}
+        <div className="w-full flex items-center justify-between mb-3 z-10 px-1">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-mono font-extrabold px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+              Word {currentIndex + 1} / {words.length}
             </span>
-            <span className="text-xs text-stitch-muted font-mono hidden sm:inline">
-              Timer: {secondsPerWord}s per word
+            <span className="text-xs font-mono font-bold text-indigo-300">
+              {isPronouncing ? '🗣️ Speaking...' : `⏱️ ${timeLeft}s`}
             </span>
           </div>
 
           <button
             type="button"
             onClick={() => setPhase('SETUP')}
-            className="text-xs font-semibold text-neutral-400 hover:text-white px-3 py-1 rounded-lg border border-white/10 bg-white/5"
+            className="text-xs font-semibold text-neutral-400 hover:text-white px-2.5 py-1 rounded-lg border border-white/10 bg-white/5"
           >
             Exit Quiz
           </button>
         </div>
 
-        {/* Audio Speaker Box */}
-        <div className="bento-card w-full p-8 md:p-12 text-center flex flex-col items-center justify-center relative overflow-hidden mb-8 shadow-2xl z-10">
-
-          {/* Progress Timer Bar */}
-          <div className="absolute top-0 left-0 right-0 h-1.5 bg-slate-800">
-            <div
-              className={`h-full transition-all duration-1000 linear ${
-                timeLeft <= 2 ? 'bg-rose-500' : 'bg-indigo-500'
-              }`}
-              style={{ width: `${(timeLeft / secondsPerWord) * 100}%` }}
-            />
-          </div>
-
-          <div className="flex items-center justify-center gap-4 mb-4">
-            <button
-              type="button"
-              onClick={e => {
-                e.stopPropagation();
-                speakWord(currentWord);
-                focusInput();
-              }}
-              className="w-20 h-20 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white flex items-center justify-center text-3xl shadow-lg hover:scale-105 transition-all cursor-pointer border border-indigo-400/30"
-              title="Click or press Space/Enter to replay audio"
-            >
-              🔊
-            </button>
-          </div>
-
-          <div className="flex items-center gap-2 text-xs font-mono text-indigo-300 mb-2">
-            <span>Press <kbd className="px-1.5 py-0.5 rounded bg-white/10 font-bold">Space</kbd> or <kbd className="px-1.5 py-0.5 rounded bg-white/10 font-bold">Enter</kbd> to replay audio</span>
-          </div>
-
-          <div className="text-2xl font-mono font-black text-white">
-            {timeLeft}s
-          </div>
+        {/* Progress Timer Line */}
+        <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden mb-4 z-10">
+          <div
+            className={`h-full transition-all duration-1000 linear ${
+              timeLeft <= 2 ? 'bg-rose-500' : 'bg-indigo-500'
+            }`}
+            style={{ width: `${(timeLeft / secondsPerWord) * 100}%` }}
+          />
         </div>
 
-        {/* Letter Boxes Container */}
+        {/* PROMINENT TOP LETTER BOXES (Always visible above soft keyboard) */}
         <div
           onClick={focusInput}
-          className="flex flex-col items-center justify-center w-full mb-8 z-10 cursor-pointer"
+          className="flex flex-col items-center justify-center w-full mb-4 z-10 cursor-pointer"
         >
-          <div className={`flex flex-wrap items-center justify-center gap-2 md:gap-3 p-4 rounded-3xl transition-all ${
+          <div className={`flex flex-wrap items-center justify-center gap-1.5 md:gap-3 p-3 rounded-2xl transition-all ${
             feedbackStatus === 'correct'
               ? 'ring-4 ring-emerald-500/80 bg-emerald-950/20'
               : feedbackStatus === 'incorrect'
@@ -616,7 +602,7 @@ export const SpellingQuizView: React.FC<SpellingQuizViewProps> = ({
               return (
                 <div
                   key={idx}
-                  className={`w-12 h-14 md:w-16 md:h-20 rounded-2xl border-2 flex items-center justify-center text-2xl md:text-3xl font-black font-mono uppercase transition-all shadow-md ${
+                  className={`w-10 h-12 md:w-16 md:h-20 rounded-xl border-2 flex items-center justify-center text-xl md:text-3xl font-black font-mono uppercase transition-all shadow-md ${
                     letter
                       ? 'border-indigo-500/80 bg-indigo-950/40 text-white scale-100'
                       : isCurrent
@@ -629,11 +615,36 @@ export const SpellingQuizView: React.FC<SpellingQuizViewProps> = ({
               );
             })}
           </div>
-
-          <p className="text-xs text-stitch-muted mt-4 font-mono text-center">
-            Tap boxes or type on mobile keyboard. Advances automatically on last letter!
-          </p>
         </div>
+
+        {/* Compact Audio Speaker & Replay Controls */}
+        <div className="bento-card w-full p-4 md:p-6 text-center flex items-center justify-between z-10">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={e => {
+                e.stopPropagation();
+                speakWord(currentWord);
+                focusInput();
+              }}
+              className="w-12 h-12 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white flex items-center justify-center text-xl shadow-lg hover:scale-105 transition-all cursor-pointer border border-indigo-400/30"
+              title="Click or press Space/Enter to replay audio"
+            >
+              🔊
+            </button>
+            <div className="text-left">
+              <div className="text-xs font-bold text-white">Replay Audio</div>
+              <div className="text-[10px] text-stitch-muted font-mono">Space or Enter</div>
+            </div>
+          </div>
+
+          <div className="text-right">
+            <div className="text-xs font-mono text-neutral-400">
+              {isPronouncing ? 'Listening...' : 'Type letters now!'}
+            </div>
+          </div>
+        </div>
+
       </div>
     );
   }
