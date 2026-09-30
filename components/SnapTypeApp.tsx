@@ -595,10 +595,10 @@ export const SnapTypeApp: React.FC<SnapTypeAppProps> = ({
         <div className="max-w-7xl mx-auto flex flex-col gap-2 pointer-events-auto items-center">
 
           {/* Main Top Nav Bar */}
-          <div className={`flex items-center justify-between w-full max-w-5xl px-4 md:px-6 py-2.5 rounded-2xl md:rounded-full backdrop-blur-xl border transition-all duration-200 ${
+          <div className={`flex items-center justify-between w-full max-w-5xl px-4 md:px-6 py-2.5 rounded-2xl md:rounded-full border transition-all duration-200 ${
             theme === 'light'
-              ? 'bg-white/95 border-slate-200/90 shadow-lg shadow-slate-200/40 text-slate-900'
-              : 'bg-[#131924]/90 border-white/10 shadow-2xl text-slate-100'
+              ? 'bg-white border-slate-200 shadow-md text-slate-900'
+              : 'bg-[#131924] border-white/10 shadow-xl text-slate-100'
           }`}>
             <div className="flex items-center gap-2 shrink-0">
               {canGoBack && (
@@ -728,7 +728,7 @@ export const SnapTypeApp: React.FC<SnapTypeAppProps> = ({
           {/* Mobile Nav Bar */}
           {gameState === GameState.UPLOAD && (
             <nav className={`flex md:hidden items-center gap-1 rounded-2xl p-1 border w-fit max-w-full overflow-x-auto px-2 scrollbar-none shadow-md ${
-              theme === 'light' ? 'bg-white/95 border-slate-200' : 'bg-[#131924]/90 backdrop-blur-md border-white/10'
+              theme === 'light' ? 'bg-white border-slate-200' : 'bg-[#131924] border-white/10'
             }`}>
               {HOME_TABS.map(tab => (
                 <button

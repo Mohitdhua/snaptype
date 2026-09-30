@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { SnapTypeApp } from './components/SnapTypeApp';
-import { SnapSpellApp } from './components/SnapSpellApp';
 import { Theme, getStoredTheme, applyTheme } from './services/themeService';
+
+const SnapSpellApp = lazy(() => import('./components/SnapSpellApp').then(m => ({ default: m.SnapSpellApp })));
 
 type AppMode = 'TYPING' | 'SPELLING';
 
@@ -59,11 +60,13 @@ const App: React.FC = () => {
           onSwitchToSpellingApp={() => switchAppMode('SPELLING')}
         />
       ) : (
-        <SnapSpellApp
-          theme={theme}
-          onToggleTheme={toggleTheme}
-          onSwitchToTypingApp={() => switchAppMode('TYPING')}
-        />
+        <Suspense fallback={<div className="min-h-screen bg-[#0c1017] flex items-center justify-center text-slate-400 font-mono text-sm">Loading SnapSpell...</div>}>
+          <SnapSpellApp
+            theme={theme}
+            onToggleTheme={toggleTheme}
+            onSwitchToTypingApp={() => switchAppMode('TYPING')}
+          />
+        </Suspense>
       )}
     </>
   );

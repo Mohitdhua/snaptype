@@ -92,8 +92,8 @@ const CHAR_TO_KEY: Record<string, string> = {
 
 const normalizeKey = (key: string) => key.toLowerCase();
 
-export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({ nextChar, initialLayout = 'QWERTY' }) => {
-  const [activePhysicalKey, setActivePhysicalKey] = useState<string | null>(null);
+export const VirtualKeyboardBase: React.FC<VirtualKeyboardProps> = ({ nextChar, initialLayout = 'QWERTY' }) => {
+  const containerRef = React.useRef<HTMLDivElement>(null);
   const [showZones, setShowZones] = useState(true);
   const [layout, setLayout] = useState<KeyboardLayout>(initialLayout);
 
@@ -101,11 +101,15 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({ nextChar, init
     const handleKeyDown = (e: KeyboardEvent) => {
       let key = e.key.toLowerCase();
       if (key === ' ') key = 'space';
-      setActivePhysicalKey(key);
+      const el = containerRef.current?.querySelector(`[data-key="${key}"]`);
+      if (el) el.classList.add('keycap-active', 'bg-neutral-800');
     };
 
-    const handleKeyUp = () => {
-      setActivePhysicalKey(null);
+    const handleKeyUp = (e: KeyboardEvent) => {
+      let key = e.key.toLowerCase();
+      if (key === ' ') key = 'space';
+      const el = containerRef.current?.querySelector(`[data-key="${key}"]`);
+      if (el) el.classList.remove('keycap-active', 'bg-neutral-800');
     };
 
     window.addEventListener('keydown', handleKeyDown);
@@ -135,8 +139,8 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({ nextChar, init
   }, [nextChar]);
 
   return (
-    <div className="w-full mt-3 shrink-0 select-none transition-all duration-200">
-      <div className="w-full overflow-x-auto rounded-2xl border border-white/10 bg-neutral-950/75 backdrop-blur-xl p-3 shadow-2xl">
+    <div className="w-full mt-3 shrink-0 select-none">
+      <div ref={containerRef} className="w-full overflow-x-auto rounded-2xl border border-white/10 bg-[#121824] p-3 shadow-md">
         <div className="flex flex-col gap-1.5 min-w-[700px] md:min-w-[760px] mx-auto w-fit">
           {KEYS.map((row, rIndex) => (
             <div key={rIndex} className="flex justify-center gap-1.5">
@@ -145,8 +149,6 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({ nextChar, init
                 let isTarget = normalizedKey === targetKey;
                 const isShiftKey = normalizedKey === 'shift' && isShiftNeeded;
                 if (isShiftKey) isTarget = true;
-
-                const isPhysicalPressed = normalizedKey === activePhysicalKey;
 
                 let width = 'w-8 md:w-10';
                 if (key === 'Backspace') width = 'w-16 md:w-20';
@@ -171,18 +173,17 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({ nextChar, init
                 return (
                   <div
                     key={uniqueKey}
+                    data-key={normalizedKey}
                     style={{
                       borderBottomColor: showZones && fingerColor && !isTarget ? fingerColor : undefined,
                       borderBottomWidth: showZones && fingerColor ? '2.5px' : undefined,
                     }}
                     className={`
-                      ${width} h-9 md:h-11 rounded-lg flex flex-col items-center justify-center font-mono transition-all duration-75 relative
+                      ${width} h-9 md:h-11 rounded-lg flex flex-col items-center justify-center font-mono transition-transform duration-75 relative
                       ${
                         isTarget
-                          ? 'bg-gradient-to-b from-indigo-500 to-indigo-600 text-white font-bold border-t border-indigo-400 shadow-[0_0_18px_rgba(99,102,241,0.55),0_2px_0_0_#3730a3] scale-[0.97]'
-                          : isPhysicalPressed
-                          ? 'bg-neutral-800 text-white border-neutral-700 shadow-inner translate-y-0.5 scale-[0.95]'
-                          : 'bg-neutral-900/90 hover:bg-neutral-800/90 text-neutral-400 border border-neutral-800 shadow-[0_2.5px_0_0_#141414]'
+                          ? 'bg-gradient-to-b from-indigo-500 to-indigo-600 text-white font-bold border-t border-indigo-400 shadow-[0_0_12px_rgba(99,102,241,0.5),0_2px_0_0_#3730a3] scale-[0.97]'
+                          : 'bg-neutral-900/90 hover:bg-neutral-800/90 text-neutral-400 border border-neutral-800'
                       }
                     `}
                   >
@@ -251,4 +252,6 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({ nextChar, init
     </div>
   );
 };
+
+export const VirtualKeyboard = React.memo(VirtualKeyboardBase);
 

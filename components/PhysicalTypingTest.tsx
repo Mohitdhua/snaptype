@@ -491,7 +491,10 @@ export const PhysicalTypingTest: React.FC<PhysicalTypingTestProps> = ({ ocrText,
         if (textareaRef.current && mirrorRef.current) {
             const textarea = textareaRef.current;
             const mirror = mirrorRef.current;
-            mirror.style.width = `${textarea.clientWidth}px`;
+            const targetWidth = `${textarea.clientWidth}px`;
+            if (mirror.style.width !== targetWidth) {
+              mirror.style.width = targetWidth;
+            }
             const selectionEnd = e.target.selectionEnd;
             const textToCursor = val.substring(0, selectionEnd);
             mirror.textContent = textToCursor.endsWith('\n') ? textToCursor + '\u200b' : textToCursor;
@@ -543,8 +546,8 @@ export const PhysicalTypingTest: React.FC<PhysicalTypingTestProps> = ({ ocrText,
     <div className="w-full max-w-7xl mx-auto flex flex-col md:flex-row gap-5 h-[82vh] animate-fade-in">
       {/* Left Side: Document Reference Workstation */}
       {hasReference && showReference && (
-        <div className="md:w-1/2 h-72 md:h-full transition-all duration-300 flex flex-col bento-card bg-neutral-950/70 backdrop-blur-2xl rounded-3xl border border-white/10 overflow-hidden shadow-2xl z-20">
-          <div className="p-3.5 bg-black/40 flex justify-between items-center backdrop-blur-md border-b border-white/10">
+        <div className="md:w-1/2 h-72 md:h-full transition-all duration-300 flex flex-col bento-card bg-[#121824] rounded-3xl border border-white/10 overflow-hidden shadow-md z-20">
+          <div className="p-3.5 bg-black/40 flex justify-between items-center border-b border-white/10">
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-indigo-500" />
               <span className="text-xs font-bold text-neutral-300 uppercase tracking-wider">
@@ -656,7 +659,7 @@ export const PhysicalTypingTest: React.FC<PhysicalTypingTestProps> = ({ ocrText,
       {/* Right Side: Typing Workspace */}
       <div className="flex-1 flex flex-col h-full gap-4 min-w-0">
         {/* Workspace Header HUD */}
-        <div className="bento-card bg-neutral-950/80 backdrop-blur-xl border border-white/10 p-3.5 md:p-4 rounded-2xl flex flex-wrap justify-between items-center shadow-2xl gap-3">
+        <div className="bento-card bg-[#121824] border border-white/10 p-3.5 md:p-4 rounded-2xl flex flex-wrap justify-between items-center shadow-md gap-3">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 flex items-center justify-center">
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -745,11 +748,11 @@ export const PhysicalTypingTest: React.FC<PhysicalTypingTestProps> = ({ ocrText,
         </div>
 
         {/* Input Textarea Area */}
-        <div className="relative flex-1 w-full min-h-0 bento-card bg-neutral-950/60 backdrop-blur-2xl rounded-3xl border border-white/10 hover:border-white/15 focus-within:border-indigo-500/40 transition-all shadow-[0_12px_40px_rgba(0,0,0,0.6)] overflow-hidden">
+        <div className="relative flex-1 w-full min-h-0 bento-card bg-[#121824] rounded-3xl border border-white/10 hover:border-white/15 focus-within:border-indigo-500/40 transition-colors shadow-md overflow-hidden">
           {/* Pause Overlay (Displays when isPaused is true) */}
           {isPaused && (
             <div
-              className="absolute inset-0 z-50 flex flex-col items-center justify-center p-6 md:p-8 bg-neutral-950/85 backdrop-blur-xl border border-amber-500/30 rounded-3xl pause-overlay text-neutral-100 animate-fade-in select-none"
+              className="absolute inset-0 z-50 flex flex-col items-center justify-center p-6 md:p-8 bg-[#0c1017]/95 border border-amber-500/30 rounded-3xl pause-overlay text-neutral-100 animate-fade-in select-none"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Pause Icon & Title */}

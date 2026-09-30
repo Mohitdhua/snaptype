@@ -32,11 +32,155 @@ const getNoiseBuffer = (ctx: AudioContext): AudioBuffer => {
   return buffer;
 };
 
+const profileBuffers: Partial<Record<SoundProfile, AudioBuffer>> = {};
+let errorAudioBuffer: AudioBuffer | null = null;
+
+const renderProfileToBuffer = async (profile: SoundProfile): Promise<AudioBuffer | null> => {
+  if (profile === 'off') return null;
+  try {
+    const duration = 0.06;
+    const sampleRate = 24000;
+    const length = Math.floor(sampleRate * duration);
+    const offlineCtx = new (window.OfflineAudioContext || (window as any).webkitOfflineAudioContext)(1, length, sampleRate);
+
+    if (profile === 'cherry-blue') {
+      const osc = offlineCtx.createOscillator();
+      const gain = offlineCtx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(1400, 0);
+      osc.frequency.exponentialRampToValueAtTime(320, 0.035);
+      gain.gain.setValueAtTime(0.2, 0);
+      gain.gain.exponentialRampToValueAtTime(0.001, 0.035);
+      osc.connect(gain);
+      gain.connect(offlineCtx.destination);
+      osc.start(0);
+      osc.stop(0.035);
+
+      const noiseBuf = offlineCtx.createBuffer(1, Math.floor(sampleRate * 0.02), sampleRate);
+      const data = noiseBuf.getChannelData(0);
+      for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+      const noise = offlineCtx.createBufferSource();
+      noise.buffer = noiseBuf;
+      const filter = offlineCtx.createBiquadFilter();
+      filter.type = 'bandpass';
+      filter.frequency.value = 3500;
+      const noiseGain = offlineCtx.createGain();
+      noiseGain.gain.setValueAtTime(0.12, 0);
+      noiseGain.gain.exponentialRampToValueAtTime(0.001, 0.02);
+      noise.connect(filter);
+      filter.connect(noiseGain);
+      noiseGain.connect(offlineCtx.destination);
+      noise.start(0);
+      noise.stop(0.02);
+    } else if (profile === 'topre') {
+      const osc = offlineCtx.createOscillator();
+      const gain = offlineCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(280, 0);
+      osc.frequency.exponentialRampToValueAtTime(80, 0.06);
+      gain.gain.setValueAtTime(0.28, 0);
+      gain.gain.exponentialRampToValueAtTime(0.001, 0.06);
+      const filter = offlineCtx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.value = 450;
+      filter.Q.value = 3;
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(offlineCtx.destination);
+      osc.start(0);
+      osc.stop(0.06);
+    } else if (profile === 'cherry-brown') {
+      const osc = offlineCtx.createOscillator();
+      const gain = offlineCtx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(450, 0);
+      osc.frequency.exponentialRampToValueAtTime(160, 0.045);
+      gain.gain.setValueAtTime(0.18, 0);
+      gain.gain.exponentialRampToValueAtTime(0.001, 0.045);
+      osc.connect(gain);
+      gain.connect(offlineCtx.destination);
+      osc.start(0);
+      osc.stop(0.045);
+    } else if (profile === 'typewriter') {
+      const noiseBuf = offlineCtx.createBuffer(1, Math.floor(sampleRate * 0.04), sampleRate);
+      const data = noiseBuf.getChannelData(0);
+      for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+      const noise = offlineCtx.createBufferSource();
+      noise.buffer = noiseBuf;
+      const filter = offlineCtx.createBiquadFilter();
+      filter.type = 'highpass';
+      filter.frequency.value = 1800;
+      const gain = offlineCtx.createGain();
+      gain.gain.setValueAtTime(0.22, 0);
+      gain.gain.exponentialRampToValueAtTime(0.001, 0.04);
+      noise.connect(filter);
+      filter.connect(gain);
+      gain.connect(offlineCtx.destination);
+      noise.start(0);
+      noise.stop(0.04);
+    } else if (profile === 'soft') {
+      const osc = offlineCtx.createOscillator();
+      const gain = offlineCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(700, 0);
+      osc.frequency.exponentialRampToValueAtTime(400, 0.03);
+      gain.gain.setValueAtTime(0.1, 0);
+      gain.gain.exponentialRampToValueAtTime(0.001, 0.03);
+      osc.connect(gain);
+      gain.connect(offlineCtx.destination);
+      osc.start(0);
+      osc.stop(0.03);
+    }
+
+    return await offlineCtx.startRendering();
+  } catch {
+    return null;
+  }
+};
+
+const renderErrorBuffer = async (): Promise<AudioBuffer | null> => {
+  try {
+    const duration = 0.08;
+    const sampleRate = 24000;
+    const length = Math.floor(sampleRate * duration);
+    const offlineCtx = new (window.OfflineAudioContext || (window as any).webkitOfflineAudioContext)(1, length, sampleRate);
+    const osc = offlineCtx.createOscillator();
+    const gainNode = offlineCtx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(130, 0);
+    osc.frequency.linearRampToValueAtTime(70, 0.08);
+    gainNode.gain.setValueAtTime(0.12, 0);
+    gainNode.gain.linearRampToValueAtTime(0.001, 0.08);
+    osc.connect(gainNode);
+    gainNode.connect(offlineCtx.destination);
+    osc.start(0);
+    osc.stop(0.08);
+    return await offlineCtx.startRendering();
+  } catch {
+    return null;
+  }
+};
+
 // Pre-warms Web Audio hardware output to prevent first-keystroke lag
 export const warmupAudio = () => {
   try {
     const ctx = initAudio();
     getNoiseBuffer(ctx);
+
+    const PROFILES: SoundProfile[] = ['cherry-blue', 'cherry-brown', 'topre', 'typewriter', 'soft'];
+    for (const p of PROFILES) {
+      if (!profileBuffers[p]) {
+        renderProfileToBuffer(p).then(buf => {
+          if (buf) profileBuffers[p] = buf;
+        });
+      }
+    }
+    if (!errorAudioBuffer) {
+      renderErrorBuffer().then(buf => {
+        if (buf) errorAudioBuffer = buf;
+      });
+    }
+
     // Silent inaudible pulse to wake up audio hardware thread without delay
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
@@ -92,6 +236,29 @@ export const playKeystrokeSound = (profile?: SoundProfile, isEnter = false) => {
 
     // Slight micro-pitch randomization (+/- 4%) so every keystroke sounds organic
     const pitchJitter = 1 + (Math.random() * 0.08 - 0.04);
+
+    const cachedBuffer = profileBuffers[currentProfile];
+    if (cachedBuffer) {
+      const source = ctx.createBufferSource();
+      source.buffer = cachedBuffer;
+      source.playbackRate.value = pitchJitter;
+      source.connect(ctx.destination);
+      source.start(now);
+
+      if (isEnter && currentProfile === 'typewriter') {
+        const bell = ctx.createOscillator();
+        const bellGain = ctx.createGain();
+        bell.type = 'sine';
+        bell.frequency.setValueAtTime(1800, now + 0.02);
+        bellGain.gain.setValueAtTime(0.15, now + 0.02);
+        bellGain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+        bell.connect(bellGain);
+        bellGain.connect(ctx.destination);
+        bell.start(now + 0.02);
+        bell.stop(now + 0.35);
+      }
+      return;
+    }
 
     if (currentProfile === 'cherry-blue') {
       // Crisp clicky switch: sharp high-frequency snap + release transient
@@ -225,6 +392,14 @@ export const playSound = (type: 'click' | 'error' | 'success') => {
     const now = ctx.currentTime;
 
     if (type === 'error') {
+      if (errorAudioBuffer) {
+        const source = ctx.createBufferSource();
+        source.buffer = errorAudioBuffer;
+        source.connect(ctx.destination);
+        source.start(now);
+        return;
+      }
+
       // Soft dull thud for mistake
       const osc = ctx.createOscillator();
       const gainNode = ctx.createGain();

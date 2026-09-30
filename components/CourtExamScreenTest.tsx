@@ -642,7 +642,7 @@ export const CourtExamScreenTest: React.FC<CourtExamScreenTestProps> = ({
       {/* ── Submit Confirmation Modal ── */}
       {showSubmitModal && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 dark:bg-black/80 backdrop-blur-md animate-fade-in"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 animate-fade-in"
           onClick={() => setShowSubmitModal(false)}
         >
           <div
@@ -697,7 +697,7 @@ export const CourtExamScreenTest: React.FC<CourtExamScreenTestProps> = ({
       {/* ── Pause Overlay ── */}
       {isPaused && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 dark:bg-black/85 backdrop-blur-md animate-fade-in"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 animate-fade-in"
           onClick={resumeTest}
         >
           <div

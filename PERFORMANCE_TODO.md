@@ -13,5 +13,11 @@
 - [x] Introduce route-level/component-level lazy loading for heavy UI chunks.
 - [x] Memoize derived lists in results view to avoid repeated sort work.
 - [x] Throttle physical-mode zoom mouse tracking with requestAnimationFrame.
-- [x] Split chart library into dedicated `charts-vendor` build chunk.
+- [x] Eliminate GPU multi-pass `backdrop-filter: blur(...)` across typing views and HUDs.
+- [x] Replace React state `setCaretPos` with direct DOM `caretRef` and `translate3d` (eliminates 2nd React re-render per keystroke).
+- [x] Lower passage virtualization threshold from 25,000 to 1,000 chars, capping active DOM nodes to ~150 elements.
+- [x] Remove `transition-colors duration-75` from `CharItem` for zero-overhead character updates.
+- [x] Replace `VirtualKeyboard` 60-key re-rendering on keydown/keyup with direct DOM `keycap-active` class toggles.
+- [x] Pre-render and cache sound profile clicks into static `AudioBuffer`s to avoid runtime Web Audio graph synthesis.
+- [x] Convert caret blinking animation from 60fps continuous float interpolation to stepped blinking (`steps(1)`).
 - [x] Validate with `npm run typecheck` and `npm run build`.

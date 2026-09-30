@@ -14,8 +14,8 @@ const TYPING_FONT_KEY = 'snaptype_typing_font_v1';
 export const AUTOPAUSE_ENABLED_KEY = 'snaptype_autopause_enabled_v1';
 export const AUTOPAUSE_DELAY_KEY = 'snaptype_autopause_delay_v1';
 export type PauseReason = 'manual' | 'auto_idle' | 'auto_blur' | null;
-const WINDOW_PRE_CHARS = 900;
-const WINDOW_POST_CHARS = 1800;
+const WINDOW_PRE_CHARS = 400;
+const WINDOW_POST_CHARS = 800;
 const ENTER_SYMBOL = '\u23CE';
 
 export type TypingFont = 'inter' | 'roboto-mono' | 'jakarta' | 'courier' | 'jetbrains';
@@ -86,7 +86,7 @@ interface CharItemProps {
 
 const CharItemBase: React.FC<CharItemProps> = ({ char, status, index }) => {
     const isNewline = char === '\n';
-    let className = "relative transition-colors duration-75 inline-block align-top char-token ";
+    let className = "relative inline-block align-top char-token ";
     
     if (status === 'pending') {
       className += "char-pending";
@@ -184,8 +184,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({
   const [startTime, setStartTime] = useState<number | null>(null);
   const [currIndex, setCurrIndex] = useState(0);
   const [hardKeys, setHardKeys] = useState<Record<string, number>>({});
-  const [caretPos, setCaretPos] = useState({ top: 0, left: 0, width: 2.5, height: 32 });
-  const [caretTransitionEnabled, setCaretTransitionEnabled] = useState(true);
+  const caretRef = useRef<HTMLDivElement>(null);
   const lastActiveLineTopRef = useRef<number | null>(null);
   const [showKeyboard, setShowKeyboard] = useState(() => {
     try {
@@ -341,7 +340,6 @@ export const TypingTest: React.FC<TypingTestProps> = ({
 
   // Memoize target text handling
   const targetText = useMemo(() => text.replace(/\r\n/g, "\n"), [text]);
-  const chars = useMemo(() => targetText.split(''), [targetText]);
   const displayTokens = useMemo<DisplayToken[]>(() => {
     const rawTokens = targetText.match(/(\s+|[^\s]+)/g) || [];
     let nextIndex = 0;
@@ -361,7 +359,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({
     });
   }, [targetText]);
   const { windowStart, windowEnd } = useMemo(() => {
-    if (targetText.length <= 25000) {
+    if (targetText.length <= 1000) {
       return { windowStart: 0, windowEnd: targetText.length };
     }
     const start = Math.max(0, currIndex - WINDOW_PRE_CHARS);
@@ -773,9 +771,10 @@ export const TypingTest: React.FC<TypingTestProps> = ({
   // Keep caret aligned to the active character and scroll discretely line-by-line when needed.
   const updateCaret = useCallback(() => {
     const container = containerRef.current;
-    if (!container || chars.length === 0) return;
+    const caretEl = caretRef.current;
+    if (!container || !caretEl || targetText.length === 0) return;
 
-    const charIndexToMeasure = Math.min(currIndex, chars.length - 1);
+    const charIndexToMeasure = Math.min(currIndex, targetText.length - 1);
     const cursorEl = container.querySelector(`[data-char-idx="${charIndexToMeasure}"]`) as HTMLSpanElement | null;
     if (!cursorEl) return;
 
@@ -792,26 +791,21 @@ export const TypingTest: React.FC<TypingTestProps> = ({
     const containerRect = container.getBoundingClientRect();
     const cursorRect = cursorEl.getBoundingClientRect();
     let newLeft = cursorRect.left - containerRect.left + container.scrollLeft;
-    if (currIndex >= chars.length) {
+    if (currIndex >= targetText.length) {
       newLeft += cursorRect.width;
     }
 
     // Caret transition: smooth horizontal gliding within line, instant snap on line change
     const isLineChange = lastActiveLineTopRef.current === null || Math.abs(lineTop - lastActiveLineTopRef.current) > 8;
     if (isLineChange) {
-      setCaretTransitionEnabled(false);
       lastActiveLineTopRef.current = lineTop;
-      requestAnimationFrame(() => {
-        setCaretTransitionEnabled(true);
-      });
+      caretEl.style.transition = 'none';
+    } else {
+      caretEl.style.transition = 'transform 0.06s cubic-bezier(0.16, 1, 0.3, 1)';
     }
 
-    setCaretPos({
-      top: caretTop,
-      left: newLeft,
-      width: cursorRect.width || 2.5,
-      height: caretHeight,
-    });
+    caretEl.style.transform = `translate3d(${newLeft}px, ${caretTop}px, 0)`;
+    caretEl.style.height = `${caretHeight}px`;
 
     // Discrete Line-Locked Viewport Scrolling
     // CRITICAL: NEVER scroll while typing across the same line!
@@ -831,7 +825,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({
         container.scrollTo({ top: targetScrollTop, behavior: 'smooth' });
       }
     }
-  }, [currIndex, chars.length, textScale]);
+  }, [currIndex, targetText.length, textScale]);
 
   useEffect(() => {
     const rafId = requestAnimationFrame(updateCaret);
@@ -1086,7 +1080,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({
     <div className="w-full max-w-6xl mx-auto flex flex-col h-full min-h-0 items-center animate-fade-in" onClick={focusInput}>
       {/* Floating Glass Bento HUD */}
       {isZenMode ? (
-        <div className="w-full shrink-0 z-40 bento-card bg-neutral-950/80 backdrop-blur-xl border border-white/10 py-2.5 px-5 mb-4 flex items-center justify-between rounded-2xl shadow-xl">
+        <div className="w-full shrink-0 z-40 bento-card bg-[#121824] border border-white/10 py-2.5 px-5 mb-4 flex items-center justify-between rounded-2xl shadow-md">
           <div className="flex items-center gap-6 font-mono text-sm">
             <span className="text-white font-bold">{stats.netWpm} WPM</span>
             <span className={stats.accuracy >= 95 ? 'text-emerald-400 font-bold' : 'text-amber-400 font-bold'}>
@@ -1126,7 +1120,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({
       ) : (
       <>
       {/* ── Slim Minimalist Stats Bar (Ultra Clean, Zero Clutter) ── */}
-      <div className="w-full shrink-0 z-40 flex items-center justify-between gap-3 px-3 md:px-5 py-2 mb-2 rounded-xl bg-neutral-950/70 border border-white/8 backdrop-blur-md shadow-sm">
+      <div className="w-full shrink-0 z-40 flex items-center justify-between gap-3 px-3 md:px-5 py-2 mb-2 rounded-xl bg-[#121824] border border-white/10 shadow-sm">
         {/* Core Metrics */}
         <div className="flex items-center gap-4 md:gap-6 font-mono text-sm">
           {/* Net WPM */}
@@ -1284,7 +1278,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({
           className="w-full shrink-0 z-30 mb-2 px-1 animate-fade-in"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="bg-neutral-900/95 backdrop-blur-2xl border border-white/12 rounded-2xl p-4 md:p-5 shadow-2xl grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
+          <div className="bg-[#121824] border border-white/12 rounded-2xl p-4 md:p-5 shadow-2xl grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
             {/* Column 1: Typography & Size */}
             <div className="flex flex-col gap-2">
               <span className="text-[10px] font-mono uppercase tracking-widest text-neutral-400 font-bold flex items-center gap-1">
@@ -1577,7 +1571,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({
       )}
 
       {/* Typing Card Wrapper with top Progress Bar */}
-      <div className={`w-full flex-1 min-h-0 flex flex-col bento-card bg-neutral-950/60 backdrop-blur-2xl rounded-3xl border border-white/10 hover:border-white/15 transition-all duration-150 shadow-[0_12px_40px_rgba(0,0,0,0.6)] overflow-hidden relative ${
+      <div className={`w-full flex-1 min-h-0 flex flex-col bento-card bg-[#121824] rounded-3xl border border-white/10 hover:border-white/15 transition-colors duration-150 shadow-lg overflow-hidden relative ${
         hasErrorShake ? 'animate-shake border-rose-500/60 shadow-[0_0_25px_rgba(244,63,94,0.3)]' : ''
       }`}>
         {/* Sleek Progress Line fixed at the very top edge of the card */}
@@ -1591,7 +1585,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({
         {/* Pause Overlay (Displays when isPaused is true) */}
         {isPaused && (
           <div
-            className="absolute inset-0 z-50 flex flex-col items-center justify-center p-6 md:p-8 bg-neutral-950/85 backdrop-blur-xl border border-amber-500/30 rounded-3xl pause-overlay text-neutral-100 animate-fade-in select-none"
+            className="absolute inset-0 z-50 flex flex-col items-center justify-center p-6 md:p-8 bg-[#0c1017]/95 border border-amber-500/30 rounded-3xl pause-overlay text-neutral-100 animate-fade-in select-none"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Pause Icon & Title */}
@@ -1695,44 +1689,24 @@ export const TypingTest: React.FC<TypingTestProps> = ({
           className="w-full flex-1 min-h-0 relative p-6 md:p-10 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-600 typing-scroll-viewport"
           style={{ scrollbarGutter: 'stable' }}
         >
-          {/* Caret Styles */}
-          {caretStyle === 'line' && (
-            <div 
-              className="absolute w-[2.5px] bg-indigo-400 shadow-[0_0_12px_rgba(99,102,241,0.95),0_0_4px_rgba(99,102,241,1)] z-20 rounded-full animate-caret-pulse pointer-events-none"
-              style={{ 
-                height: caretPos.height || textScale * 1.15,
-                top: 0, 
-                left: 0,
-                transform: `translate(${caretPos.left}px, ${caretPos.top}px)`,
-                transition: caretTransitionEnabled ? 'transform 0.08s cubic-bezier(0.16, 1, 0.3, 1)' : 'none', 
-              }}
-            />
-          )}
-          {caretStyle === 'block' && (
-            <div 
-              className="absolute bg-indigo-400/35 border border-indigo-400/80 shadow-[0_0_10px_rgba(99,102,241,0.5)] z-20 rounded-sm animate-caret-pulse pointer-events-none"
-              style={{ 
-                width: Math.max(13, textScale * 0.58),
-                height: caretPos.height || textScale * 1.15,
-                top: 0, 
-                left: 0,
-                transform: `translate(${caretPos.left}px, ${caretPos.top}px)`,
-                transition: caretTransitionEnabled ? 'transform 0.08s cubic-bezier(0.16, 1, 0.3, 1)' : 'none', 
-              }}
-            />
-          )}
-          {caretStyle === 'underline' && (
-            <div 
-              className="absolute h-[3px] bg-indigo-400 shadow-[0_0_10px_rgba(99,102,241,0.9)] z-20 rounded-full animate-caret-pulse pointer-events-none"
-              style={{ 
-                width: Math.max(13, textScale * 0.58),
-                top: 0, 
-                left: 0,
-                transform: `translate(${caretPos.left}px, ${caretPos.top + (caretPos.height || textScale * 1.15) - 3}px)`,
-                transition: caretTransitionEnabled ? 'transform 0.08s cubic-bezier(0.16, 1, 0.3, 1)' : 'none', 
-              }}
-            />
-          )}
+          {/* Hardware-Accelerated Caret (Zero React Re-renders) */}
+          <div 
+            ref={caretRef}
+            className={`absolute z-20 animate-caret-pulse pointer-events-none ${
+              caretStyle === 'line'
+                ? 'w-[2.5px] bg-indigo-400 shadow-[0_0_8px_rgba(99,102,241,0.8)] rounded-full'
+                : caretStyle === 'block'
+                ? 'bg-indigo-400/35 border border-indigo-400/80 rounded-sm'
+                : 'h-[3px] bg-indigo-400 rounded-full'
+            }`}
+            style={{ 
+              top: 0, 
+              left: 0,
+              width: caretStyle === 'line' ? 2.5 : Math.max(13, textScale * 0.58),
+              height: Math.max(18, Math.round(textScale * 1.1)),
+              willChange: 'transform',
+            }}
+          />
 
           {/* Text Rendering Flow */}
           <div
@@ -1805,7 +1779,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({
           
           {!startTime && (
             <div className="absolute top-4 right-6 z-40 transition-opacity duration-300 pointer-events-none">
-              <div className="text-xs font-mono text-neutral-300 bg-black/70 backdrop-blur-md border border-white/10 rounded-full px-4 py-1.5 shadow-xl flex items-center gap-2">
+              <div className="text-xs font-mono text-neutral-300 bg-neutral-900 border border-white/10 rounded-full px-4 py-1.5 shadow-md flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse" />
                 Type to begin
               </div>

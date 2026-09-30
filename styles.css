@@ -61,14 +61,11 @@ body {
   scrollbar-gutter: stable;
 }
 
-/* Modern Clean Card Utilities (Subtle, Eye-Soothing, Non-Boxy) */
 .bento-card {
-  background: #141a24;
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: #131924;
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 1rem;
-  transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+  transition: border-color 0.15s ease;
 }
 
 .bento-card:hover {
@@ -174,16 +171,16 @@ body {
 }
 
 @keyframes caretPulse {
-  0%, 100% {
+  0%, 49% {
     opacity: 1;
   }
-  50% {
-    opacity: 0.35;
+  50%, 100% {
+    opacity: 0;
   }
 }
 
 .animate-caret-pulse {
-  animation: caretPulse 1.1s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  animation: caretPulse 1s steps(1) infinite;
 }
 
 /* Typing text anti-aliasing & letter spacing */

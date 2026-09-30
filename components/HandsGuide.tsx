@@ -43,7 +43,7 @@ const FINGER_NAMES: Record<FingerId, string> = {
   rp: 'Right Pinky',
 };
 
-export const HandsGuide: React.FC<HandsGuideProps> = ({ nextChar, focusHand }) => {
+export const HandsGuideBase: React.FC<HandsGuideProps> = ({ nextChar, focusHand }) => {
   const activeFinger = useMemo<FingerId | null>(() => {
     if (!nextChar) return null;
     const lower = nextChar.toLowerCase();
@@ -62,11 +62,11 @@ export const HandsGuide: React.FC<HandsGuideProps> = ({ nextChar, focusHand }) =
     const isActive = activeFinger === id;
     if (isActive) {
       if (isRightHandFocused && (id === 'ri' || id === 'rm' || id === 'rr' || id === 'rp')) {
-        return 'fill-cyan-400 stroke-cyan-200 filter drop-shadow-[0_0_10px_rgba(6,182,212,0.9)] transition-all duration-100';
+        return 'fill-cyan-400 stroke-cyan-200 stroke-2';
       }
-      return 'fill-indigo-500 stroke-indigo-300 filter drop-shadow-[0_0_8px_rgba(99,102,241,0.8)] transition-all duration-100';
+      return 'fill-indigo-500 stroke-indigo-300 stroke-2';
     }
-    return 'fill-neutral-900 stroke-neutral-700/80 transition-all duration-150';
+    return 'fill-neutral-900 stroke-neutral-700/80';
   };
 
   return (
@@ -160,3 +160,5 @@ export const HandsGuide: React.FC<HandsGuideProps> = ({ nextChar, focusHand }) =
     </div>
   );
 };
+
+export const HandsGuide = React.memo(HandsGuideBase);
