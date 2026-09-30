@@ -5,3 +5,7 @@
 ## 2024-05-18 - Make Power-User Features Discoverable
 **Learning:** Found existing keyboard shortcuts (Ctrl+Enter, Esc) in the TypingTest component that were completely invisible to users. Power-user features only provide UX value if users know they exist.
 **Action:** Added subtle visual `<kbd>` hints directly into the relevant action buttons ("Submit" and "Back"). Next time, ensure keyboard shortcuts are visibly documented in the UI as they are implemented, especially for frequent/core interaction loops like completing a typing test.
+
+## 2024-05-19 - Inline Confirmation vs System Modals
+**Learning:** Found an instance of `window.confirm` for destructive actions (deleting saved tests). System modals abruptly interrupt the user flow, have poor accessibility, and cannot be styled to match the app's design system.
+**Action:** Replace `window.confirm` with an inline two-step confirmation pattern (e.g., transforming the delete button to a "Sure?" prompt with a timeout). This keeps the user in context and feels much smoother.
