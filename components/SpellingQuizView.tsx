@@ -529,11 +529,22 @@ export const SpellingQuizView: React.FC<SpellingQuizViewProps> = ({
                       onChange={e => setSelectedVoiceURI(e.target.value)}
                       className="w-full p-2.5 rounded-xl bg-slate-900 border border-white/15 text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     >
-                      {availableVoices.map(v => (
-                        <option key={v.voiceURI} value={v.voiceURI}>
-                          {v.name} ({v.lang})
-                        </option>
-                      ))}
+                      {availableVoices
+                        .sort((a, b) => {
+                          const aIsIndian = a.lang.includes('en-IN') || /india|veena|rishi|neerja/i.test(a.name);
+                          const bIsIndian = b.lang.includes('en-IN') || /india|veena|rishi|neerja/i.test(b.name);
+                          if (aIsIndian && !bIsIndian) return -1;
+                          if (!aIsIndian && bIsIndian) return 1;
+                          return a.name.localeCompare(b.name);
+                        })
+                        .map(v => {
+                          const isIndian = v.lang.includes('en-IN') || /india|veena|rishi|neerja/i.test(v.name);
+                          return (
+                            <option key={v.voiceURI} value={v.voiceURI}>
+                              {isIndian ? '🇮🇳 ' : ''}{v.name} ({v.lang})
+                            </option>
+                          );
+                        })}
                     </select>
                   </div>
                 )}
