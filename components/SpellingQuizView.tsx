@@ -7,7 +7,7 @@ import {
   exportSpellingMisspeltPoolTxt,
   clearSpellingMisspeltPool
 } from '../services/storageService';
-import { piperTtsService, PIPER_VOICE_MODELS } from '../services/piperTtsService';
+import { piperTtsService, PIPER_VOICE_MODELS, TtsEngineMode } from '../services/piperTtsService';
 import { SpellingWordResult } from '../types';
 
 interface SpellingQuizViewProps {
@@ -36,7 +36,8 @@ export const SpellingQuizView: React.FC<SpellingQuizViewProps> = ({
   const [speechPitch, setSpeechPitch] = useState<number>(1.0);
   const [showSettings, setShowSettings] = useState(false);
 
-  // Available System / Natural Voices & PiperTTS
+  // Engine Mode & Voices
+  const [ttsEngineMode, setTtsEngineMode] = useState<TtsEngineMode>('PIPER_NEURAL');
   const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [selectedVoiceURI, setSelectedVoiceURI] = useState<string>('');
   const [selectedPiperVoiceId, setSelectedPiperVoiceId] = useState<string>('piper-lessac-medium');
@@ -69,7 +70,6 @@ export const SpellingQuizView: React.FC<SpellingQuizViewProps> = ({
       const englishVoices = voices.filter(v => v.lang.startsWith('en'));
       setAvailableVoices(englishVoices.length > 0 ? englishVoices : voices);
 
-      // Auto-select preferred natural / neural / premium voice if none selected
       if (!selectedVoiceURI && (englishVoices.length > 0 || voices.length > 0)) {
         const pool = englishVoices.length > 0 ? englishVoices : voices;
         const preferred = pool.find(v =>
@@ -95,7 +95,8 @@ export const SpellingQuizView: React.FC<SpellingQuizViewProps> = ({
     setIsPronouncing(true);
 
     piperTtsService.speak(wordToSpeak, {
-      voiceId: selectedPiperVoiceId,
+      engineMode: ttsEngineMode,
+      piperVoiceId: selectedPiperVoiceId,
       voiceURI: selectedVoiceURI,
       rate: speechRate,
       pitch: speechPitch,
@@ -111,7 +112,7 @@ export const SpellingQuizView: React.FC<SpellingQuizViewProps> = ({
         wordStartTimeRef.current = Date.now();
       }
     });
-  }, [selectedPiperVoiceId, selectedVoiceURI, speechRate, speechPitch]);
+  }, [ttsEngineMode, selectedPiperVoiceId, selectedVoiceURI, speechRate, speechPitch]);
 
   // Focus mobile input to pop up virtual keyboard
   const focusInput = useCallback(() => {
@@ -365,7 +366,7 @@ export const SpellingQuizView: React.FC<SpellingQuizViewProps> = ({
         {/* Settings Modal */}
         {showSettings && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-            <div className="bg-[#131924] border border-white/15 rounded-3xl p-6 max-w-md w-full shadow-2xl animate-scale-up">
+            <div className="bg-[#131924] border border-white/15 rounded-3xl p-6 max-w-md w-full shadow-2xl animate-scale-up max-h-[90vh] overflow-y-auto">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-bold text-white flex items-center gap-2">
                   <span>⚙️</span> Quiz Settings
@@ -380,6 +381,49 @@ export const SpellingQuizView: React.FC<SpellingQuizViewProps> = ({
               </div>
 
               <div className="space-y-6">
+                {/* Engine Mode Selection */}
+                <div>
+                  <label className="block text-sm font-semibold text-neutral-300 mb-2">
+                    Speech Engine Mode
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setTtsEngineMode('PIPER_NEURAL')}
+                      className={`p-3 rounded-xl border text-xs font-bold transition-all text-left ${
+                        ttsEngineMode === 'PIPER_NEURAL'
+                          ? 'bg-indigo-600/30 border-indigo-500 text-white shadow-md'
+                          : 'bg-slate-900 border-white/10 text-neutral-400 hover:text-white'
+                      }`}
+                    >
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <span>🤖</span> PiperTTS Neural
+                      </div>
+                      <div className="text-[10px] font-normal text-neutral-400">
+                        High Clarity Offline Neural Voice
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setTtsEngineMode('NATIVE_WEB_SPEECH')}
+                      className={`p-3 rounded-xl border text-xs font-bold transition-all text-left ${
+                        ttsEngineMode === 'NATIVE_WEB_SPEECH'
+                          ? 'bg-indigo-600/30 border-indigo-500 text-white shadow-md'
+                          : 'bg-slate-900 border-white/10 text-neutral-400 hover:text-white'
+                      }`}
+                    >
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <span>🌐</span> Native Web Speech
+                      </div>
+                      <div className="text-[10px] font-normal text-neutral-400">
+                        System Browser Speech API
+                      </div>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Per Word Timer Slider */}
                 <div>
                   <div className="flex justify-between items-center mb-2">
                     <label className="text-sm font-semibold text-neutral-300">
@@ -405,22 +449,24 @@ export const SpellingQuizView: React.FC<SpellingQuizViewProps> = ({
                 </div>
 
                 {/* PiperTTS Neural Model Selection */}
-                <div>
-                  <label className="block text-sm font-semibold text-neutral-300 mb-2">
-                    PiperTTS Neural Engine Model
-                  </label>
-                  <select
-                    value={selectedPiperVoiceId}
-                    onChange={e => setSelectedPiperVoiceId(e.target.value)}
-                    className="w-full p-2.5 rounded-xl bg-slate-900 border border-white/15 text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 mb-2"
-                  >
-                    {PIPER_VOICE_MODELS.map(pv => (
-                      <option key={pv.id} value={pv.id}>
-                        {pv.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                {ttsEngineMode === 'PIPER_NEURAL' && (
+                  <div>
+                    <label className="block text-sm font-semibold text-neutral-300 mb-2">
+                      PiperTTS Voice Model
+                    </label>
+                    <select
+                      value={selectedPiperVoiceId}
+                      onChange={e => setSelectedPiperVoiceId(e.target.value)}
+                      className="w-full p-2.5 rounded-xl bg-slate-900 border border-white/15 text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    >
+                      {PIPER_VOICE_MODELS.map(pv => (
+                        <option key={pv.id} value={pv.id}>
+                          {pv.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
 
                 {/* Speech Speed / Rate Slider */}
                 <div>
@@ -472,11 +518,11 @@ export const SpellingQuizView: React.FC<SpellingQuizViewProps> = ({
                   </div>
                 </div>
 
-                {/* Voice Model / Accent Selector */}
-                {availableVoices.length > 0 && (
+                {/* Voice Accent Selector for Native Speech */}
+                {ttsEngineMode === 'NATIVE_WEB_SPEECH' && availableVoices.length > 0 && (
                   <div>
                     <label className="block text-sm font-semibold text-neutral-300 mb-2">
-                      System Accent Fallback
+                      System Accent / Voice
                     </label>
                     <select
                       value={selectedVoiceURI}
@@ -752,7 +798,9 @@ export const SpellingQuizView: React.FC<SpellingQuizViewProps> = ({
             </button>
             <div className="text-left">
               <div className="text-xs font-bold text-white">Replay Audio</div>
-              <div className="text-[10px] text-stitch-muted font-mono">Space or Enter</div>
+              <div className="text-[10px] text-stitch-muted font-mono">
+                Engine: {ttsEngineMode === 'PIPER_NEURAL' ? 'PiperTTS Neural' : 'Native Web Speech'}
+              </div>
             </div>
           </div>
 
