@@ -7,6 +7,7 @@ import {
   exportSpellingMisspeltPoolTxt,
   clearSpellingMisspeltPool
 } from '../services/storageService';
+import { piperTtsService, PIPER_VOICE_MODELS } from '../services/piperTtsService';
 import { SpellingWordResult } from '../types';
 
 interface SpellingQuizViewProps {
@@ -31,11 +32,14 @@ export const SpellingQuizView: React.FC<SpellingQuizViewProps> = ({
   // Words & Settings
   const [words, setWords] = useState<string[]>([]);
   const [secondsPerWord, setSecondsPerWord] = useState<number>(7);
+  const [speechRate, setSpeechRate] = useState<number>(0.75); // Slower, clearer pronunciation speed
+  const [speechPitch, setSpeechPitch] = useState<number>(1.0);
   const [showSettings, setShowSettings] = useState(false);
 
-  // Available System / Natural Voices
+  // Available System / Natural Voices & PiperTTS
   const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [selectedVoiceURI, setSelectedVoiceURI] = useState<string>('');
+  const [selectedPiperVoiceId, setSelectedPiperVoiceId] = useState<string>('piper-lessac-medium');
 
   // Input / Setup state
   const [inputText, setInputText] = useState('');
@@ -86,36 +90,28 @@ export const SpellingQuizView: React.FC<SpellingQuizViewProps> = ({
     setMisspeltPool(getSpellingMisspeltPool());
   };
 
-  // Speech synthesis helper: sets isPronouncing = true and starts timer ONLY when speech completes
+  // Speech synthesis helper via piperTtsService
   const speakWord = useCallback((wordToSpeak: string) => {
-    if (!('speechSynthesis' in window)) {
-      console.warn('Text-to-speech not supported in this browser.');
-      setIsPronouncing(false);
-      wordStartTimeRef.current = Date.now();
-      return;
-    }
-    window.speechSynthesis.cancel();
     setIsPronouncing(true);
 
-    const utterance = new SpeechSynthesisUtterance(wordToSpeak);
-    utterance.rate = 0.9;
-    utterance.lang = 'en-US';
-
-    if (selectedVoiceURI) {
-      const chosen = availableVoices.find(v => v.voiceURI === selectedVoiceURI);
-      if (chosen) utterance.voice = chosen;
-    }
-
-    const onAudioEnd = () => {
-      setIsPronouncing(false);
-      wordStartTimeRef.current = Date.now();
-    };
-
-    utterance.onend = onAudioEnd;
-    utterance.onerror = onAudioEnd;
-
-    window.speechSynthesis.speak(utterance);
-  }, [availableVoices, selectedVoiceURI]);
+    piperTtsService.speak(wordToSpeak, {
+      voiceId: selectedPiperVoiceId,
+      voiceURI: selectedVoiceURI,
+      rate: speechRate,
+      pitch: speechPitch,
+      onStart: () => {
+        setIsPronouncing(true);
+      },
+      onEnd: () => {
+        setIsPronouncing(false);
+        wordStartTimeRef.current = Date.now();
+      },
+      onError: () => {
+        setIsPronouncing(false);
+        wordStartTimeRef.current = Date.now();
+      }
+    });
+  }, [selectedPiperVoiceId, selectedVoiceURI, speechRate, speechPitch]);
 
   // Focus mobile input to pop up virtual keyboard
   const focusInput = useCallback(() => {
@@ -408,11 +404,79 @@ export const SpellingQuizView: React.FC<SpellingQuizViewProps> = ({
                   </div>
                 </div>
 
-                {/* Voice Model Selector */}
+                {/* PiperTTS Neural Model Selection */}
+                <div>
+                  <label className="block text-sm font-semibold text-neutral-300 mb-2">
+                    PiperTTS Neural Engine Model
+                  </label>
+                  <select
+                    value={selectedPiperVoiceId}
+                    onChange={e => setSelectedPiperVoiceId(e.target.value)}
+                    className="w-full p-2.5 rounded-xl bg-slate-900 border border-white/15 text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 mb-2"
+                  >
+                    {PIPER_VOICE_MODELS.map(pv => (
+                      <option key={pv.id} value={pv.id}>
+                        {pv.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Speech Speed / Rate Slider */}
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="text-sm font-semibold text-neutral-300">
+                      Speech Speed (Pronunciation Rate)
+                    </label>
+                    <span className="text-indigo-400 font-mono font-bold text-base">
+                      {speechRate.toFixed(2)}x
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min={0.5}
+                    max={1.0}
+                    step={0.05}
+                    value={speechRate}
+                    onChange={e => setSpeechRate(Number(e.target.value))}
+                    className="w-full accent-indigo-500 cursor-pointer h-2 bg-slate-700 rounded-lg"
+                  />
+                  <div className="flex justify-between text-xs text-neutral-500 mt-1 font-mono">
+                    <span>0.50x (Very Slow)</span>
+                    <span>1.00x (Normal)</span>
+                  </div>
+                </div>
+
+                {/* Speech Pitch Slider */}
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="text-sm font-semibold text-neutral-300">
+                      Voice Pitch
+                    </label>
+                    <span className="text-indigo-400 font-mono font-bold text-base">
+                      {speechPitch.toFixed(1)}
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min={0.8}
+                    max={1.2}
+                    step={0.1}
+                    value={speechPitch}
+                    onChange={e => setSpeechPitch(Number(e.target.value))}
+                    className="w-full accent-indigo-500 cursor-pointer h-2 bg-slate-700 rounded-lg"
+                  />
+                  <div className="flex justify-between text-xs text-neutral-500 mt-1 font-mono">
+                    <span>0.8 (Lower Tone)</span>
+                    <span>1.2 (Higher Tone)</span>
+                  </div>
+                </div>
+
+                {/* Voice Model / Accent Selector */}
                 {availableVoices.length > 0 && (
                   <div>
                     <label className="block text-sm font-semibold text-neutral-300 mb-2">
-                      Voice Engine / Accent
+                      System Accent Fallback
                     </label>
                     <select
                       value={selectedVoiceURI}
