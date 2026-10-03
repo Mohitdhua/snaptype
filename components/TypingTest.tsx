@@ -182,8 +182,10 @@ export const TypingTest: React.FC<TypingTestProps> = ({
   const [input, setInput] = useState('');
   const [inputRevision, setInputRevision] = useState(0);
   const [startTime, setStartTime] = useState<number | null>(null);
-  const [currIndex, setCurrIndex] = useState(0);
-  const [hardKeys, setHardKeys] = useState<Record<string, number>>({});
+  const currIndex = input.length;
+  const hardKeysRef = useRef<Record<string, number>>({});
+  const cardRef = useRef<HTMLDivElement>(null);
+  const shakeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const caretRef = useRef<HTMLDivElement>(null);
   const lastActiveLineTopRef = useRef<number | null>(null);
   const [showKeyboard, setShowKeyboard] = useState(() => {
@@ -245,8 +247,18 @@ export const TypingTest: React.FC<TypingTestProps> = ({
   const [soundProfile, setSoundProfileState] = useState<SoundProfile>(() => getSoundProfile());
   const [caretStyle, setCaretStyle] = useState<'line' | 'block' | 'underline'>('line');
   const [isZenMode, setIsZenMode] = useState(false);
-  const [hasErrorShake, setHasErrorShake] = useState(false);
   const [pacerMode, setPacerMode] = useState<GhostPacerMode>('OFF');
+  const triggerErrorShake = useCallback(() => {
+    const el = cardRef.current;
+    if (!el) return;
+    el.classList.remove('animate-shake', 'border-rose-500/60');
+    void el.offsetWidth;
+    el.classList.add('animate-shake', 'border-rose-500/60');
+    if (shakeTimeoutRef.current) clearTimeout(shakeTimeoutRef.current);
+    shakeTimeoutRef.current = setTimeout(() => {
+      el.classList.remove('animate-shake', 'border-rose-500/60');
+    }, 180);
+  }, []);
   const [isMetronomeOn, setIsMetronomeOn] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
@@ -394,6 +406,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({
     totalRawErrorsRef.current = 0;
     backspaceCountRef.current = 0;
     correctedErrorsRef.current = 0;
+    hardKeysRef.current = {};
     hasCompletedRef.current = false;
     setInputRevision(0);
     accumulatedTimeMsRef.current = 0;
@@ -566,13 +579,13 @@ export const TypingTest: React.FC<TypingTestProps> = ({
       totalChars: input.length,
       correctChars,
       incorrectChars: errors,
-      hardKeys,
+      hardKeys: hardKeysRef.current,
       missedWords: missedWordsCount,
       history: historyRef.current,
       originalText: targetText,
       typedText: input
     };
-  }, [input, startTime, targetText, timeLimit, hardKeys]);
+  }, [input, startTime, targetText, timeLimit]);
 
   const finishTest = useCallback(() => {
      if (hasCompletedRef.current) return;
@@ -858,6 +871,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({
     window.scrollTo(0, 0);
     return () => {
       document.body.style.overflow = prevOverflow;
+      if (shakeTimeoutRef.current) clearTimeout(shakeTimeoutRef.current);
     };
   }, [updateCaret]);
 
@@ -915,11 +929,10 @@ export const TypingTest: React.FC<TypingTestProps> = ({
         inputRef.current.setSelectionRange(prevInput.length, prevInput.length);
       }
       if (soundProfile !== 'off') playSound('error');
-      setHasErrorShake(true);
+      triggerErrorShake();
       setBackspaceBlockedToast(true);
       if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
       toastTimeoutRef.current = setTimeout(() => setBackspaceBlockedToast(false), 1400);
-      setTimeout(() => setHasErrorShake(false), 180);
       return;
     }
 
@@ -933,11 +946,10 @@ export const TypingTest: React.FC<TypingTestProps> = ({
           inputRef.current.setSelectionRange(prevInput.length, prevInput.length);
         }
         if (soundProfile !== 'off') playSound('error');
-        setHasErrorShake(true);
-        setTimeout(() => setHasErrorShake(false), 180);
+        triggerErrorShake();
         const expectedChar = targetText[newCharIndex];
         const key = expectedChar === ' ' ? 'Space' : expectedChar === '\n' ? 'Enter' : expectedChar;
-        setHardKeys(prev => ({ ...prev, [key]: (prev[key] || 0) + 1 }));
+        hardKeysRef.current[key] = (hardKeysRef.current[key] || 0) + 1;
         return;
       }
     }
@@ -948,9 +960,8 @@ export const TypingTest: React.FC<TypingTestProps> = ({
       const typedChar = val[val.length - 1];
       if (newCharIndex < targetText.length && typedChar !== targetText[newCharIndex]) {
         if (soundProfile !== 'off') playSound('error');
-        setHasErrorShake(true);
+        triggerErrorShake();
         setInput(val);
-        setCurrIndex(val.length);
         hasCompletedRef.current = true;
         setTimeout(() => {
           finishTestRef.current?.();
@@ -1026,16 +1037,13 @@ export const TypingTest: React.FC<TypingTestProps> = ({
             
             if (typedChar !== expectedChar) {
                 if (soundProfile !== 'off') playSound('error');
-                setHasErrorShake(true);
-                setTimeout(() => setHasErrorShake(false), 180);
-                setHardKeys(prev => {
-                    const key = expectedChar === ' '
-                      ? 'Space'
-                      : expectedChar === '\n'
-                        ? 'Enter'
-                        : expectedChar;
-                    return { ...prev, [key]: (prev[key] || 0) + 1 };
-                });
+                triggerErrorShake();
+                const key = expectedChar === ' '
+                  ? 'Space'
+                  : expectedChar === '\n'
+                    ? 'Enter'
+                    : expectedChar;
+                hardKeysRef.current[key] = (hardKeysRef.current[key] || 0) + 1;
             } else {
                 if (soundProfile !== 'off') playKeystrokeSound(soundProfile, typedChar === '\n');
             }
@@ -1043,7 +1051,6 @@ export const TypingTest: React.FC<TypingTestProps> = ({
     }
 
     setInput(val);
-    setCurrIndex(val.length);
     resetAutoPauseTimer();
   };
   const stats = calculateStats(false);
@@ -1571,13 +1578,14 @@ export const TypingTest: React.FC<TypingTestProps> = ({
       )}
 
       {/* Typing Card Wrapper with top Progress Bar */}
-      <div className={`w-full flex-1 min-h-0 flex flex-col bento-card bg-[#121824] rounded-3xl border border-white/10 hover:border-white/15 transition-colors duration-150 shadow-lg overflow-hidden relative ${
-        hasErrorShake ? 'animate-shake border-rose-500/60 shadow-[0_0_25px_rgba(244,63,94,0.3)]' : ''
-      }`}>
+      <div 
+        ref={cardRef}
+        className="w-full flex-1 min-h-0 flex flex-col bento-card bg-[#121824] rounded-3xl border border-white/10 hover:border-white/15 transition-colors duration-150 shadow-lg overflow-hidden relative"
+      >
         {/* Sleek Progress Line fixed at the very top edge of the card */}
         <div className="w-full h-1 bg-white/5 shrink-0 overflow-hidden">
           <div 
-            className="h-full bg-gradient-to-r from-indigo-500 via-indigo-400 to-cyan-400 transition-all duration-150 shadow-[0_0_12px_rgba(99,102,241,0.8)]"
+            className="h-full bg-gradient-to-r from-indigo-500 via-indigo-400 to-cyan-400 transition-[width] duration-100 ease-out"
             style={{ width: `${progressPercent}%` }}
           />
         </div>

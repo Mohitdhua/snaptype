@@ -495,11 +495,13 @@ export const PhysicalTypingTest: React.FC<PhysicalTypingTestProps> = ({ ocrText,
             if (mirror.style.width !== targetWidth) {
               mirror.style.width = targetWidth;
             }
-            const selectionEnd = e.target.selectionEnd;
+            const selectionEnd = textarea.selectionEnd ?? val.length;
             const textToCursor = val.substring(0, selectionEnd);
             mirror.textContent = textToCursor.endsWith('\n') ? textToCursor + '\u200b' : textToCursor;
             const targetScroll = mirror.scrollHeight - (textarea.clientHeight / 2);
-            textarea.scrollTop = targetScroll;
+            if (Math.abs(textarea.scrollTop - targetScroll) > 8) {
+              textarea.scrollTop = targetScroll;
+            }
         }
         scrollRafRef.current = null;
     });

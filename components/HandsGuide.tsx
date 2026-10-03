@@ -74,9 +74,9 @@ export const HandsGuideBase: React.FC<HandsGuideProps> = ({ nextChar, focusHand 
       {/* Active Finger Status Bar */}
       <div className="flex items-center gap-2 mb-2 text-xs font-mono">
         <span className="text-neutral-400">Finger:</span>
-        <span className={`font-bold px-2 py-0.5 rounded-lg border transition-all ${
+        <span className={`font-bold px-2 py-0.5 rounded-lg border transition-colors ${
           isRightHandFocused
-            ? 'text-cyan-300 bg-cyan-500/15 border-cyan-500/40 shadow-[0_0_8px_rgba(6,182,212,0.25)]'
+            ? 'text-cyan-300 bg-cyan-500/15 border-cyan-500/40'
             : 'text-indigo-300 bg-indigo-500/15 border-indigo-500/30'
         }`}>
           {fingerLabel}
@@ -125,9 +125,9 @@ export const HandsGuideBase: React.FC<HandsGuideProps> = ({ nextChar, focusHand 
         </div>
 
         {/* Right Hand */}
-        <div className={`flex flex-col items-center transition-all duration-300 ${isRightHandFocused ? 'scale-105' : ''}`}>
+        <div className={`flex flex-col items-center transition-transform duration-200 ${isRightHandFocused ? 'scale-105' : ''}`}>
           <span className={`text-[10px] font-bold uppercase tracking-wider mb-1 flex items-center gap-1 ${
-            isRightHandFocused ? 'text-cyan-400 font-extrabold drop-shadow-[0_0_8px_rgba(6,182,212,0.6)]' : 'text-neutral-500'
+            isRightHandFocused ? 'text-cyan-400 font-extrabold' : 'text-neutral-500'
           }`}>
             Right Hand {isRightHandFocused && '⚡'}
           </span>
@@ -135,7 +135,7 @@ export const HandsGuideBase: React.FC<HandsGuideProps> = ({ nextChar, focusHand 
             {/* Palm */}
             <path
               d="M30 65 C30 50, 130 50, 130 65 C130 95, 30 95, 30 65 Z"
-              className={isRightHandFocused ? 'fill-neutral-950/90 stroke-cyan-500/50 shadow-cyan' : 'fill-neutral-950/80 stroke-neutral-800'}
+              className={isRightHandFocused ? 'fill-neutral-950/90 stroke-cyan-500/50' : 'fill-neutral-950/80 stroke-neutral-800'}
               strokeWidth="2"
             />
             {/* Thumb (thumb) */}

@@ -39,6 +39,22 @@ const FONT_SIZE_MAP: Record<CourtFontSize, { px: number; label: string }> = {
   '14pt': { px: 18.5, label: '14 pt (Large)' },
 };
 
+const countWordsFast = (text: string): number => {
+  let count = 0;
+  let inWord = false;
+  for (let i = 0; i < text.length; i++) {
+    if (text.charCodeAt(i) > 32) {
+      if (!inWord) {
+        inWord = true;
+        count++;
+      }
+    } else {
+      inWord = false;
+    }
+  }
+  return count;
+};
+
 export const CourtExamScreenTest: React.FC<CourtExamScreenTestProps> = ({
   passageText,
   timeLimit = 600,
@@ -339,11 +355,11 @@ export const CourtExamScreenTest: React.FC<CourtExamScreenTestProps> = ({
 
   // Word & character stats
   const passageWords = useMemo(() => {
-    return (passageText.trim().match(/\S+/g) || []).length;
+    return countWordsFast(passageText);
   }, [passageText]);
 
   const typedWords = useMemo(() => {
-    return (input.trim().match(/\S+/g) || []).length;
+    return countWordsFast(input);
   }, [input]);
 
   const remainingSeconds = timeLimit > 0 ? Math.max(0, Math.ceil(timeLimit - elapsed)) : 0;

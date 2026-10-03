@@ -179,10 +179,10 @@ export const VirtualKeyboardBase: React.FC<VirtualKeyboardProps> = ({ nextChar, 
                       borderBottomWidth: showZones && fingerColor ? '2.5px' : undefined,
                     }}
                     className={`
-                      ${width} h-9 md:h-11 rounded-lg flex flex-col items-center justify-center font-mono transition-transform duration-75 relative
+                      ${width} h-9 md:h-11 rounded-lg flex flex-col items-center justify-center font-mono relative
                       ${
                         isTarget
-                          ? 'bg-gradient-to-b from-indigo-500 to-indigo-600 text-white font-bold border-t border-indigo-400 shadow-[0_0_12px_rgba(99,102,241,0.5),0_2px_0_0_#3730a3] scale-[0.97]'
+                          ? 'bg-gradient-to-b from-indigo-500 to-indigo-600 text-white font-bold border-t border-indigo-400 shadow-sm scale-[0.98]'
                           : 'bg-neutral-900/90 hover:bg-neutral-800/90 text-neutral-400 border border-neutral-800'
                       }
                     `}

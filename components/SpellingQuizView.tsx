@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Button } from './Button';
 import { extractTextFromImage } from '../services/geminiService';
 import {
@@ -60,6 +60,9 @@ export const SpellingQuizView: React.FC<SpellingQuizViewProps> = ({
   const wordStartTimeRef = useRef<number>(Date.now());
   const inputContainerRef = useRef<HTMLDivElement>(null);
   const mobileInputRef = useRef<HTMLInputElement>(null);
+  const typedLettersRef = useRef<string[]>([]);
+  const isTransitioningRef = useRef(false);
+  const lastProcessedKeyRef = useRef<{ key: string; time: number }>({ key: '', time: 0 });
 
   // Load available system voices
   useEffect(() => {
@@ -142,7 +145,9 @@ export const SpellingQuizView: React.FC<SpellingQuizViewProps> = ({
     setWords(cleanList);
     setCurrentIndex(0);
     setResults([]);
+    typedLettersRef.current = [];
     setTypedLetters([]);
+    isTransitioningRef.current = false;
     setFeedbackStatus('none');
     setPhase('PLAYING');
   };
@@ -158,7 +163,9 @@ export const SpellingQuizView: React.FC<SpellingQuizViewProps> = ({
     }
 
     const currentWord = words[currentIndex];
+    typedLettersRef.current = [];
     setTypedLetters([]);
+    isTransitioningRef.current = false;
     setFeedbackStatus('none');
     setTimeLeft(secondsPerWord);
 
@@ -207,10 +214,12 @@ export const SpellingQuizView: React.FC<SpellingQuizViewProps> = ({
 
   // Handle auto-complete when word is finished or time expires
   const handleWordComplete = useCallback((overrideSuccess?: boolean) => {
+    if (isTransitioningRef.current) return;
+    isTransitioningRef.current = true;
     if (timerRef.current) clearTimeout(timerRef.current);
 
     const currentWord = words[currentIndex] || '';
-    const typedWord = typedLetters.join('').toLowerCase();
+    const typedWord = typedLettersRef.current.join('').toLowerCase();
     const timeSpent = Math.round((Date.now() - wordStartTimeRef.current) / 1000);
 
     const isCorrect = overrideSuccess !== undefined
@@ -232,17 +241,27 @@ export const SpellingQuizView: React.FC<SpellingQuizViewProps> = ({
     setTimeout(() => {
       setCurrentIndex(prev => prev + 1);
     }, 350);
-  }, [words, currentIndex, typedLetters]);
+  }, [words, currentIndex]);
 
   // Process key presses
   const processKey = useCallback((key: string) => {
-    if (phase !== 'PLAYING' || feedbackStatus !== 'none') return;
+    if (phase !== 'PLAYING' || isTransitioningRef.current || feedbackStatus !== 'none') return;
 
     const currentWord = words[currentIndex];
     if (!currentWord) return;
 
+    // Deduplicate duplicate keystrokes within 35ms
+    const now = Date.now();
+    if (key !== 'Backspace' && lastProcessedKeyRef.current.key === key.toLowerCase() && now - lastProcessedKeyRef.current.time < 35) {
+      return;
+    }
+    lastProcessedKeyRef.current = { key: key.toLowerCase(), time: now };
+
     if (key === 'Backspace') {
-      setTypedLetters(prev => prev.slice(0, -1));
+      if (typedLettersRef.current.length > 0) {
+        typedLettersRef.current = typedLettersRef.current.slice(0, -1);
+        setTypedLetters(typedLettersRef.current);
+      }
       return;
     }
 
@@ -254,17 +273,18 @@ export const SpellingQuizView: React.FC<SpellingQuizViewProps> = ({
 
     // Only accept single alphabetic characters
     if (key.length === 1 && /[a-zA-Z]/.test(key)) {
-      const nextLetter = key.toLowerCase();
-      setTypedLetters(prev => {
-        if (prev.length >= currentWord.length) return prev;
-        const updatedLetters = [...prev, nextLetter];
+      if (typedLettersRef.current.length < currentWord.length) {
+        const nextLetter = key.toLowerCase();
+        const updatedLetters = [...typedLettersRef.current, nextLetter];
+        typedLettersRef.current = updatedLetters;
+        setTypedLetters(updatedLetters);
 
         // Auto-advance as soon as final box is typed!
         if (updatedLetters.length === currentWord.length) {
+          isTransitioningRef.current = true;
+          if (timerRef.current) clearTimeout(timerRef.current);
           const typedWord = updatedLetters.join('').toLowerCase();
           const isCorrect = typedWord === currentWord.toLowerCase();
-
-          if (timerRef.current) clearTimeout(timerRef.current);
           setFeedbackStatus(isCorrect ? 'correct' : 'incorrect');
 
           const timeSpent = Math.round((Date.now() - wordStartTimeRef.current) / 1000);
@@ -282,14 +302,48 @@ export const SpellingQuizView: React.FC<SpellingQuizViewProps> = ({
             setCurrentIndex(cPrev => cPrev + 1);
           }, 350);
         }
-
-        return updatedLetters;
-      });
+      }
     }
   }, [phase, feedbackStatus, words, currentIndex, speakWord]);
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    processKey(e.key);
+  // Global window keyboard listener for desktop (zero bubbling, zero duplication)
+  useEffect(() => {
+    if (phase !== 'PLAYING') return;
+
+    const onWindowKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement && e.target !== mobileInputRef.current) return;
+      if (e.target instanceof HTMLTextAreaElement) return;
+
+      if (e.key === 'Backspace' || e.key === ' ' || e.key === 'Enter') {
+        e.preventDefault();
+        processKey(e.key);
+        return;
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setPhase('SETUP');
+        return;
+      }
+      if (e.key.length === 1 && /[a-zA-Z]/.test(e.key)) {
+        e.preventDefault();
+        processKey(e.key);
+        return;
+      }
+    };
+
+    window.addEventListener('keydown', onWindowKeyDown);
+    return () => window.removeEventListener('keydown', onWindowKeyDown);
+  }, [phase, processKey]);
+
+  // Mobile virtual keyboard input change handler
+  const handleMobileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    e.target.value = '';
+    if (!val) return;
+    const lastChar = val.slice(-1);
+    if (/[a-zA-Z]/.test(lastChar)) {
+      processKey(lastChar);
+    }
   };
 
   // Image upload OCR handler
@@ -365,7 +419,7 @@ export const SpellingQuizView: React.FC<SpellingQuizViewProps> = ({
 
         {/* Settings Modal */}
         {showSettings && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
             <div className="bg-[#131924] border border-white/15 rounded-3xl p-6 max-w-md w-full shadow-2xl animate-scale-up max-h-[90vh] overflow-y-auto">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-bold text-white flex items-center gap-2">
@@ -703,9 +757,7 @@ export const SpellingQuizView: React.FC<SpellingQuizViewProps> = ({
     return (
       <div
         ref={inputContainerRef}
-        tabIndex={0}
         onClick={focusInput}
-        onKeyDown={handleKeyDown}
         className="w-full max-w-3xl mx-auto p-2 md:p-6 flex flex-col items-center focus:outline-none select-none animate-fade-in relative"
       >
         {/* Offscreen / Hidden Input for Mobile Soft Keyboard Focus */}
@@ -713,13 +765,12 @@ export const SpellingQuizView: React.FC<SpellingQuizViewProps> = ({
           ref={mobileInputRef}
           type="text"
           value=""
-          onChange={e => {
-            const val = e.target.value;
-            if (val) {
-              processKey(val.slice(-1));
+          onChange={handleMobileInputChange}
+          onBlur={() => {
+            if (phase === 'PLAYING') {
+              mobileInputRef.current?.focus();
             }
           }}
-          onKeyDown={handleKeyDown}
           autoCapitalize="none"
           autoCorrect="off"
           autoComplete="off"
@@ -751,7 +802,7 @@ export const SpellingQuizView: React.FC<SpellingQuizViewProps> = ({
         {/* Progress Timer Line */}
         <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden mb-4 z-10">
           <div
-            className={`h-full transition-all duration-1000 linear ${
+            className={`h-full transition-[width] duration-300 ease-out ${
               timeLeft <= 2 ? 'bg-rose-500' : 'bg-indigo-500'
             }`}
             style={{ width: `${(timeLeft / secondsPerWord) * 100}%` }}
@@ -763,7 +814,7 @@ export const SpellingQuizView: React.FC<SpellingQuizViewProps> = ({
           onClick={focusInput}
           className="flex flex-col items-center justify-center w-full mb-4 z-10 cursor-pointer"
         >
-          <div className={`flex flex-wrap items-center justify-center gap-1.5 md:gap-3 p-3 rounded-2xl transition-all ${
+          <div className={`flex flex-wrap items-center justify-center gap-1.5 md:gap-3 p-3 rounded-2xl transition-colors duration-150 ${
             feedbackStatus === 'correct'
               ? 'ring-4 ring-emerald-500/80 bg-emerald-950/20'
               : feedbackStatus === 'incorrect'
@@ -777,9 +828,9 @@ export const SpellingQuizView: React.FC<SpellingQuizViewProps> = ({
               return (
                 <div
                   key={idx}
-                  className={`w-10 h-12 md:w-16 md:h-20 rounded-xl border-2 flex items-center justify-center text-xl md:text-3xl font-black font-mono uppercase transition-all shadow-md ${
+                  className={`w-10 h-12 md:w-16 md:h-20 rounded-xl border-2 flex items-center justify-center text-xl md:text-3xl font-black font-mono uppercase transition-colors duration-75 ${
                     letter
-                      ? 'border-indigo-500/80 bg-indigo-950/40 text-white scale-100'
+                      ? 'border-indigo-500/80 bg-indigo-950/40 text-white'
                       : isCurrent
                       ? 'border-indigo-400 bg-white/10 text-white animate-pulse'
                       : 'border-white/10 bg-slate-900/60 text-transparent'
