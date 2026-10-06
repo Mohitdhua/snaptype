@@ -12,7 +12,7 @@ interface SnapTypeAppProps {
   onSwitchToSpellingApp: () => void;
 }
 
-type HomeTab = 'LESSONS' | 'PRACTICE' | 'CREATE' | 'SAVED' | 'PROGRESS' | 'STUDY';
+type HomeTab = 'HOME' | 'PRACTICE' | 'FINGER_TRAINING' | 'ACCURACY_LAB' | 'SPEED_LAB' | 'ASSESSMENT' | 'PROGRESS' | 'INSIGHTS' | 'SETTINGS';
 type AppHistoryState = {
   __snaptype: true;
   gameState: GameState;
@@ -20,12 +20,15 @@ type AppHistoryState = {
 };
 
 const HOME_TABS: { id: HomeTab; label: string; icon: string }[] = [
-  { id: 'LESSONS', label: 'Lessons', icon: '🎓' },
-  { id: 'PRACTICE', label: 'Passages', icon: '📖' },
-  { id: 'CREATE', label: 'Custom / OCR', icon: '⚡' },
-  { id: 'SAVED', label: 'Saved Vault', icon: '📁' },
-  { id: 'PROGRESS', label: 'Analytics', icon: '📊' },
-  { id: 'STUDY', label: 'Study Mode', icon: '📚' },
+  { id: 'HOME', label: 'Home', icon: '🏠' },
+  { id: 'PRACTICE', label: 'Practice', icon: '⌨️' },
+  { id: 'FINGER_TRAINING', label: 'Finger Motor', icon: '🖐️' },
+  { id: 'ACCURACY_LAB', label: 'Accuracy Lab', icon: '🎯' },
+  { id: 'SPEED_LAB', label: 'Speed Lab', icon: '⚡' },
+  { id: 'ASSESSMENT', label: 'Assessment', icon: '📋' },
+  { id: 'PROGRESS', label: 'Progress', icon: '📈' },
+  { id: 'INSIGHTS', label: 'Insights', icon: '🧠' },
+  { id: 'SETTINGS', label: 'Settings', icon: '⚙️' },
 ];
 
 const getRouteKey = (nextGameState: GameState, nextHomeTab: HomeTab) =>
@@ -38,9 +41,14 @@ const normalizeHardKey = (key: string) => {
 };
 
 const CourtExamScreenTest = lazy(() => import('./CourtExamScreenTest').then(module => ({ default: module.CourtExamScreenTest })));
-const LessonsView = lazy(() => import('./LessonsView').then(module => ({ default: module.LessonsView })));
 const PracticeLibraryView = lazy(() => import('./PracticeLibraryView').then(module => ({ default: module.PracticeLibraryView })));
 const AnalyticsDashboard = lazy(() => import('./AnalyticsDashboard').then(module => ({ default: module.AnalyticsDashboard })));
+
+const HomeDashboard = lazy(() => import('./HomeDashboard').then(module => ({ default: module.HomeDashboard })));
+const FingerMotorTraining = lazy(() => import('./FingerMotorTraining').then(module => ({ default: module.FingerMotorTraining })));
+const AccuracyLab = lazy(() => import('./Labs').then(module => ({ default: module.AccuracyLab })));
+const SpeedLab = lazy(() => import('./Labs').then(module => ({ default: module.SpeedLab })));
+
 const ImageUploader = lazy(() => import('./ImageUploader').then(module => ({ default: module.ImageUploader })));
 const PhysicalTypingTest = lazy(() => import('./PhysicalTypingTest').then(module => ({ default: module.PhysicalTypingTest })));
 const ProgressChart = lazy(() => import('./ProgressChart').then(module => ({ default: module.ProgressChart })));
@@ -479,16 +487,13 @@ export const SnapTypeApp: React.FC<SnapTypeAppProps> = ({
   };
 
   const renderUploadTab = () => {
-    if (homeTab === 'LESSONS') {
+    if (homeTab === 'HOME') {
       return (
-        <div className="w-full max-w-6xl animate-fade-in">
-          <Suspense fallback={<SectionLoader />}>
-            <LessonsView onSelectExercise={handleSelectLessonExercise} />
-          </Suspense>
-        </div>
+        <Suspense fallback={<SectionLoader />}>
+          <HomeDashboard stats={userStats} onNavigateTab={navigateToTab} onStartDrill={(t, title, limit) => startGame({rawText: t, imageSrc: null, mode: 'DIGITAL', selectedTimeLimit: limit, sscEnabled: false, testId: null})} />
+        </Suspense>
       );
     }
-
     if (homeTab === 'PRACTICE') {
       return (
         <div className="w-full max-w-6xl animate-fade-in">
@@ -498,52 +503,28 @@ export const SnapTypeApp: React.FC<SnapTypeAppProps> = ({
         </div>
       );
     }
-
-    if (homeTab === 'CREATE') {
+    if (homeTab === 'FINGER_TRAINING') {
       return (
-        <div className="text-center w-full flex flex-col items-center">
-          <h1 className="text-4xl md:text-5xl font-extrabold text-stitch-accent mb-6 pb-2">
-            Train Faster, Type Smarter
-          </h1>
-          <p className="text-lg text-stitch-muted mb-10 max-w-xl mx-auto">
-            Upload an image or paste your own text.
-            <br />
-            Turn any content into a guided typing session.
-          </p>
-
-          <div className="w-full max-w-5xl bento-card p-4 md:p-8">
-            <Suspense fallback={<SectionLoader />}>
-              <ImageUploader onImageSelect={handleImageSelect} onTextSelect={handleTextSelect} isProcessing={isProcessing} />
-            </Suspense>
-          </div>
-        </div>
+        <Suspense fallback={<SectionLoader />}>
+          <FingerMotorTraining theme={theme} onStartDrill={(t, title, limit) => startGame({rawText: t, imageSrc: null, mode: 'DIGITAL', selectedTimeLimit: limit, sscEnabled: false, testId: null})} />
+        </Suspense>
       );
     }
-
-    if (homeTab === 'SAVED') {
+    if (homeTab === 'ACCURACY_LAB') {
       return (
-        <div className="w-full max-w-5xl animate-fade-in">
-          <div className="text-center mb-8">
-            <h2 className="text-3xl font-bold text-stitch-accent">Saved Test Library</h2>
-            <p className="text-stitch-muted mt-2">Choose mode and timer per test, then launch instantly.</p>
-          </div>
-          {savedTests.length > 0 ? (
-            <div className="bento-card p-4 md:p-6">
-              <Suspense fallback={<SectionLoader />}>
-                <SavedTestsList tests={savedTests} onPlay={handlePlaySavedTest} onDelete={handleDeleteSavedTest} />
-              </Suspense>
-            </div>
-          ) : (
-            <div className="bento-card p-8 text-center flex flex-col items-center">
-              <p className="text-stitch-muted mb-4">No saved tests yet. Create one from image or text.</p>
-              <Button onClick={() => navigateToTab('CREATE')}>Create First Test</Button>
-            </div>
-          )}
-        </div>
+        <Suspense fallback={<SectionLoader />}>
+          <AccuracyLab onStartDrill={(t, title, limit) => startGame({rawText: t, imageSrc: null, mode: 'DIGITAL', selectedTimeLimit: limit, sscEnabled: false, testId: null})} />
+        </Suspense>
       );
     }
-
-    if (homeTab === 'PROGRESS') {
+    if (homeTab === 'SPEED_LAB') {
+      return (
+        <Suspense fallback={<SectionLoader />}>
+          <SpeedLab onStartDrill={(t, title, limit) => startGame({rawText: t, imageSrc: null, mode: 'DIGITAL', selectedTimeLimit: limit, sscEnabled: false, testId: null})} />
+        </Suspense>
+      );
+    }
+    if (homeTab === 'PROGRESS' || homeTab === 'INSIGHTS') {
       return (
         <div className="w-full max-w-6xl animate-fade-in">
           <Suspense fallback={<SectionLoader />}>
@@ -557,30 +538,19 @@ export const SnapTypeApp: React.FC<SnapTypeAppProps> = ({
         </div>
       );
     }
-
-    if (homeTab === 'STUDY') {
-      return (
+    if (homeTab === 'SETTINGS' || homeTab === 'ASSESSMENT') {
+       return (
         <div className="w-full max-w-5xl animate-fade-in text-center flex flex-col items-center">
-          <h1 className="text-4xl md:text-5xl font-extrabold text-stitch-accent mb-4">
-            Standalone Study Mode
-          </h1>
-          <p className="text-lg text-stitch-muted mb-8 max-w-xl mx-auto">
-            A dedicated study space separate from typing tests.
-          </p>
-
           <div className="w-full bento-card p-8 md:p-12 flex flex-col items-center justify-center min-h-[300px]">
-            <div className="text-5xl mb-4">📚</div>
-            <h2 className="text-2xl font-bold text-stitch-accent mb-2">Study Mode - Under Construction</h2>
-            <p className="text-stitch-muted max-w-md text-center">
-              This standalone study hub will feature flashcards, reading materials, and note-taking features. Stay tuned!
-            </p>
+            <h2 className="text-2xl font-bold text-stitch-accent mb-2">{homeTab}</h2>
+            <p className="text-stitch-muted max-w-md text-center">Under Construction.</p>
           </div>
         </div>
-      );
+       );
     }
-
     return null;
   };
+
 
   return (
     <div className={`font-sans relative transition-colors duration-200 ${
