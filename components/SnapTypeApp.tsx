@@ -12,7 +12,7 @@ interface SnapTypeAppProps {
   onSwitchToSpellingApp: () => void;
 }
 
-type HomeTab = 'HOME' | 'PRACTICE' | 'FINGER_TRAINING' | 'ACCURACY_LAB' | 'SPEED_LAB' | 'ASSESSMENT' | 'PROGRESS' | 'INSIGHTS' | 'SETTINGS';
+type HomeTab = 'HOME' | 'TRAINING' | 'ANALYTICS' | 'SETTINGS';
 type AppHistoryState = {
   __snaptype: true;
   gameState: GameState;
@@ -20,14 +20,9 @@ type AppHistoryState = {
 };
 
 const HOME_TABS: { id: HomeTab; label: string; icon: string }[] = [
-  { id: 'HOME', label: 'Home', icon: '🏠' },
-  { id: 'PRACTICE', label: 'Practice', icon: '⌨️' },
-  { id: 'FINGER_TRAINING', label: 'Finger Motor', icon: '🖐️' },
-  { id: 'ACCURACY_LAB', label: 'Accuracy Lab', icon: '🎯' },
-  { id: 'SPEED_LAB', label: 'Speed Lab', icon: '⚡' },
-  { id: 'ASSESSMENT', label: 'Assessment', icon: '📋' },
-  { id: 'PROGRESS', label: 'Progress', icon: '📈' },
-  { id: 'INSIGHTS', label: 'Insights', icon: '🧠' },
+  { id: 'HOME', label: 'Dashboard', icon: '🏠' },
+  { id: 'TRAINING', label: 'Training Hub', icon: '⚡' },
+  { id: 'ANALYTICS', label: 'Analytics', icon: '📈' },
   { id: 'SETTINGS', label: 'Settings', icon: '⚙️' },
 ];
 
@@ -494,37 +489,43 @@ export const SnapTypeApp: React.FC<SnapTypeAppProps> = ({
         </Suspense>
       );
     }
-    if (homeTab === 'PRACTICE') {
+    if (homeTab === 'TRAINING') {
       return (
-        <div className="w-full max-w-6xl animate-fade-in">
+        <div className="w-full max-w-6xl mx-auto flex flex-col gap-12 md:gap-24 animate-fade-in pb-24">
           <Suspense fallback={<SectionLoader />}>
-            <PracticeLibraryView onStartPassage={handleStartPassage} />
+            <div className="flex flex-col gap-8">
+              <FingerMotorTraining theme={theme} onStartDrill={(t, title, limit) => startGame({rawText: t, imageSrc: null, mode: 'DIGITAL', selectedTimeLimit: limit, sscEnabled: false, testId: null})} />
+            </div>
+            
+            <div className="w-full h-px bg-slate-200 dark:bg-white/10" />
+            
+            <div className="flex flex-col gap-8">
+              <AccuracyLab onStartDrill={(t, title, limit) => startGame({rawText: t, imageSrc: null, mode: 'DIGITAL', selectedTimeLimit: limit, sscEnabled: false, testId: null})} />
+            </div>
+
+            <div className="w-full h-px bg-slate-200 dark:bg-white/10" />
+
+            <div className="flex flex-col gap-8">
+              <SpeedLab onStartDrill={(t, title, limit) => startGame({rawText: t, imageSrc: null, mode: 'DIGITAL', selectedTimeLimit: limit, sscEnabled: false, testId: null})} />
+            </div>
+
+            <div className="w-full h-px bg-slate-200 dark:bg-white/10" />
+
+            <div className="flex flex-col gap-8 mt-12 px-4 md:px-8">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-400 text-[10px] font-bold tracking-widest uppercase self-start mb-2 border border-slate-200 dark:border-white/10">
+                Endurance Library
+              </div>
+              <h1 className="text-4xl md:text-6xl font-black tracking-tighter mb-4 text-slate-900 dark:text-white">
+                Practice Texts
+              </h1>
+              <PracticeLibraryView onStartPassage={handleStartPassage} />
+            </div>
           </Suspense>
         </div>
       );
     }
-    if (homeTab === 'FINGER_TRAINING') {
-      return (
-        <Suspense fallback={<SectionLoader />}>
-          <FingerMotorTraining theme={theme} onStartDrill={(t, title, limit) => startGame({rawText: t, imageSrc: null, mode: 'DIGITAL', selectedTimeLimit: limit, sscEnabled: false, testId: null})} />
-        </Suspense>
-      );
-    }
-    if (homeTab === 'ACCURACY_LAB') {
-      return (
-        <Suspense fallback={<SectionLoader />}>
-          <AccuracyLab onStartDrill={(t, title, limit) => startGame({rawText: t, imageSrc: null, mode: 'DIGITAL', selectedTimeLimit: limit, sscEnabled: false, testId: null})} />
-        </Suspense>
-      );
-    }
-    if (homeTab === 'SPEED_LAB') {
-      return (
-        <Suspense fallback={<SectionLoader />}>
-          <SpeedLab onStartDrill={(t, title, limit) => startGame({rawText: t, imageSrc: null, mode: 'DIGITAL', selectedTimeLimit: limit, sscEnabled: false, testId: null})} />
-        </Suspense>
-      );
-    }
-    if (homeTab === 'PROGRESS' || homeTab === 'INSIGHTS') {
+    
+    if (homeTab === 'ANALYTICS') {
       return (
         <div className="w-full max-w-6xl animate-fade-in">
           <Suspense fallback={<SectionLoader />}>
@@ -538,12 +539,21 @@ export const SnapTypeApp: React.FC<SnapTypeAppProps> = ({
         </div>
       );
     }
-    if (homeTab === 'SETTINGS' || homeTab === 'ASSESSMENT') {
+    
+    if (homeTab === 'SETTINGS') {
        return (
-        <div className="w-full max-w-5xl animate-fade-in text-center flex flex-col items-center">
-          <div className="w-full bento-card p-8 md:p-12 flex flex-col items-center justify-center min-h-[300px]">
-            <h2 className="text-2xl font-bold text-stitch-accent mb-2">{homeTab}</h2>
-            <p className="text-stitch-muted max-w-md text-center">Under Construction.</p>
+        <div className="w-full max-w-5xl animate-fade-in text-center flex flex-col items-center pt-24">
+          <div className="w-full max-w-xl p-8 md:p-12 flex flex-col items-center justify-center min-h-[300px] rounded-[2rem] bg-white dark:bg-[#0f131a] border border-slate-200/60 dark:border-white/10 shadow-sm">
+            <h2 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white mb-4">Settings</h2>
+            <p className="text-slate-500 font-medium mb-8">Hardware calibration and preferences are currently locked.</p>
+            <div className="flex gap-4">
+              <Button onClick={onToggleTheme} className="bg-slate-100 text-slate-900 dark:bg-white/10 dark:text-white hover:bg-slate-200 dark:hover:bg-white/20 font-bold px-6">
+                Toggle Theme
+              </Button>
+              <Button onClick={onSwitchToSpellingApp} className="bg-violet-600 text-white hover:bg-violet-700 shadow-[0_4px_20px_rgba(124,58,237,0.3)] font-bold px-6">
+                SnapSpell Mode
+              </Button>
+            </div>
           </div>
         </div>
        );

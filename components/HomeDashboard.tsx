@@ -41,7 +41,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({ stats, onNavigateT
           </p>
           
           <Button 
-            onClick={() => onNavigateTab('FINGER_TRAINING')}
+            onClick={() => onNavigateTab('TRAINING')}
             className="px-8 py-4 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white shadow-[0_4px_20px_rgba(79,70,229,0.4)] text-base font-bold rounded-2xl transition-all duration-300"
           >
             Start Targeted Training
@@ -76,11 +76,11 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({ stats, onNavigateT
         </div>
         
         <button 
-          onClick={() => onNavigateTab('ASSESSMENT')}
+          onClick={() => onNavigateTab('TRAINING')}
           className="p-6 rounded-3xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 flex flex-col justify-center items-center hover:scale-[1.02] active:scale-95 transition-all duration-300 shadow-xl shadow-slate-900/10 dark:shadow-white/10 group"
         >
-          <span className="text-lg font-black tracking-tight group-hover:-translate-y-0.5 transition-transform">Take Assessment</span>
-          <span className="text-xs font-medium opacity-70 mt-1">Calibrate Engine →</span>
+          <span className="text-lg font-black tracking-tight group-hover:-translate-y-0.5 transition-transform">Start Training</span>
+          <span className="text-xs font-medium opacity-70 mt-1">Open Hub →</span>
         </button>
       </div>
       
