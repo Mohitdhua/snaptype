@@ -12,7 +12,7 @@ interface SnapTypeAppProps {
   onSwitchToSpellingApp: () => void;
 }
 
-type HomeTab = 'HOME' | 'TRAINING' | 'ANALYTICS' | 'SETTINGS';
+type HomeTab = 'HOME' | 'PRACTICE' | 'FINGER_TRAINING' | 'ACCURACY_LAB' | 'SPEED_LAB' | 'ASSESSMENT' | 'PROGRESS' | 'INSIGHTS' | 'SETTINGS';
 type AppHistoryState = {
   __snaptype: true;
   gameState: GameState;
@@ -20,9 +20,14 @@ type AppHistoryState = {
 };
 
 const HOME_TABS: { id: HomeTab; label: string; icon: string }[] = [
-  { id: 'HOME', label: 'Dashboard', icon: '🏠' },
-  { id: 'TRAINING', label: 'Training Hub', icon: '⚡' },
-  { id: 'ANALYTICS', label: 'Analytics', icon: '📈' },
+  { id: 'HOME', label: 'Home', icon: '🏠' },
+  { id: 'PRACTICE', label: 'Practice', icon: '⌨️' },
+  { id: 'FINGER_TRAINING', label: 'Finger Motor', icon: '🖐️' },
+  { id: 'ACCURACY_LAB', label: 'Accuracy Lab', icon: '🎯' },
+  { id: 'SPEED_LAB', label: 'Speed Lab', icon: '⚡' },
+  { id: 'ASSESSMENT', label: 'Assessment', icon: '📋' },
+  { id: 'PROGRESS', label: 'Progress', icon: '📈' },
+  { id: 'INSIGHTS', label: 'Insights', icon: '🧠' },
   { id: 'SETTINGS', label: 'Settings', icon: '⚙️' },
 ];
 
@@ -65,7 +70,7 @@ export const SnapTypeApp: React.FC<SnapTypeAppProps> = ({
   onSwitchToSpellingApp
 }) => {
   const [gameState, setGameState] = useState<GameState>(GameState.UPLOAD);
-  const [homeTab, setHomeTab] = useState<HomeTab>('LESSONS');
+  const [homeTab, setHomeTab] = useState<HomeTab>('HOME');
   const [gameMode, setGameMode] = useState<GameMode>('DIGITAL');
   const [text, setText] = useState('');
   const [originalText, setOriginalText] = useState('');
@@ -82,7 +87,7 @@ export const SnapTypeApp: React.FC<SnapTypeAppProps> = ({
   const [activeLessonId, setActiveLessonId] = useState<string | null>(null);
   const [activeExerciseIndex, setActiveExerciseIndex] = useState<number>(0);
 
-  const [tabHistory, setTabHistory] = useState<HomeTab[]>(['LESSONS']);
+  const [tabHistory, setTabHistory] = useState<HomeTab[]>(['HOME']);
 
   const navigateToTab = (nextTab: HomeTab) => {
     if (nextTab !== homeTab) {
@@ -97,7 +102,7 @@ export const SnapTypeApp: React.FC<SnapTypeAppProps> = ({
     } else if (tabHistory.length > 1) {
       const nextHistory = [...tabHistory];
       nextHistory.pop(); // remove current tab
-      const previousTab = nextHistory[nextHistory.length - 1] || 'LESSONS';
+      const previousTab = nextHistory[nextHistory.length - 1] || 'HOME';
       setTabHistory(nextHistory);
       setHomeTab(previousTab);
     }
@@ -127,7 +132,7 @@ export const SnapTypeApp: React.FC<SnapTypeAppProps> = ({
       isRestoringFromHistoryRef.current = true;
       setGameState(state.gameState);
       if (state.gameState === GameState.UPLOAD) {
-        setHomeTab(state.homeTab || 'LESSONS');
+        setHomeTab(state.homeTab || 'HOME');
       }
     };
 
@@ -489,45 +494,39 @@ export const SnapTypeApp: React.FC<SnapTypeAppProps> = ({
         </Suspense>
       );
     }
-    if (homeTab === 'TRAINING') {
+    if (homeTab === 'PRACTICE') {
       return (
-        <div className="w-full max-w-6xl mx-auto flex flex-col gap-12 md:gap-24 animate-fade-in pb-24">
+        <div className="w-full max-w-5xl animate-fade-in">
           <Suspense fallback={<SectionLoader />}>
-            <div className="flex flex-col gap-8">
-              <FingerMotorTraining theme={theme} onStartDrill={(t, title, limit) => startGame({rawText: t, imageSrc: null, mode: 'DIGITAL', selectedTimeLimit: limit, sscEnabled: false, testId: null})} />
-            </div>
-            
-            <div className="w-full h-px bg-slate-200 dark:bg-white/10" />
-            
-            <div className="flex flex-col gap-8">
-              <AccuracyLab onStartDrill={(t, title, limit) => startGame({rawText: t, imageSrc: null, mode: 'DIGITAL', selectedTimeLimit: limit, sscEnabled: false, testId: null})} />
-            </div>
-
-            <div className="w-full h-px bg-slate-200 dark:bg-white/10" />
-
-            <div className="flex flex-col gap-8">
-              <SpeedLab onStartDrill={(t, title, limit) => startGame({rawText: t, imageSrc: null, mode: 'DIGITAL', selectedTimeLimit: limit, sscEnabled: false, testId: null})} />
-            </div>
-
-            <div className="w-full h-px bg-slate-200 dark:bg-white/10" />
-
-            <div className="flex flex-col gap-8 mt-12 px-4 md:px-8">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-400 text-[10px] font-bold tracking-widest uppercase self-start mb-2 border border-slate-200 dark:border-white/10">
-                Endurance Library
-              </div>
-              <h1 className="text-4xl md:text-6xl font-black tracking-tighter mb-4 text-slate-900 dark:text-white">
-                Practice Texts
-              </h1>
-              <PracticeLibraryView onStartPassage={handleStartPassage} />
-            </div>
+            <PracticeLibraryView onStartPassage={handleStartPassage} />
           </Suspense>
         </div>
       );
     }
-    
-    if (homeTab === 'ANALYTICS') {
+    if (homeTab === 'FINGER_TRAINING') {
       return (
-        <div className="w-full max-w-6xl animate-fade-in">
+        <Suspense fallback={<SectionLoader />}>
+          <FingerMotorTraining theme={theme} onStartDrill={(t, title, limit) => startGame({rawText: t, imageSrc: null, mode: 'DIGITAL', selectedTimeLimit: limit, sscEnabled: false, testId: null})} />
+        </Suspense>
+      );
+    }
+    if (homeTab === 'ACCURACY_LAB') {
+      return (
+        <Suspense fallback={<SectionLoader />}>
+          <AccuracyLab onStartDrill={(t, title, limit) => startGame({rawText: t, imageSrc: null, mode: 'DIGITAL', selectedTimeLimit: limit, sscEnabled: false, testId: null})} />
+        </Suspense>
+      );
+    }
+    if (homeTab === 'SPEED_LAB') {
+      return (
+        <Suspense fallback={<SectionLoader />}>
+          <SpeedLab onStartDrill={(t, title, limit) => startGame({rawText: t, imageSrc: null, mode: 'DIGITAL', selectedTimeLimit: limit, sscEnabled: false, testId: null})} />
+        </Suspense>
+      );
+    }
+    if (homeTab === 'PROGRESS' || homeTab === 'INSIGHTS') {
+      return (
+        <div className="w-full max-w-5xl animate-fade-in">
           <Suspense fallback={<SectionLoader />}>
             <AnalyticsDashboard
               history={history}
@@ -539,18 +538,17 @@ export const SnapTypeApp: React.FC<SnapTypeAppProps> = ({
         </div>
       );
     }
-    
-    if (homeTab === 'SETTINGS') {
+    if (homeTab === 'SETTINGS' || homeTab === 'ASSESSMENT') {
        return (
-        <div className="w-full max-w-5xl animate-fade-in text-center flex flex-col items-center pt-24">
-          <div className="w-full max-w-xl p-8 md:p-12 flex flex-col items-center justify-center min-h-[300px] rounded-[2rem] bg-white dark:bg-[#0f131a] border border-slate-200/60 dark:border-white/10 shadow-sm">
-            <h2 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white mb-4">Settings</h2>
-            <p className="text-slate-500 font-medium mb-8">Hardware calibration and preferences are currently locked.</p>
-            <div className="flex gap-4">
-              <Button onClick={onToggleTheme} className="bg-slate-100 text-slate-900 dark:bg-white/10 dark:text-white hover:bg-slate-200 dark:hover:bg-white/20 font-bold px-6">
+        <div className="w-full max-w-5xl animate-fade-in text-center flex flex-col items-center pt-8">
+          <div className="w-full max-w-md p-6 flex flex-col items-center justify-center min-h-[200px] rounded-2xl bg-white dark:bg-[#0f131a] border border-slate-200 dark:border-white/10 shadow-sm">
+            <h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white mb-2">{homeTab}</h2>
+            <p className="text-sm text-slate-500 font-medium mb-6">Module Under Construction.</p>
+            <div className="flex flex-col gap-3 w-full">
+              <Button onClick={onToggleTheme} className="w-full bg-slate-100 text-slate-900 dark:bg-white/10 dark:text-white hover:bg-slate-200 dark:hover:bg-white/20 font-bold px-4 py-2 text-sm rounded-xl">
                 Toggle Theme
               </Button>
-              <Button onClick={onSwitchToSpellingApp} className="bg-violet-600 text-white hover:bg-violet-700 shadow-[0_4px_20px_rgba(124,58,237,0.3)] font-bold px-6">
+              <Button onClick={onSwitchToSpellingApp} className="w-full bg-indigo-600 text-white hover:bg-indigo-700 font-bold px-4 py-2 text-sm rounded-xl">
                 SnapSpell Mode
               </Button>
             </div>
