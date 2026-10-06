@@ -932,3 +932,24 @@ export const exportSpellingMisspeltPoolTxt = (): void => {
   a.click();
   URL.revokeObjectURL(url);
 };
+
+const DEFAULT_TIME_LIMIT_KEY = 'snaptype_default_time_limit_v1';
+
+export const getDefaultTimeLimit = (): import('../types').TimeLimit => {
+  try {
+    const saved = localStorage.getItem(DEFAULT_TIME_LIMIT_KEY);
+    if (saved !== null) {
+      const parsed = Number(saved);
+      if ([0, 15, 30, 60, 120, 300, 600, 900].includes(parsed)) {
+        return parsed as import('../types').TimeLimit;
+      }
+    }
+  } catch {}
+  return 60; // 60s standard default
+};
+
+export const setDefaultTimeLimit = (limit: import('../types').TimeLimit): void => {
+  try {
+    localStorage.setItem(DEFAULT_TIME_LIMIT_KEY, String(limit));
+  } catch {}
+};

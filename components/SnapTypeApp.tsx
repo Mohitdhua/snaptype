@@ -1,7 +1,7 @@
 import React, { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from './Button';
 import { extractTextFromImage } from '../services/geminiService';
-import { deleteSavedTest, getHistory, getSavedTests, getUserStats, saveLessonProgress, saveResult, saveTest, updateAdaptiveProfile } from '../services/storageService';
+import { deleteSavedTest, getHistory, getSavedTests, getUserStats, saveLessonProgress, saveResult, saveTest, updateAdaptiveProfile, getDefaultTimeLimit } from '../services/storageService';
 import { Theme } from '../services/themeService';
 import { GameMode, GameState, HardcoreMode, PracticePassage, SavedTest, StoredResult, TestResults, TimeLimit, UserStats } from '../types';
 import { LESSONS, getNextLessonTarget } from '../data/lessonsData';
@@ -12,7 +12,7 @@ interface SnapTypeAppProps {
   onSwitchToSpellingApp: () => void;
 }
 
-type HomeTab = 'HOME' | 'PRACTICE' | 'FINGER_TRAINING' | 'ACCURACY_LAB' | 'SPEED_LAB' | 'ASSESSMENT' | 'PROGRESS' | 'INSIGHTS' | 'SETTINGS';
+type HomeTab = 'HOME' | 'LESSONS' | 'FINGER_TRAINING' | 'ACCURACY_LAB' | 'SPEED_LAB' | 'PRACTICE' | 'ASSESSMENT' | 'PROGRESS' | 'SETTINGS';
 type AppHistoryState = {
   __snaptype: true;
   gameState: GameState;
@@ -21,13 +21,13 @@ type AppHistoryState = {
 
 const HOME_TABS: { id: HomeTab; label: string; icon: string }[] = [
   { id: 'HOME', label: 'Home', icon: '🏠' },
-  { id: 'PRACTICE', label: 'Practice', icon: '⌨️' },
+  { id: 'LESSONS', label: 'Lessons Suite', icon: '🎓' },
   { id: 'FINGER_TRAINING', label: 'Finger Motor', icon: '🖐️' },
   { id: 'ACCURACY_LAB', label: 'Accuracy Lab', icon: '🎯' },
   { id: 'SPEED_LAB', label: 'Speed Lab', icon: '⚡' },
+  { id: 'PRACTICE', label: 'Practice Library', icon: '⌨️' },
   { id: 'ASSESSMENT', label: 'Assessment', icon: '📋' },
-  { id: 'PROGRESS', label: 'Progress', icon: '📈' },
-  { id: 'INSIGHTS', label: 'Insights', icon: '🧠' },
+  { id: 'PROGRESS', label: 'Analytics', icon: '📈' },
   { id: 'SETTINGS', label: 'Settings', icon: '⚙️' },
 ];
 
@@ -41,8 +41,10 @@ const normalizeHardKey = (key: string) => {
 };
 
 const CourtExamScreenTest = lazy(() => import('./CourtExamScreenTest').then(module => ({ default: module.CourtExamScreenTest })));
+const LessonsView = lazy(() => import('./LessonsView').then(module => ({ default: module.LessonsView })));
 const PracticeLibraryView = lazy(() => import('./PracticeLibraryView').then(module => ({ default: module.PracticeLibraryView })));
 const AnalyticsDashboard = lazy(() => import('./AnalyticsDashboard').then(module => ({ default: module.AnalyticsDashboard })));
+const SettingsView = lazy(() => import('./SettingsView').then(module => ({ default: module.SettingsView })));
 
 const HomeDashboard = lazy(() => import('./HomeDashboard').then(module => ({ default: module.HomeDashboard })));
 const FingerMotorTraining = lazy(() => import('./FingerMotorTraining').then(module => ({ default: module.FingerMotorTraining })));
@@ -77,7 +79,7 @@ export const SnapTypeApp: React.FC<SnapTypeAppProps> = ({
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [results, setResults] = useState<TestResults | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [timeLimit, setTimeLimit] = useState<TimeLimit>(600);
+  const [timeLimit, setTimeLimit] = useState<TimeLimit>(() => getDefaultTimeLimit());
   const [history, setHistory] = useState<StoredResult[]>([]);
   const [userStats, setUserStats] = useState<UserStats | null>(null);
   const [savedTests, setSavedTests] = useState<SavedTest[]>([]);
@@ -219,7 +221,7 @@ export const SnapTypeApp: React.FC<SnapTypeAppProps> = ({
     setGameState(GameState.UPLOAD);
     setIsProcessing(false);
     setResults(null);
-    setTimeLimit(600);
+    setTimeLimit(getDefaultTimeLimit());
     setText('');
     setOriginalText('');
     setImagePreview(null);
@@ -494,6 +496,15 @@ export const SnapTypeApp: React.FC<SnapTypeAppProps> = ({
         </Suspense>
       );
     }
+    if (homeTab === 'LESSONS') {
+      return (
+        <div className="w-full max-w-6xl animate-fade-in">
+          <Suspense fallback={<SectionLoader />}>
+            <LessonsView onSelectExercise={handleSelectLessonExercise} />
+          </Suspense>
+        </div>
+      );
+    }
     if (homeTab === 'PRACTICE') {
       return (
         <div className="w-full max-w-5xl animate-fade-in">
@@ -538,23 +549,45 @@ export const SnapTypeApp: React.FC<SnapTypeAppProps> = ({
         </div>
       );
     }
-    if (homeTab === 'SETTINGS' || homeTab === 'ASSESSMENT') {
-       return (
-        <div className="w-full max-w-5xl animate-fade-in text-center flex flex-col items-center pt-8">
-          <div className="w-full max-w-md p-6 flex flex-col items-center justify-center min-h-[200px] rounded-2xl bg-white dark:bg-[#0f131a] border border-slate-200 dark:border-white/10 shadow-sm">
-            <h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white mb-2">{homeTab}</h2>
-            <p className="text-sm text-slate-500 font-medium mb-6">Module Under Construction.</p>
-            <div className="flex flex-col gap-3 w-full">
-              <Button onClick={onToggleTheme} className="w-full bg-slate-100 text-slate-900 dark:bg-white/10 dark:text-white hover:bg-slate-200 dark:hover:bg-white/20 font-bold px-4 py-2 text-sm rounded-xl">
-                Toggle Theme
-              </Button>
-              <Button onClick={onSwitchToSpellingApp} className="w-full bg-indigo-600 text-white hover:bg-indigo-700 font-bold px-4 py-2 text-sm rounded-xl">
-                SnapSpell Mode
-              </Button>
-            </div>
+    if (homeTab === 'SETTINGS') {
+      return (
+        <Suspense fallback={<SectionLoader />}>
+          <SettingsView
+            theme={theme}
+            onToggleTheme={onToggleTheme}
+            onSwitchToSpellingApp={onSwitchToSpellingApp}
+            currentHardcoreMode={hardcoreMode}
+            onSetHardcoreMode={setHardcoreMode}
+            onDefaultTimeLimitChange={(val) => setTimeLimit(val)}
+          />
+        </Suspense>
+      );
+    }
+    if (homeTab === 'ASSESSMENT') {
+      return (
+        <div className="w-full max-w-4xl mx-auto animate-fade-in text-center flex flex-col items-center pt-8 px-4">
+          <div className="w-full p-8 md:p-10 flex flex-col items-center justify-center rounded-2xl bg-white dark:bg-[#141a24] border border-slate-200 dark:border-white/10 shadow-sm">
+            <span className="text-3xl mb-3">📋</span>
+            <h2 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white mb-2">Standard Benchmarking Assessment</h2>
+            <p className="text-sm text-slate-500 dark:text-neutral-400 max-w-lg mb-6 leading-relaxed">
+              Official 10-Minute Typing Test modeled after SSC CGL/CHSL & High Court recruitment standards. Calculates Gross WPM, Net WPM, Accuracy, and KDPH with mistake penalty auditing.
+            </p>
+            <Button
+              onClick={() => startGame({
+                rawText: "The administration of justice requires punctuality, unwavering diligence, and precision in clerical transcription. In official court proceedings, each record must reflect the exact statements presented without omission, substitution, or typographical variation. Modern court reporters and administrative assistants must possess superior keyboard dexterity, allowing them to transcribe verbal testimony and legal documentation with minimal latency and maximal accuracy. Through structured deliberate practice, a typist achieves motor automaticity, minimizing neuromuscular fatigue and ensuring sustained typing flow during lengthy hearings.",
+                imageSrc: null,
+                mode: 'EXAM_SCREEN',
+                selectedTimeLimit: 600,
+                sscEnabled: true,
+                testId: null
+              })}
+              className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm rounded-xl shadow-md keep-white"
+            >
+              Start 10-Minute Official Assessment →
+            </Button>
           </div>
         </div>
-       );
+      );
     }
     return null;
   };

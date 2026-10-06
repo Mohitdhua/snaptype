@@ -2,6 +2,7 @@
 import React, { useState, useRef } from 'react';
 import { Button } from './Button';
 import { TimeLimit, GameMode } from '../types';
+import { getDefaultTimeLimit } from '../services/storageService';
 
 interface ImageUploaderProps {
   onImageSelect: (base64: string, mimeType: string, timeLimit: TimeLimit, mode: GameMode, isSSC: boolean) => void;
@@ -15,7 +16,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageSelect, onT
   const [preview, setPreview] = useState<string | null>(null);
   const [customText, setCustomText] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [timeLimit, setTimeLimit] = useState<TimeLimit>(600);
+  const [timeLimit, setTimeLimit] = useState<TimeLimit>(() => getDefaultTimeLimit());
   const [isSSCMode, setIsSSCMode] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const supportedImageTypes = new Set(['image/png', 'image/jpeg', 'image/jpg', 'image/webp']);
@@ -64,12 +65,13 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageSelect, onT
   };
 
   const timeOptions: { label: string; value: TimeLimit }[] = [
-    { label: '10 Min (Exam)', value: 600 },
-    { label: '15 Min', value: 900 },
-    { label: '5 Min', value: 300 },
-    { label: '2 Min', value: 120 },
+    { label: '15s', value: 15 },
+    { label: '30s', value: 30 },
     { label: '1 Min', value: 60 },
-    { label: 'Endless / Finish Text', value: 0 },
+    { label: '2 Min', value: 120 },
+    { label: '5 Min', value: 300 },
+    { label: '10 Min (Exam)', value: 600 },
+    { label: 'Finish Text', value: 0 },
   ];
 
   const hasContent = inputMode === 'image' ? !!preview : !!customText.trim();

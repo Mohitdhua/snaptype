@@ -59,7 +59,7 @@ export const LessonsView: React.FC<LessonsViewProps> = ({ progress: propProgress
 
   const [selectedStage, setSelectedStage] = useState<number>(() => currentActiveLesson.stage);
   const [activeLesson, setActiveLesson] = useState<Lesson>(() => currentActiveLesson);
-  const [activeTab, setActiveTab] = useState<'curriculum' | 'roadmap' | 'weakness' | 'collision'>('curriculum');
+  const [activeTab, setActiveTab] = useState<'curriculum' | 'hands' | 'fingers' | 'caps' | 'roadmap' | 'weakness' | 'collision'>('curriculum');
   const [selectedDayNumber, setSelectedDayNumber] = useState<number | null>(null);
   const [isAccuracyFirst, setIsAccuracyFirst] = useState(false);
 
@@ -291,6 +291,39 @@ export const LessonsView: React.FC<LessonsViewProps> = ({ progress: propProgress
           <div className="w-px h-5 bg-slate-200 dark:bg-white/10 mx-1 shrink-0" />
 
           {/* Mode Tabs */}
+          <button
+            onClick={() => { setActiveTab('hands'); setSelectedDayNumber(null); }}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all border ${
+              activeTab === 'hands'
+                ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm keep-white'
+                : 'bg-white dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 text-slate-600 dark:text-neutral-300 border-slate-200 dark:border-white/10'
+            }`}
+          >
+            ✋ Hand Isolation
+          </button>
+
+          <button
+            onClick={() => { setActiveTab('fingers'); setSelectedDayNumber(null); }}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all border ${
+              activeTab === 'fingers'
+                ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm keep-white'
+                : 'bg-white dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 text-slate-600 dark:text-neutral-300 border-slate-200 dark:border-white/10'
+            }`}
+          >
+            🖐️ Per-Finger Lab
+          </button>
+
+          <button
+            onClick={() => { setActiveTab('caps'); setSelectedDayNumber(null); }}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all border ${
+              activeTab === 'caps'
+                ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm keep-white'
+                : 'bg-white dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 text-slate-600 dark:text-neutral-300 border-slate-200 dark:border-white/10'
+            }`}
+          >
+            🔠 Caps & Shift
+          </button>
+
           <button
             onClick={() => { setActiveTab('roadmap'); setSelectedDayNumber(null); }}
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all border ${
@@ -569,6 +602,299 @@ export const LessonsView: React.FC<LessonsViewProps> = ({ progress: propProgress
                   </div>
                 );
               })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ================= HAND ISOLATION VIEW (LEFT / RIGHT HAND ONLY) ================= */}
+      {activeTab === 'hands' && (
+        <div className="flex flex-col gap-6 animate-fade-in">
+          <div className="p-6 md:p-7 rounded-2xl bg-white dark:bg-[#141a24] border border-slate-200 dark:border-white/10 shadow-sm">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+              <div>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <span>✋</span>
+                  <span>Hand Isolation & Bimanual Coordination</span>
+                </h3>
+                <p className="text-slate-500 dark:text-neutral-400 text-xs mt-1 max-w-2xl leading-relaxed">
+                  Isolate single-hand neural motor pathways to eliminate inter-manual compensation and build genuine bilateral independence.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Left Hand Only */}
+              <div className="p-5 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 flex flex-col justify-between gap-4">
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400 font-mono uppercase tracking-wider">
+                      Left Hand Only
+                    </span>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-300">
+                      Q W E R T A S D F G Z X C V B
+                    </span>
+                  </div>
+                  <h4 className="text-sm font-bold text-slate-900 dark:text-white">Left Hand Motor Dominance</h4>
+                  <p className="text-xs text-slate-500 dark:text-neutral-400 mt-1 leading-relaxed">
+                    Words formed strictly using left hand keys to strengthen non-dominant finger flexors.
+                  </p>
+                  <div className="mt-3 p-2.5 rounded-lg bg-white dark:bg-black/20 border border-slate-200/60 dark:border-white/5 text-[11px] font-mono text-slate-600 dark:text-neutral-300 line-clamp-2">
+                    sweater water great street brave tract create secret state draft target craft dwarf debate
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => onSelectExercise(
+                    'sweater water great street brave tract create secret state draft target craft dwarf debate reserve adverse average beware cater cascade defeat defer effect grass scatter steward baggage cabbage facade gaze garage radar raster refer safeguard savage setback stare strafe terrace tracker wafer waste watercraft weave werewolf',
+                    'left-hand-drill',
+                    'Left Hand Only Mastery Drill',
+                    isAccuracyFirst ? 'NO_BACKSPACE' : 'NONE'
+                  )}
+                  className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-mono text-xs font-bold transition-all shadow-sm keep-white"
+                >
+                  Start Left Hand Drill →
+                </button>
+              </div>
+
+              {/* Right Hand Only */}
+              <div className="p-5 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 flex flex-col justify-between gap-4">
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 font-mono uppercase tracking-wider">
+                      Right Hand Only
+                    </span>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-300">
+                      Y U I O P H J K L N M
+                    </span>
+                  </div>
+                  <h4 className="text-sm font-bold text-slate-900 dark:text-white">Right Hand Precision & Reach</h4>
+                  <p className="text-xs text-slate-500 dark:text-neutral-400 mt-1 leading-relaxed">
+                    Words formed purely with right hand digits to train lumbrical agility and reach accuracy.
+                  </p>
+                  <div className="mt-3 p-2.5 rounded-lg bg-white dark:bg-black/20 border border-slate-200/60 dark:border-white/5 text-[11px] font-mono text-slate-600 dark:text-neutral-300 line-clamp-2">
+                    monk look hill pool jolly union hook onion puppy imply milk moon plum pink kill million oily
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => onSelectExercise(
+                    'monk look hill pool jolly union hook onion puppy imply milk moon plum pink kill million oily poppy hymn loin yolk monopoly lollipop lymph minim puny ю link hull lull oily pony lion look jump monk hill pulp onion join loop moon plum hook junk holy pull polo poly pomp plump kill milk pill pip pop',
+                    'right-hand-drill',
+                    'Right Hand Only Precision Drill',
+                    isAccuracyFirst ? 'NO_BACKSPACE' : 'NONE'
+                  )}
+                  className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-mono text-xs font-bold transition-all shadow-sm keep-white"
+                >
+                  Start Right Hand Drill →
+                </button>
+              </div>
+
+              {/* Alternating Hands (Bimanual Cadence) */}
+              <div className="p-5 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 flex flex-col justify-between gap-4">
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-bold text-amber-600 dark:text-amber-400 font-mono uppercase tracking-wider">
+                      Alternating Rhythm
+                    </span>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-300">
+                      Left ↔ Right Flow
+                    </span>
+                  </div>
+                  <h4 className="text-sm font-bold text-slate-900 dark:text-white">Strict Alternating Hand Cadence</h4>
+                  <p className="text-xs text-slate-500 dark:text-neutral-400 mt-1 leading-relaxed">
+                    Sequences where keystrokes bounce back and forth between hands to maximize flow and WPM.
+                  </p>
+                  <div className="mt-3 p-2.5 rounded-lg bg-white dark:bg-black/20 border border-slate-200/60 dark:border-white/5 text-[11px] font-mono text-slate-600 dark:text-neutral-300 line-clamp-2">
+                    problem authentic balance formal handle island panic visual dismantle penalty visual enamel
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => onSelectExercise(
+                    'problem authentic balance formal handle island panic visual dismantle penalty visual enamel authentic handle visual formal island penalty problem dismantle balance formal handle visual problem penalty authentic island formal balance visual handle dismantle problem penalty authentic visual balance formal island',
+                    'alternating-hand-drill',
+                    'Bimanual Alternating Rhythm Drill',
+                    isAccuracyFirst ? 'NO_BACKSPACE' : 'NONE'
+                  )}
+                  className="w-full py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-mono text-xs font-bold transition-all shadow-sm keep-white"
+                >
+                  Start Alternating Drill →
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ================= PER-FINGER LAB VIEW ================= */}
+      {activeTab === 'fingers' && (
+        <div className="flex flex-col gap-6 animate-fade-in">
+          <div className="p-6 md:p-7 rounded-2xl bg-white dark:bg-[#141a24] border border-slate-200 dark:border-white/10 shadow-sm">
+            <div className="mb-6">
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <span>🖐️</span>
+                <span>Individual Digit Calibration (10-Finger Lab)</span>
+              </h3>
+              <p className="text-slate-500 dark:text-neutral-400 text-xs mt-1 leading-relaxed">
+                Click any finger to isolate its specific anatomical keys and launch a high-repetition targeted neuro-drill.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+              {[
+                { id: 'lp', name: 'Left Pinky', keys: 'Q, A, Z, 1', text: 'aza aqa aza zqa qaz aza qaz zqa aqa zza qqa aza zqa aqa zza qqa aza qaz zqa aqa zza qqa aza qaz zqa aqa zza qqa' },
+                { id: 'lr', name: 'Left Ring', keys: 'W, S, X, 2', text: 'sws sxs wsw xsx sws xsx wsw sxs sws xsx wsw sxs sws xsx wsw sxs sws xsx wsw sxs sws xsx wsw sxs sws xsx wsw sxs' },
+                { id: 'lm', name: 'Left Middle', keys: 'E, D, C, 3', text: 'ded dcd ede cdc ded dcd ede cdc ded dcd ede cdc ded dcd ede cdc ded dcd ede cdc ded dcd ede cdc ded dcd ede cdc' },
+                { id: 'li', name: 'Left Index', keys: 'R, T, F, G, V, B, 4, 5', text: 'frf ftf fgf fvf fbf rfr tft gfg vfv bfb frf ftf fgf fvf fbf rfr tft gfg vfv bfb frf ftf fgf fvf fbf rfr tft gfg vfv bfb' },
+                { id: 'thumb', name: 'Thumbs', keys: 'Spacebar Cadence', text: 'a b c d e f g h i j k l m n o p q r s t u v w x y z a b c d e f g h i j k l m n o p q r s t u v w x y z' },
+                { id: 'ri', name: 'Right Index', keys: 'Y, U, H, J, N, M, 6, 7', text: 'juj jyj jhj jnj jmj uju yjy hjh njn mjm juj jyj jhj jnj jmj uju yjy hjh njn mjm juj jyj jhj jnj jmj uju yjy hjh njn mjm' },
+                { id: 'rm', name: 'Right Middle', keys: 'I, K, Comma, 8', text: 'kik k,k iki ,k, kik k,k iki ,k, kik k,k iki ,k, kik k,k iki ,k, kik k,k iki ,k, kik k,k iki ,k, kik k,k iki ,k, kik k,k' },
+                { id: 'rr', name: 'Right Ring', keys: 'O, L, Period, 9', text: 'lol l.l olo .l. lol l.l olo .l. lol l.l olo .l. lol l.l olo .l. lol l.l olo .l. lol l.l olo .l. lol l.l olo .l. lol l.l' },
+                { id: 'rp', name: 'Right Pinky', keys: 'P, ;, /, 0, -, Enter', text: ';p; ;/; p;p /;/ ;p; ;/; p;p /;/ ;p; ;/; p;p /;/ ;p; ;/; p;p /;/ ;p; ;/; p;p /;/ ;p; ;/; p;p /;/ ;p; ;/; p;p /;/' },
+              ].map(f => (
+                <div
+                  key={f.id}
+                  className="p-4 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 flex flex-col justify-between gap-3 hover:border-indigo-500/50 transition-all"
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-bold text-slate-900 dark:text-white">{f.name}</span>
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 font-bold">
+                        {f.keys}
+                      </span>
+                    </div>
+                    <p className="text-[11px] font-mono text-slate-500 dark:text-neutral-400 line-clamp-1 mt-1">
+                      {f.text}
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={() => onSelectExercise(f.text, `digit-${f.id}`, `${f.name} Isolation Drill`, isAccuracyFirst ? 'NO_BACKSPACE' : 'NONE')}
+                    className="w-full py-2 rounded-lg bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-200 text-white dark:text-slate-900 text-xs font-bold font-mono transition-all"
+                  >
+                    Drill {f.name} →
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ================= CAPS LOCK & SHIFT LAB VIEW ================= */}
+      {activeTab === 'caps' && (
+        <div className="flex flex-col gap-6 animate-fade-in">
+          <div className="p-6 md:p-7 rounded-2xl bg-white dark:bg-[#141a24] border border-slate-200 dark:border-white/10 shadow-sm">
+            <div className="mb-6">
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <span>🔠</span>
+                <span>Caps Lock & Shift Mastery Suite</span>
+              </h3>
+              <p className="text-slate-500 dark:text-neutral-400 text-xs mt-1 leading-relaxed">
+                Train pinky endurance for shift key hold/release cycles, full uppercase bursts, and programming camelCase strings.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Caps Lock Legal & Official Burst */}
+              <div className="p-5 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 flex flex-col justify-between gap-4">
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400 font-mono uppercase">
+                      ALL CAPS BURST
+                    </span>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-300">
+                      CAPS LOCK
+                    </span>
+                  </div>
+                  <h4 className="text-sm font-bold text-slate-900 dark:text-white">Legal & Official Notices</h4>
+                  <p className="text-xs text-slate-500 dark:text-neutral-400 mt-1 leading-relaxed">
+                    Continuous uppercase typing for legal notices, court orders, and administrative headers.
+                  </p>
+                  <div className="mt-3 p-2.5 rounded-lg bg-white dark:bg-black/20 border border-slate-200/60 dark:border-white/5 text-[11px] font-mono text-slate-600 dark:text-neutral-300 line-clamp-2">
+                    THE HIGH COURT OF JUDICATURE AT ALLAHABAD HEREBY DIRECTS ALL CANDIDATES TO COMPLY WITH STATUTORY REGULATIONS
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => onSelectExercise(
+                    'THE HIGH COURT OF JUDICATURE AT ALLAHABAD HEREBY DIRECTS ALL CANDIDATES TO COMPLY WITH STATUTORY REGULATIONS AND COMPLETE EXAMINATIONS WITHIN THE STIPULATED TEN MINUTE PERIOD WITHOUT UNAUTHORIZED INTERRUPTIONS. THE ORDER OF THE SUPREME COURT OF INDIA SHALL REMAIN BINDING UPON ALL RECRUITMENT BOARDS AND NODAL COMMISSIONS ACROSS ALL JURISDICTIONS.',
+                    'caps-lock-notice',
+                    'All-Caps Legal Notice Drill',
+                    isAccuracyFirst ? 'NO_BACKSPACE' : 'NONE'
+                  )}
+                  className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-mono text-xs font-bold transition-all shadow-sm keep-white"
+                >
+                  Start Caps Lock Drill →
+                </button>
+              </div>
+
+              {/* Shift Key CamelCase & Acronyms */}
+              <div className="p-5 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 flex flex-col justify-between gap-4">
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-bold text-rose-600 dark:text-rose-400 font-mono uppercase">
+                      Shift Key Cadence
+                    </span>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-300">
+                      CamelCase & Acronyms
+                    </span>
+                  </div>
+                  <h4 className="text-sm font-bold text-slate-900 dark:text-white">Technical & Code Identifiers</h4>
+                  <p className="text-xs text-slate-500 dark:text-neutral-400 mt-1 leading-relaxed">
+                    Rapid shift key engage/disengage transitions for programmers, data entry, and technical writers.
+                  </p>
+                  <div className="mt-3 p-2.5 rounded-lg bg-white dark:bg-black/20 border border-slate-200/60 dark:border-white/5 text-[11px] font-mono text-slate-600 dark:text-neutral-300 line-clamp-2">
+                    JavaScript TypeScript ReactNode HTTP JSON UUID API HTML CSS URL XML NASA UNESCO
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => onSelectExercise(
+                    'JavaScript TypeScript ReactNode useEffect useState handleButtonClick getElementById innerHTML querySelector JSON UUID HTTP HTTPS API RESTful GraphQL SQL NoSQL HTML CSS SVG NASA UNESCO UNICEF WHO IMF NATO BBC CNN IBM Apple Microsoft Google Amazon Oracle Intel Nvidia AMD Tesla',
+                    'shift-camelcase',
+                    'Shift Key & Acronym Drill',
+                    isAccuracyFirst ? 'NO_BACKSPACE' : 'NONE'
+                  )}
+                  className="w-full py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-mono text-xs font-bold transition-all shadow-sm keep-white"
+                >
+                  Start Shift Cadence Drill →
+                </button>
+              </div>
+
+              {/* Symbols & Punctuation */}
+              <div className="p-5 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 flex flex-col justify-between gap-4">
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-bold text-purple-600 dark:text-purple-400 font-mono uppercase">
+                      Punctuation
+                    </span>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-300">
+                      Symbols & Special Keys
+                    </span>
+                  </div>
+                  <h4 className="text-sm font-bold text-slate-900 dark:text-white">Symbols & Complex Syntax</h4>
+                  <p className="text-xs text-slate-500 dark:text-neutral-400 mt-1 leading-relaxed">
+                    Upper row number shifts and punctuation keys essential for programming and formal typing.
+                  </p>
+                  <div className="mt-3 p-2.5 rounded-lg bg-white dark:bg-black/20 border border-slate-200/60 dark:border-white/5 text-[11px] font-mono text-slate-600 dark:text-neutral-300 line-clamp-2">
+                    {"{ count: 100, price: $45.90, valid: (score >= 90) && (rating != null) }"}
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => onSelectExercise(
+                    '{"id": 402, "status": "APPROVED", "rate": 18.5%, "balance": $1,250.00}; function test(a, b) { return (a > b) ? [a * 2] : (b / 4); }; /* Important Notice */ user@domain.org & admin@gov.in (Ref: #890-XYZ)! 100% of 50 = 50; @mohit #snaptype *key* _value_ +item -cost',
+                    'symbols-drill',
+                    'Punctuation & Syntax Mastery',
+                    isAccuracyFirst ? 'NO_BACKSPACE' : 'NONE'
+                  )}
+                  className="w-full py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-mono text-xs font-bold transition-all shadow-sm keep-white"
+                >
+                  Start Symbols Drill →
+                </button>
+              </div>
             </div>
           </div>
         </div>
