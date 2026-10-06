@@ -553,180 +553,103 @@ export const SnapTypeApp: React.FC<SnapTypeAppProps> = ({
 
 
   return (
-    <div className={`font-sans relative transition-colors duration-200 ${
+    <div className={`font-sans relative transition-colors duration-200 flex ${
       gameState === GameState.PLAYING ? 'h-screen max-h-screen overflow-hidden' : 'min-h-screen overflow-x-hidden'
     } ${
       theme === 'light' ? 'bg-[#f8fafc] text-slate-900' : 'bg-[#0c1017] text-slate-100'
     }`}>
       <div className="mesh-bg" />
 
+      {/* Desktop Sidebar */}
       {gameState !== GameState.PLAYING && (
-      <header className="fixed top-0 left-0 right-0 p-3 md:p-4 z-50 pointer-events-none">
-        <div className="max-w-7xl mx-auto flex flex-col gap-2 pointer-events-auto items-center">
-
-          {/* Main Top Nav Bar */}
-          <div className={`flex items-center justify-between w-full max-w-5xl px-4 md:px-6 py-2.5 rounded-2xl md:rounded-full border transition-all duration-200 ${
-            theme === 'light'
-              ? 'bg-white border-slate-200 shadow-md text-slate-900'
-              : 'bg-[#131924] border-white/10 shadow-xl text-slate-100'
-          }`}>
-            <div className="flex items-center gap-2 shrink-0">
-              {canGoBack && (
-                <button
-                  type="button"
-                  onClick={handleInAppBack}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer shadow-xs ${
-                    theme === 'light'
-                      ? 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-800'
-                      : 'bg-white/10 hover:bg-white/20 border-white/15 text-white'
-                  }`}
-                  title="Back to Previous View / वापस जाएं"
-                >
-                  <span className="text-sm leading-none font-bold">←</span>
-                  <span className="hidden sm:inline">Back</span>
-                </button>
-              )}
-
-              <button
-                type="button"
-                className="flex items-center gap-2.5 hover:opacity-85 transition-opacity shrink-0"
-                onClick={goHomeCreate}
-                title="SnapType Typing Master Home"
-              >
-                <div className="w-8 h-8 rounded-xl bg-indigo-600 flex items-center justify-center shadow-sm">
-                  <span className="text-white font-black text-base leading-none keep-white">S</span>
-                </div>
-                <div className="text-left hidden sm:block">
-                  <div className={`text-sm font-extrabold tracking-tight leading-tight ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>SnapType</div>
-                  <div className="text-[9px] font-mono text-indigo-500 dark:text-indigo-400 font-semibold leading-none">Blind Typing Pro</div>
-                </div>
-              </button>
+        <aside className={`hidden md:flex flex-col w-[260px] fixed top-0 left-0 bottom-0 z-50 border-r py-6 px-4 transition-all ${theme === 'light' ? 'bg-[#f8fafc] border-slate-200 shadow-sm' : 'bg-[#0a0d14] border-white/10'}`}>
+          <button className="flex items-center gap-2.5 hover:opacity-85 transition-opacity text-left mb-8 w-full" onClick={goHomeCreate}>
+            <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center shadow-md shrink-0">
+              <span className="text-white font-black text-xl leading-none keep-white">S</span>
             </div>
-
-            {/* Desktop Navigation Tabs */}
-            {gameState === GameState.UPLOAD && (
-              <nav className={`hidden md:flex items-center gap-1 rounded-full p-1 border ${
-                theme === 'light' ? 'bg-slate-100 border-slate-200' : 'bg-white/5 border-white/10'
-              }`}>
-                {HOME_TABS.map(tab => {
-                  const isActive = homeTab === tab.id;
-                  return (
-                    <button
-                      key={tab.id}
-                      type="button"
-                      onClick={() => navigateToTab(tab.id)}
-                      className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 ${
-                        isActive
-                          ? (theme === 'light' ? 'bg-white text-slate-900 shadow-sm font-bold' : 'bg-white text-black shadow-md font-bold')
-                          : (theme === 'light' ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60' : 'text-neutral-400 hover:text-white hover:bg-white/5')
-                      }`}
-                    >
-                      <span>{tab.icon}</span>
-                      <span>{tab.label}</span>
-                    </button>
-                  );
-                })}
-              </nav>
-            )}
-
-            {/* Gamification Cockpit, App Switcher & Theme Toggle */}
-            <div className="flex items-center gap-2.5 shrink-0">
-              {/* App Switcher Button to SnapSpell */}
-              <button
-                type="button"
-                onClick={onSwitchToSpellingApp}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-violet-600/20 hover:bg-violet-600/30 border border-violet-500/40 text-violet-300 hover:text-white text-xs font-bold transition-all shadow-xs"
-                title="Switch to SnapSpell Audio Master"
-              >
-                <span>🗣️</span>
-                <span className="hidden sm:inline">Switch to SnapSpell</span>
-              </button>
-
-              {/* Theme Switcher Button */}
-              <button
-                type="button"
-                onClick={onToggleTheme}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-medium transition-all ${
-                  theme === 'light'
-                    ? 'bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-700'
-                    : 'bg-white/5 hover:bg-white/10 border-white/10 text-neutral-300 hover:text-white'
-                }`}
-                title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-                aria-label="Toggle Light/Dark Theme"
-              >
-                <span className="text-xs leading-none">{theme === 'dark' ? '☀️' : '🌙'}</span>
-              </button>
-
-              {gameState === GameState.RESULTS && (
-                <button
-                  type="button"
-                  onClick={goHomeCreate}
-                  className="text-xs font-bold px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 transition-all text-white shadow-xs flex items-center gap-1 cursor-pointer keep-white"
-                  title="Return to Dashboard"
-                >
-                  <span>←</span>
-                  <span>Dashboard</span>
-                </button>
-              )}
-              {userStats && (
-                <div className={`flex items-center gap-2.5 text-xs font-mono px-3 py-1.5 rounded-xl border ${
-                  theme === 'light' ? 'bg-slate-100 border-slate-200 text-slate-700' : 'bg-white/5 border-white/10 text-neutral-300'
-                }`}>
-                  <div className="flex items-center gap-1" title="Daily Practice Streak">
-                    <span>🔥</span>
-                    <span className="text-amber-500 font-bold">{userStats.currentStreak}d</span>
-                  </div>
-                  <div className={`w-px h-3 ${theme === 'light' ? 'bg-slate-300' : 'bg-white/20'}`} />
-                  <div className="flex items-center gap-1" title="Earned XP">
-                    <span className="text-amber-500">⭐</span>
-                    <span className={`font-bold ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>{userStats.xp}</span>
-                  </div>
-                  {userStats.bestWpm > 0 && (
-                    <>
-                      <div className={`w-px h-3 ${theme === 'light' ? 'bg-slate-300' : 'bg-white/20'} hidden sm:block`} />
-                      <div className="hidden sm:flex items-center gap-1 text-indigo-500 dark:text-indigo-400 font-bold" title="Personal Best WPM">
-                        <span>⚡</span>
-                        <span>{userStats.bestWpm} WPM</span>
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
+            <div>
+              <div className={`text-base font-extrabold tracking-tight leading-tight ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>SnapType</div>
+              <div className="text-[10px] font-mono text-indigo-500 font-semibold leading-none mt-0.5">Blind Typing Pro</div>
             </div>
-          </div>
+          </button>
 
-          {/* Mobile Nav Bar */}
-          {gameState === GameState.UPLOAD && (
-            <nav className={`flex md:hidden items-center gap-1 rounded-2xl p-1 border w-fit max-w-full overflow-x-auto px-2 scrollbar-none shadow-md ${
-              theme === 'light' ? 'bg-white border-slate-200' : 'bg-[#131924] border-white/10'
-            }`}>
-              {HOME_TABS.map(tab => (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => navigateToTab(tab.id)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1 ${
-                    homeTab === tab.id
-                      ? (theme === 'light' ? 'bg-slate-100 text-slate-900 font-bold' : 'bg-white text-black shadow-md font-bold')
-                      : (theme === 'light' ? 'text-slate-600 hover:text-slate-900' : 'text-neutral-400 hover:text-white')
-                  }`}
-                >
-                  <span>{tab.icon}</span>
-                  <span>{tab.label}</span>
-                </button>
-              ))}
-            </nav>
+          {userStats && (
+            <div className={`mb-6 p-3 rounded-xl border flex flex-col gap-2 shadow-sm ${theme === 'light' ? 'bg-white border-slate-200' : 'bg-white/5 border-white/10'}`}>
+              <div className="flex items-center justify-between text-xs font-mono">
+                <span className="opacity-60 uppercase font-bold tracking-widest text-[10px]">Streak</span>
+                <span className="text-amber-500 font-bold">{userStats.currentStreak}d 🔥</span>
+              </div>
+              <div className="flex items-center justify-between text-xs font-mono">
+                <span className="opacity-60 uppercase font-bold tracking-widest text-[10px]">XP</span>
+                <span className="font-bold">{userStats.xp} ⭐</span>
+              </div>
+            </div>
           )}
 
-        </div>
-      </header>
+          <nav className="flex flex-col gap-1 flex-1 overflow-y-auto pr-1 custom-scrollbar">
+            {HOME_TABS.map(tab => {
+              const isActive = homeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => navigateToTab(tab.id)}
+                  className={`px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center gap-3 w-full text-left ${
+                    isActive
+                      ? (theme === 'light' ? 'bg-indigo-50 text-indigo-700 shadow-sm' : 'bg-indigo-500/20 text-indigo-300 shadow-sm')
+                      : (theme === 'light' ? 'text-slate-600 hover:bg-slate-200/50' : 'text-neutral-400 hover:bg-white/5 hover:text-white')
+                  }`}
+                >
+                  <span className="text-base opacity-90">{tab.icon}</span>
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
+          </nav>
+
+          <div className={`flex flex-col gap-2 mt-4 pt-4 border-t ${theme === 'light' ? 'border-slate-200' : 'border-white/10'}`}>
+            <button onClick={onSwitchToSpellingApp} className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold transition-all w-full text-left ${theme === 'light' ? 'text-violet-600 hover:bg-violet-50' : 'text-violet-400 hover:bg-violet-500/10'}`}>
+              <span className="text-sm">🗣️</span> SnapSpell
+            </button>
+            <button onClick={onToggleTheme} className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold transition-all w-full text-left ${theme === 'light' ? 'text-slate-600 hover:bg-slate-100' : 'text-slate-400 hover:bg-white/5'}`}>
+              <span className="text-sm">{theme === 'dark' ? '☀️' : '🌙'}</span> Theme
+            </button>
+          </div>
+        </aside>
+      )}
+
+      {/* Mobile Top Bar */}
+      {gameState !== GameState.PLAYING && (
+        <header className={`md:hidden flex items-center justify-between p-3 border-b fixed top-0 left-0 right-0 z-50 shadow-sm ${theme === 'light' ? 'bg-[#f8fafc] border-slate-200' : 'bg-[#0c1017] border-white/10'}`}>
+          <button className="flex items-center gap-2.5 text-left" onClick={goHomeCreate}>
+            <div className="w-8 h-8 rounded-xl bg-indigo-600 flex items-center justify-center shadow-sm shrink-0">
+              <span className="text-white font-black text-base leading-none keep-white">S</span>
+            </div>
+            <div className={`text-sm font-extrabold tracking-tight leading-tight ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>SnapType</div>
+          </button>
+          <div className="flex gap-2">
+            <button onClick={onSwitchToSpellingApp} className="p-2 rounded-xl bg-violet-500/10 text-violet-500 text-lg">🗣️</button>
+            <button onClick={onToggleTheme} className={`p-2 rounded-xl ${theme === 'light' ? 'bg-slate-200/50' : 'bg-white/10'} text-lg`}>{theme === 'dark' ? '☀️' : '🌙'}</button>
+          </div>
+        </header>
+      )}
+
+      {/* Mobile Bottom Nav */}
+      {gameState !== GameState.PLAYING && (
+        <nav className={`md:hidden fixed bottom-0 left-0 right-0 p-2 border-t flex items-center gap-2 overflow-x-auto z-50 shadow-[0_-8px_30px_rgba(0,0,0,0.12)] scrollbar-none pb-safe ${theme === 'light' ? 'bg-[#f8fafc] border-slate-200' : 'bg-[#0c1017] border-white/10'}`}>
+          {HOME_TABS.map(tab => (
+            <button key={tab.id} onClick={() => navigateToTab(tab.id)} className={`flex-shrink-0 flex flex-col items-center gap-1 p-2 rounded-xl min-w-[72px] transition-colors ${homeTab === tab.id ? (theme === 'light' ? 'text-indigo-600 bg-indigo-50' : 'text-indigo-400 bg-indigo-500/20') : 'text-slate-500 hover:bg-slate-500/5'}`}>
+              <span className="text-xl leading-none mb-0.5">{tab.icon}</span>
+              <span className="text-[10px] font-bold tracking-tight">{tab.label}</span>
+            </button>
+          ))}
+        </nav>
       )}
 
       <main
         className={
           gameState === GameState.PLAYING
             ? 'w-full max-w-7xl mx-auto px-2 md:px-4 pt-2 md:pt-3 pb-2 h-full flex-1 min-h-0 overflow-hidden flex flex-col items-center justify-start'
-            : `container mx-auto px-4 pb-12 min-h-screen flex flex-col items-center justify-start pt-24 md:pt-28 relative z-10`
+            : `flex-1 w-full px-4 pb-20 pt-20 md:pt-12 md:pl-[280px] min-h-screen flex flex-col items-center justify-start relative z-10`
         }
       >
         {gameState === GameState.UPLOAD && renderUploadTab()}
