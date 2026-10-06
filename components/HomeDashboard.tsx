@@ -50,7 +50,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({ stats, onNavigateT
       </div>
 
       {/* Exquisite Stats Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 w-full gap-4 md:gap-6 text-left">
+      <div className="grid grid-cols-1 md:grid-cols-3 w-full gap-4 md:gap-6 text-left">
         <div className="p-6 rounded-3xl bg-white dark:bg-[#0f131a] border border-slate-100 dark:border-white/5 shadow-sm flex flex-col justify-between">
           <span className="text-[10px] uppercase text-slate-400 dark:text-slate-500 font-bold tracking-widest mb-4">Total Tests</span>
           <div>
@@ -74,14 +74,6 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({ stats, onNavigateT
             <div className="text-xs font-semibold text-slate-500 mt-1">All-time record</div>
           </div>
         </div>
-        
-        <button 
-          onClick={() => onNavigateTab('TRAINING')}
-          className="p-6 rounded-3xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 flex flex-col justify-center items-center hover:scale-[1.02] active:scale-95 transition-all duration-300 shadow-xl shadow-slate-900/10 dark:shadow-white/10 group"
-        >
-          <span className="text-lg font-black tracking-tight group-hover:-translate-y-0.5 transition-transform">Start Training</span>
-          <span className="text-xs font-medium opacity-70 mt-1">Open Hub →</span>
-        </button>
       </div>
       
     </div>
