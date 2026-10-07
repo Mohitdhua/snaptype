@@ -5,7 +5,7 @@ import { UserStats, TimeLimit } from '../types';
 interface HomeDashboardProps {
   stats: UserStats | null;
   onNavigateTab: (tab: any) => void;
-  onStartDrill: (text: string, title: string, timeLimit: TimeLimit) => void;
+  onStartDrill: (text: string, title: string, timeLimit?: TimeLimit) => void;
 }
 
 export const HomeDashboard: React.FC<HomeDashboardProps> = ({ stats, onNavigateTab, onStartDrill }) => {

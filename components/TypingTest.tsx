@@ -5,7 +5,7 @@ import { levenshteinDistance } from '../utils/stringUtils';
 import { VirtualKeyboard } from './VirtualKeyboard';
 import { HandsGuide } from './HandsGuide';
 import { playSound, playKeystrokeSound, getSoundProfile, setSoundProfile, SoundProfile, startMetronome, stopMetronome, warmupAudio } from '../services/soundService';
-import { getUserStats } from '../services/storageService';
+import { getUserStats, setDefaultTimeLimit } from '../services/storageService';
 import { Theme, getStoredTheme, applyTheme } from '../services/themeService';
 import { evaluateCourtTypingTest } from '../services/courtEvaluationService';
 
@@ -62,6 +62,7 @@ interface TypingTestProps {
   onToggleTheme?: () => void;
   onNextLesson?: () => void;
   nextLessonLabel?: string;
+  onTimeLimitChange?: (newLimit: TimeLimit) => void;
 }
 
 type CharStatus = 'pending' | 'correct' | 'incorrect';
@@ -178,6 +179,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({
   onToggleTheme,
   onNextLesson,
   nextLessonLabel,
+  onTimeLimitChange,
 }) => {
   const [input, setInput] = useState('');
   const [inputRevision, setInputRevision] = useState(0);
@@ -1484,6 +1486,34 @@ export const TypingTest: React.FC<TypingTestProps> = ({
                 >
                   {currentTheme === 'dark' ? '☀️ Light' : '🌙 Dark'}
                 </button>
+              </div>
+            </div>
+
+            {/* Row: Global Timer Setting */}
+            <div className="col-span-2 sm:col-span-4 pt-3 border-t border-white/10 flex flex-wrap items-center justify-between gap-2">
+              <span className="text-[10px] font-mono uppercase tracking-widest text-neutral-400 font-bold flex items-center gap-1.5">
+                <span>⏱️</span> Global Duration:
+              </span>
+              <div className="flex flex-wrap items-center gap-1">
+                {([15, 30, 60, 120, 300, 600, 0] as TimeLimit[]).map(t => (
+                  <button
+                    key={t}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (isSSC || isCourtExam) return;
+                      setDefaultTimeLimit(t);
+                      if (onTimeLimitChange) onTimeLimitChange(t);
+                    }}
+                    disabled={isSSC || isCourtExam}
+                    className={`px-2.5 py-1 rounded-lg text-[10px] font-mono font-bold transition-all border ${
+                      timeLimit === t
+                        ? 'bg-indigo-600 border-indigo-500 text-white shadow-sm'
+                        : 'bg-white/5 border-white/10 text-neutral-400 hover:text-white hover:bg-white/10'
+                    }`}
+                  >
+                    {t === 600 ? '10m (Exam)' : t === 300 ? '5m' : t === 120 ? '2m' : t === 60 ? '1m' : t === 30 ? '30s' : t === 15 ? '15s' : 'Full'}
+                  </button>
+                ))}
               </div>
             </div>
           </div>

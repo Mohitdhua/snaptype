@@ -1,7 +1,7 @@
 import React, { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from './Button';
 import { extractTextFromImage } from '../services/geminiService';
-import { deleteSavedTest, getHistory, getSavedTests, getUserStats, saveLessonProgress, saveResult, saveTest, updateAdaptiveProfile, getDefaultTimeLimit } from '../services/storageService';
+import { deleteSavedTest, getHistory, getSavedTests, getUserStats, saveLessonProgress, saveResult, saveTest, updateAdaptiveProfile, getDefaultTimeLimit, setDefaultTimeLimit } from '../services/storageService';
 import { Theme } from '../services/themeService';
 import { GameMode, GameState, HardcoreMode, PracticePassage, SavedTest, StoredResult, TestResults, TimeLimit, UserStats } from '../types';
 import { LESSONS, getNextLessonTarget } from '../data/lessonsData';
@@ -198,17 +198,22 @@ export const SnapTypeApp: React.FC<SnapTypeAppProps> = ({
     rawText: string;
     imageSrc: string | null;
     mode: GameMode;
-    selectedTimeLimit: TimeLimit;
+    selectedTimeLimit?: TimeLimit;
     sscEnabled: boolean;
     testId: string | null;
     lessonId?: string | null;
     hardcore?: HardcoreMode;
   }) => {
-    const gameText = prepareTextForGame(rawText, selectedTimeLimit);
+    const globalDefault = getDefaultTimeLimit();
+    const effectiveTimeLimit: TimeLimit = (sscEnabled || mode === 'EXAM_SCREEN')
+      ? 600
+      : (selectedTimeLimit !== undefined && selectedTimeLimit !== null ? selectedTimeLimit : (timeLimit || globalDefault));
+
+    const gameText = prepareTextForGame(rawText, effectiveTimeLimit);
     setOriginalText(rawText);
     setText(gameText);
     setImagePreview(imageSrc);
-    setTimeLimit(selectedTimeLimit);
+    setTimeLimit(effectiveTimeLimit);
     setGameMode(mode);
     setIsSSCMode(sscEnabled);
     setActiveTestId(testId);
@@ -337,7 +342,7 @@ export const SnapTypeApp: React.FC<SnapTypeAppProps> = ({
       rawText: exerciseText,
       imageSrc: null,
       mode: 'DIGITAL',
-      selectedTimeLimit: 600,
+      selectedTimeLimit: timeLimit || getDefaultTimeLimit(),
       sscEnabled: false,
       testId: null,
       lessonId,
@@ -369,7 +374,7 @@ export const SnapTypeApp: React.FC<SnapTypeAppProps> = ({
   ) => {
     const isCourtClerk = passage.category === 'court-clerk';
     const isSSC = isCourtClerk || passage.category === 'ssc' || passage.category === 'legal';
-    const finalTimeLimit = selectedTimeLimit || 600;
+    const finalTimeLimit = isSSC ? 600 : (selectedTimeLimit !== undefined ? selectedTimeLimit : (timeLimit || getDefaultTimeLimit()));
     startGame({
       rawText: passage.text,
       imageSrc: null,
@@ -492,7 +497,7 @@ export const SnapTypeApp: React.FC<SnapTypeAppProps> = ({
     if (homeTab === 'HOME') {
       return (
         <Suspense fallback={<SectionLoader />}>
-          <HomeDashboard stats={userStats} onNavigateTab={navigateToTab} onStartDrill={(t, title, limit) => startGame({rawText: t, imageSrc: null, mode: 'DIGITAL', selectedTimeLimit: limit, sscEnabled: false, testId: null})} />
+          <HomeDashboard stats={userStats} onNavigateTab={navigateToTab} onStartDrill={(t, title, limit) => startGame({rawText: t, imageSrc: null, mode: 'DIGITAL', selectedTimeLimit: limit ?? timeLimit ?? getDefaultTimeLimit(), sscEnabled: false, testId: null})} />
         </Suspense>
       );
     }
@@ -517,21 +522,21 @@ export const SnapTypeApp: React.FC<SnapTypeAppProps> = ({
     if (homeTab === 'FINGER_TRAINING') {
       return (
         <Suspense fallback={<SectionLoader />}>
-          <FingerMotorTraining theme={theme} onStartDrill={(t, title, limit) => startGame({rawText: t, imageSrc: null, mode: 'DIGITAL', selectedTimeLimit: limit, sscEnabled: false, testId: null})} />
+          <FingerMotorTraining theme={theme} onStartDrill={(t, title, limit) => startGame({rawText: t, imageSrc: null, mode: 'DIGITAL', selectedTimeLimit: limit ?? timeLimit ?? getDefaultTimeLimit(), sscEnabled: false, testId: null})} />
         </Suspense>
       );
     }
     if (homeTab === 'ACCURACY_LAB') {
       return (
         <Suspense fallback={<SectionLoader />}>
-          <AccuracyLab onStartDrill={(t, title, limit) => startGame({rawText: t, imageSrc: null, mode: 'DIGITAL', selectedTimeLimit: limit, sscEnabled: false, testId: null})} />
+          <AccuracyLab onStartDrill={(t, title, limit) => startGame({rawText: t, imageSrc: null, mode: 'DIGITAL', selectedTimeLimit: limit ?? timeLimit ?? getDefaultTimeLimit(), sscEnabled: false, testId: null})} />
         </Suspense>
       );
     }
     if (homeTab === 'SPEED_LAB') {
       return (
         <Suspense fallback={<SectionLoader />}>
-          <SpeedLab onStartDrill={(t, title, limit) => startGame({rawText: t, imageSrc: null, mode: 'DIGITAL', selectedTimeLimit: limit, sscEnabled: false, testId: null})} />
+          <SpeedLab onStartDrill={(t, title, limit) => startGame({rawText: t, imageSrc: null, mode: 'DIGITAL', selectedTimeLimit: limit ?? timeLimit ?? getDefaultTimeLimit(), sscEnabled: false, testId: null})} />
         </Suspense>
       );
     }
@@ -720,6 +725,10 @@ export const SnapTypeApp: React.FC<SnapTypeAppProps> = ({
                 onToggleTheme={onToggleTheme}
                 onNextLesson={nextLessonTarget ? handleNextLesson : undefined}
                 nextLessonLabel={nextLessonTarget?.label}
+                onTimeLimitChange={(newLimit) => {
+                  setTimeLimit(newLimit);
+                  setDefaultTimeLimit(newLimit);
+                }}
               />
             ) : (
               <PhysicalTypingTest

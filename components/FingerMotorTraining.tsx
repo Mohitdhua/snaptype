@@ -4,7 +4,7 @@ import { HandsGuide } from './HandsGuide';
 import { GameState, TimeLimit } from '../types';
 
 interface FingerMotorTrainingProps {
-  onStartDrill: (text: string, title: string, timeLimit: TimeLimit) => void;
+  onStartDrill: (text: string, title: string, timeLimit?: TimeLimit) => void;
   theme: string;
 }
 
@@ -20,7 +20,7 @@ export const FingerMotorTraining: React.FC<FingerMotorTrainingProps> = ({ onStar
 
   const handleStart = (pair: string) => {
     const drillText = transitions[pair][0];
-    onStartDrill(drillText, `Motor Training: ${pair}`, 60);
+    onStartDrill(drillText, `Motor Training: ${pair}`);
   };
 
   return (

@@ -2,7 +2,7 @@ import React from 'react';
 import { Button } from './Button';
 import { TimeLimit } from '../types';
 
-export const AccuracyLab: React.FC<{ onStartDrill: (text: string, title: string, timeLimit: TimeLimit) => void }> = ({ onStartDrill }) => {
+export const AccuracyLab: React.FC<{ onStartDrill: (text: string, title: string, timeLimit?: TimeLimit) => void }> = ({ onStartDrill }) => {
   return (
     <div className="w-full max-w-4xl flex flex-col items-center animate-fade-in text-center">
       <h1 className="text-3xl font-bold tracking-tight mb-2">Accuracy Lab</h1>
@@ -14,19 +14,19 @@ export const AccuracyLab: React.FC<{ onStartDrill: (text: string, title: string,
         <div className="bento-card p-6">
           <h3 className="font-semibold mb-2">High-Frequency Errors</h3>
           <p className="text-xs opacity-70 mb-4">Dynamically generated drill based on your most frequently missed spatial targets.</p>
-          <Button onClick={() => onStartDrill("the quick brown fox jumps over the lazy dog", "Adaptive Accuracy Drill", 0)}>Generate Drill</Button>
+          <Button onClick={() => onStartDrill("the quick brown fox jumps over the lazy dog", "Adaptive Accuracy Drill")}>Generate Drill</Button>
         </div>
         <div className="bento-card p-6">
           <h3 className="font-semibold mb-2">Variable Sequence Practice</h3>
           <p className="text-xs opacity-70 mb-4">Randomized morphemes and digraphs to enforce contextual interference and improve retention.</p>
-          <Button onClick={() => onStartDrill("tion ment ence ance ship ness able", "Variable Transfer Drill", 0)}>Generate Drill</Button>
+          <Button onClick={() => onStartDrill("tion ment ence ance ship ness able", "Variable Transfer Drill")}>Generate Drill</Button>
         </div>
       </div>
     </div>
   );
 };
 
-export const SpeedLab: React.FC<{ onStartDrill: (text: string, title: string, timeLimit: TimeLimit) => void }> = ({ onStartDrill }) => {
+export const SpeedLab: React.FC<{ onStartDrill: (text: string, title: string, timeLimit?: TimeLimit) => void }> = ({ onStartDrill }) => {
   return (
     <div className="w-full max-w-4xl flex flex-col items-center animate-fade-in text-center">
       <h1 className="text-3xl font-bold tracking-tight mb-2">Speed Lab</h1>
@@ -42,8 +42,8 @@ export const SpeedLab: React.FC<{ onStartDrill: (text: string, title: string, ti
         </div>
         <div className="bento-card p-6 border-l-4 border-amber-500/50">
           <h3 className="font-semibold mb-2">Threshold Pacing</h3>
-          <p className="text-xs opacity-70 mb-4">Sustained moderate speed (60s). Focus on consistent Inter-Keystroke Intervals.</p>
-          <Button onClick={() => onStartDrill("sustain a consistent rhythm to ensure neuro-motor noise is minimized", "60s Threshold", 60)}>Start Threshold</Button>
+          <p className="text-xs opacity-70 mb-4">Focus on consistent Inter-Keystroke Intervals using your global test duration.</p>
+          <Button onClick={() => onStartDrill("sustain a consistent rhythm to ensure neuro-motor noise is minimized", "Threshold Pacing")}>Start Threshold</Button>
         </div>
       </div>
     </div>
