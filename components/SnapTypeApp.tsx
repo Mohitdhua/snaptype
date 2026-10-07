@@ -668,8 +668,8 @@ export const SnapTypeApp: React.FC<SnapTypeAppProps> = ({
             <div className={`text-sm font-extrabold tracking-tight leading-tight ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>SnapType</div>
           </button>
           <div className="flex gap-2">
-            <button onClick={onSwitchToSpellingApp} className="p-2 rounded-xl bg-violet-500/10 text-violet-500 text-lg">🗣️</button>
-            <button onClick={onToggleTheme} className={`p-2 rounded-xl ${theme === 'light' ? 'bg-slate-200/50' : 'bg-white/10'} text-lg`}>{theme === 'dark' ? '☀️' : '🌙'}</button>
+            <button onClick={onSwitchToSpellingApp} className="p-2 rounded-xl bg-violet-500/10 text-violet-500 text-lg" title="Switch to SnapSpell" aria-label="Switch to SnapSpell">🗣️</button>
+            <button onClick={onToggleTheme} className={`p-2 rounded-xl ${theme === 'light' ? 'bg-slate-200/50' : 'bg-white/10'} text-lg`} title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'} aria-label="Toggle Light/Dark Theme">{theme === 'dark' ? '☀️' : '🌙'}</button>
           </div>
         </header>
       )}
