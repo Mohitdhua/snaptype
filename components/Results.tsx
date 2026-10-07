@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Button } from './Button';
 import { TestResults, HardcoreMode } from '../types';
-import { getHistory, calculateExamEvaluation, classifyTypo, getAdaptiveProfile, generateWeaknessDrill, generateCollisionRepairDrill } from '../services/storageService';
+import { getHistory } from '../services/storageService';
 import { getStoredTheme } from '../services/themeService';
 import { ProgressChart } from './ProgressChart';
 import { CertificateModal } from './CertificateModal';
@@ -25,6 +25,12 @@ interface ResultsProps {
 const roundTo = (value: number, precision = 1) => {
   const factor = 10 ** precision;
   return Math.round(value * factor) / factor;
+};
+
+const formatTime = (secs: number) => {
+  const m = Math.floor(secs / 60);
+  const s = Math.floor(secs % 60);
+  return `${m}:${s < 10 ? '0' : ''}${s}`;
 };
 
 const MAX_SESSION_CHART_POINTS = 240;
@@ -77,8 +83,6 @@ const HEATMAP_LAYOUT = [
 export const Results: React.FC<ResultsProps> = ({ results, onReset, onNewImage, onPractice, onLaunchBooster, onNextLesson, nextLessonLabel }) => {
   const [showCertificate, setShowCertificate] = useState(false);
   const [showDiagnosticModal, setShowDiagnosticModal] = useState(false);
-  const [showExamEval, setShowExamEval] = useState(results.isSSC || false);
-  const [examCategory, setExamCategory] = useState<'UR' | 'OBC_SC_ST'>('UR');
   const [hardKeyView, setHardKeyView] = useState<'heatmap' | 'chips'>('heatmap');
   const [isLight, setIsLight] = useState(() => getStoredTheme() === 'light');
 
@@ -88,16 +92,6 @@ export const Results: React.FC<ResultsProps> = ({ results, onReset, onNewImage, 
     return () => window.removeEventListener('snaptype-theme-change', handler);
   }, []);
 
-  const kdph = useMemo(() => {
-    if (results.kdph) return results.kdph;
-    const mins = Math.max(0.08, results.timeElapsed / 60);
-    return Math.round((results.totalChars / mins) * 60);
-  }, [results.kdph, results.timeElapsed, results.totalChars]);
-
-  const examEval = useMemo(() => {
-    return results.examEval || calculateExamEvaluation(results, examCategory);
-  }, [results, examCategory]);
-
   const courtEvaluation = useMemo(() => {
     if (results.courtExam) return results.courtExam;
     if (results.isCourtExam || results.isSSC) {
@@ -105,7 +99,7 @@ export const Results: React.FC<ResultsProps> = ({ results, onReset, onNewImage, 
         results.originalText || '',
         results.typedText || '',
         results.timeElapsed || 600,
-        results.totalKeystrokes || results.totalChars
+        results.typedText?.length || results.totalChars
       );
     }
     return null;
@@ -167,8 +161,8 @@ export const Results: React.FC<ResultsProps> = ({ results, onReset, onNewImage, 
           </div>
           <table class="stats-table">
             <tr><th>Examination Parameter</th><th>Candidate Performance</th><th>Official Qualifying Benchmark</th></tr>
-            <tr><td>Total Key Depressions (Strokes)</td><td>${courtEvaluation.totalKeyDepressions}</td><td>—</td></tr>
-            <tr><td>Gross Words (Strokes / 5)</td><td>${courtEvaluation.grossWords} words</td><td>—</td></tr>
+            <tr><td>Total Characters Typed</td><td>${courtEvaluation.totalKeyDepressions}</td><td>—</td></tr>
+            <tr><td>Gross Words (Characters / 5)</td><td>${courtEvaluation.grossWords} words</td><td>—</td></tr>
             <tr><td>Gross Speed</td><td>${courtEvaluation.grossWpm} WPM</td><td>—</td></tr>
             <tr><td>Total Mistakes (Omissions + Substitutions + Additions)</td><td>${courtEvaluation.totalMistakes} (O:${courtEvaluation.omissionsCount}, S:${courtEvaluation.substitutionsCount}, A:${courtEvaluation.additionsCount})</td><td>1 word penalty / mistake</td></tr>
             <tr><td>Net Words (Gross - Mistakes)</td><td>${courtEvaluation.netWords} words</td><td>—</td></tr>
@@ -228,39 +222,6 @@ export const Results: React.FC<ResultsProps> = ({ results, onReset, onNewImage, 
         .slice(0, 12),
     [results.missedWords]
   );
-
-  const collisionInsights = useMemo(() => {
-    const originalText = results.originalText || '';
-    const typedText = results.typedText || '';
-    const len = Math.min(originalText.length, typedText.length);
-    let sameFinger = 0;
-    let neighbor = 0;
-    let totalErrors = 0;
-    const conflicts: Record<string, { expected: string; typed: string; count: number; type: string }> = {};
-
-    for (let i = 0; i < len; i++) {
-      const expected = originalText[i].toLowerCase();
-      const typed = typedText[i].toLowerCase();
-      if (expected !== typed) {
-        totalErrors++;
-        const c = classifyTypo(expected, typed);
-        if (c.type === 'SAME_FINGER_REACH') sameFinger++;
-        else if (c.type === 'ADJACENT_NEIGHBOR') neighbor++;
-
-        if (expected.trim() && typed.trim()) {
-          const key = `${expected}→${typed}`;
-          if (!conflicts[key]) conflicts[key] = { expected, typed, count: 0, type: c.type };
-          conflicts[key].count++;
-        }
-      }
-    }
-
-    const sameRatio = totalErrors > 0 ? Math.round((sameFinger / totalErrors) * 100) : 0;
-    const neighborRatio = totalErrors > 0 ? Math.round((neighbor / totalErrors) * 100) : 0;
-    const topPairs = Object.values(conflicts).sort((a, b) => b.count - a.count).slice(0, 4);
-
-    return { totalErrors, sameFinger, neighbor, sameRatio, neighborRatio, topPairs };
-  }, [results.originalText, results.typedText]);
 
   const sessionHistory = results.history || [];
   const sessionChartData = useMemo(
@@ -439,9 +400,9 @@ export const Results: React.FC<ResultsProps> = ({ results, onReset, onNewImage, 
 
             {/* Key 6-Tile Metrics Grid */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mt-5">
-              {/* Total Strokes */}
+              {/* Total Characters */}
               <div className="flex flex-col items-center justify-center p-3.5 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-200 dark:border-white/10">
-                <div className="text-[10px] text-slate-500 dark:text-neutral-400 uppercase font-bold tracking-wider mb-1">Key Depressions</div>
+                <div className="text-[10px] text-slate-500 dark:text-neutral-400 uppercase font-bold tracking-wider mb-1">Total Characters</div>
                 <div className="text-2xl font-mono font-black text-slate-900 dark:text-white">{courtEvaluation.totalKeyDepressions}</div>
                 <div className="text-[10px] text-slate-400 dark:text-neutral-400 mt-0.5 font-mono">{courtEvaluation.grossWords} words</div>
               </div>
@@ -450,7 +411,7 @@ export const Results: React.FC<ResultsProps> = ({ results, onReset, onNewImage, 
               <div className="flex flex-col items-center justify-center p-3.5 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-200 dark:border-white/10">
                 <div className="text-[10px] text-slate-500 dark:text-neutral-400 uppercase font-bold tracking-wider mb-1">Gross Speed</div>
                 <div className="text-2xl font-mono font-black text-slate-900 dark:text-white">{courtEvaluation.grossWpm}</div>
-                <div className="text-[10px] text-slate-400 dark:text-neutral-400 mt-0.5 font-mono">WPM (Strokes/50)</div>
+                <div className="text-[10px] text-slate-400 dark:text-neutral-400 mt-0.5 font-mono">Gross WPM</div>
               </div>
 
               {/* Total Mistakes */}
@@ -580,249 +541,49 @@ export const Results: React.FC<ResultsProps> = ({ results, onReset, onNewImage, 
           </div>
         )}
 
-        {/* Main Stats */}
+        {/* Main Stats: Examination Standard Metrics */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 w-full mb-8">
-            <div className="bento-card flex flex-col items-center justify-center py-6 shadow-xs relative overflow-hidden group">
-                <span className="text-slate-900 dark:text-white font-black text-4xl md:text-5xl mb-1">{results.netWpm}</span>
-                <span className="text-slate-500 dark:text-stitch-muted font-bold uppercase tracking-widest text-[11px]">{(results.isCourtExam || results.isSSC) ? 'Net Speed' : 'Net WPM'}</span>
-                <span className="text-slate-400 dark:text-stitch-muted text-[10px] mt-1">{(results.isCourtExam || results.isSSC) ? 'After penalty (SSSC)' : 'Adjusted speed'}</span>
+            {/* 1. Net Speed */}
+            <div className="bento-card flex flex-col items-center justify-center py-6 shadow-xs relative overflow-hidden group border border-emerald-500/30 bg-emerald-50/40 dark:bg-emerald-950/10">
+                <span className="text-emerald-600 dark:text-emerald-400 font-black text-4xl md:text-5xl mb-1 font-mono">{results.netWpm}</span>
+                <span className="text-slate-700 dark:text-slate-300 font-bold uppercase tracking-widest text-[11px]">Net Speed</span>
+                <span className="text-slate-400 dark:text-stitch-muted text-[10px] mt-1 font-mono">Net WPM</span>
             </div>
 
+            {/* 2. Gross Speed */}
             <div className="bento-card flex flex-col items-center justify-center py-6 shadow-xs">
-                <span className="text-slate-800 dark:text-stitch-accent font-bold text-3xl mb-1">{results.rawWpm}</span>
-                <span className="text-slate-500 dark:text-stitch-muted font-bold uppercase tracking-widest text-[11px]">{(results.isCourtExam || results.isSSC) ? 'Gross Speed' : 'Raw WPM'}</span>
-                 <span className="text-slate-400 dark:text-stitch-muted text-[10px] mt-1">{(results.isCourtExam || results.isSSC) ? 'Strokes / 50' : 'Gross speed'}</span>
+                <span className="text-slate-800 dark:text-stitch-accent font-bold text-3xl md:text-4xl mb-1 font-mono">{results.rawWpm}</span>
+                <span className="text-slate-500 dark:text-stitch-muted font-bold uppercase tracking-widest text-[11px]">Gross Speed</span>
+                <span className="text-slate-400 dark:text-stitch-muted text-[10px] mt-1 font-mono">Gross WPM</span>
             </div>
 
-             <div className="bento-card flex flex-col items-center justify-center py-6 shadow-xs">
-                <span className={`${results.accuracy > 95 ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'} font-bold text-3xl mb-1`}>{results.accuracy}%</span>
-                <span className="text-slate-500 dark:text-stitch-muted font-bold uppercase tracking-widest text-[11px]">Final Accuracy</span>
-                <span className="text-slate-400 dark:text-stitch-muted text-[10px] mt-1">
-                  {results.realAccuracy !== undefined && results.realAccuracy !== results.accuracy
-                    ? `Real: ${results.realAccuracy}% (${results.backspaceCount ?? 0} ⌫)`
-                    : `${results.incorrectChars} errors`}
-                </span>
+            {/* 3. Net Characters Typed */}
+            <div className="bento-card flex flex-col items-center justify-center py-6 shadow-xs border border-indigo-200/60 dark:border-indigo-500/20 bg-indigo-50/30 dark:bg-indigo-950/10">
+                <span className="text-indigo-600 dark:text-indigo-400 font-bold text-3xl md:text-4xl mb-1 font-mono">{results.correctChars}</span>
+                <span className="text-slate-700 dark:text-slate-300 font-bold uppercase tracking-widest text-[11px]">Net Characters Typed</span>
+                <span className="text-slate-400 dark:text-stitch-muted text-[10px] mt-1 font-mono">Total: {results.totalChars} chars</span>
             </div>
 
-             <div className="bento-card flex flex-col items-center justify-center py-6 shadow-xs">
-                <div className="flex gap-3 items-end mb-1">
-                    <div className="flex flex-col items-center">
-                         <span className="text-emerald-600 dark:text-emerald-400 font-bold text-xl">{results.correctChars}</span>
-                         <span className="text-[9px] text-slate-500 dark:text-stitch-muted uppercase">Correct</span>
-                    </div>
-                    <div className="h-6 w-px bg-slate-200 dark:bg-white/20"></div>
-                     <div className="flex flex-col items-center">
-                         <span className="text-rose-600 dark:text-rose-400 font-bold text-xl">{results.incorrectChars}</span>
-                         <span className="text-[9px] text-slate-400 dark:text-slate-500 uppercase">Wrong</span>
-                    </div>
-                </div>
-                <span className="text-slate-500 dark:text-slate-400 font-bold uppercase tracking-widest text-[11px]">Keystrokes</span>
+            {/* 4. Accuracy */}
+            <div className="bento-card flex flex-col items-center justify-center py-6 shadow-xs">
+                <span className={`${results.accuracy >= 95 ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'} font-bold text-3xl md:text-4xl mb-1 font-mono`}>{results.accuracy}%</span>
+                <span className="text-slate-500 dark:text-stitch-muted font-bold uppercase tracking-widest text-[11px]">Accuracy</span>
+                <span className="text-slate-400 dark:text-stitch-muted text-[10px] mt-1 font-mono">Final accuracy</span>
             </div>
 
-            <div className="bento-card flex flex-col items-center justify-center py-6 shadow-xs border border-indigo-200 dark:border-indigo-500/20 bg-indigo-50/60 dark:bg-indigo-950/10">
-                <span className="text-indigo-600 dark:text-indigo-400 font-mono font-bold text-3xl mb-1">{kdph}</span>
-                <span className="text-slate-500 dark:text-stitch-muted font-bold uppercase tracking-widest text-[11px]">KDPH Rate</span>
-                <span className="text-slate-400 dark:text-stitch-muted text-[10px] mt-1">Depressions / hr</span>
+            {/* 5. Errors / Mistakes */}
+            <div className="bento-card flex flex-col items-center justify-center py-6 shadow-xs border border-rose-100 dark:border-rose-500/20">
+                <span className="text-rose-600 dark:text-rose-400 font-bold text-3xl md:text-4xl mb-1 font-mono">{results.incorrectChars}</span>
+                <span className="text-slate-500 dark:text-stitch-muted font-bold uppercase tracking-widest text-[11px]">Errors / Mistakes</span>
+                <span className="text-slate-400 dark:text-stitch-muted text-[10px] mt-1 font-mono">Uncorrected</span>
             </div>
 
-            <div className="bento-card flex flex-col items-center justify-center py-6 shadow-xs border border-cyan-200 dark:border-cyan-500/20 bg-cyan-50/60 dark:bg-cyan-950/10">
-                <span className="text-cyan-700 dark:text-cyan-300 font-mono font-bold text-3xl mb-1">{results.avgLatencyMs || 165}<span className="text-xs">ms</span></span>
-                <span className="text-slate-500 dark:text-stitch-muted font-bold uppercase tracking-widest text-[11px]">Reflex Latency</span>
-                <span className="text-slate-400 dark:text-stitch-muted text-[10px] mt-1">Inter-key reaction</span>
+            {/* 6. Time Elapsed */}
+            <div className="bento-card flex flex-col items-center justify-center py-6 shadow-xs">
+                <span className="text-slate-800 dark:text-white font-bold text-3xl md:text-4xl mb-1 font-mono">{formatTime(results.timeElapsed)}</span>
+                <span className="text-slate-500 dark:text-stitch-muted font-bold uppercase tracking-widest text-[11px]">Time Elapsed</span>
+                <span className="text-slate-400 dark:text-stitch-muted text-[10px] mt-1 font-mono">Test duration</span>
             </div>
-        </div>
-
-        {/* Real vs Net Accuracy Diagnostic Card */}
-        <div className="w-full mb-8 bento-card p-6 border border-slate-200 dark:border-white/15 rounded-2xl relative overflow-hidden bg-white dark:bg-gradient-to-br dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950 shadow-xs">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-white/10">
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-cyan-500 animate-pulse" />
-                <h3 className="text-base font-bold text-slate-900 dark:text-white tracking-wide">
-                  Keystroke Fidelity Diagnostic (Real vs Net Accuracy Audit)
-                </h3>
-              </div>
-              <p className="text-xs text-slate-600 dark:text-neutral-400 mt-0.5">
-                वास्तविक की-स्ट्रोक शुद्धता (बिना बैकस्पेस) बनाम फाइनल सबमिट की गई शुद्धता का गहन विश्लेषण।
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className={`text-xs font-mono font-bold px-3 py-1 rounded-xl border ${
-                (results.realAccuracy ?? results.accuracy) >= 95
-                  ? 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/40'
-                  : (results.realAccuracy ?? results.accuracy) >= 88
-                    ? 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-500/40'
-                    : 'bg-rose-100 text-rose-800 border-rose-300 dark:bg-rose-500/20 dark:text-rose-300 dark:border-rose-500/40'
-              }`}>
-                Real Acc: {results.realAccuracy ?? results.accuracy}%
-              </span>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-5">
-            <div className="p-4 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-200 dark:border-white/10 flex flex-col justify-between">
-              <span className="text-[10px] font-mono uppercase text-slate-500 dark:text-neutral-400 font-semibold">Net / Exam Accuracy</span>
-              <div className="text-3xl font-mono font-bold text-emerald-600 dark:text-emerald-400 mt-1">{results.accuracy}%</div>
-              <span className="text-[10px] text-slate-400 dark:text-neutral-500 mt-0.5">Final submitted text</span>
-            </div>
-
-            <div className="p-4 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-200 dark:border-white/10 flex flex-col justify-between">
-              <span className="text-[10px] font-mono uppercase text-cyan-700 dark:text-cyan-300 font-semibold">Real Keystroke Accuracy</span>
-              <div className="text-3xl font-mono font-bold text-cyan-700 dark:text-cyan-300 mt-1">{results.realAccuracy ?? results.accuracy}%</div>
-              <span className="text-[10px] text-slate-400 dark:text-neutral-500 mt-0.5">Raw muscle memory</span>
-            </div>
-
-            <div className="p-4 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-200 dark:border-white/10 flex flex-col justify-between">
-              <span className="text-[10px] font-mono uppercase text-amber-700 dark:text-amber-300 font-semibold">Backspace Usage</span>
-              <div className="text-3xl font-mono font-bold text-amber-600 dark:text-amber-300 mt-1">{results.backspaceCount ?? 0} <span className="text-sm font-normal">hits</span></div>
-              <span className="text-[10px] text-slate-400 dark:text-neutral-500 mt-0.5">{results.correctedErrors ?? 0} errors corrected</span>
-            </div>
-
-            <div className="p-4 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-200 dark:border-white/10 flex flex-col justify-between">
-              <span className="text-[10px] font-mono uppercase text-rose-700 dark:text-rose-300 font-semibold">Total Raw Mistakes</span>
-              <div className="text-3xl font-mono font-bold text-rose-600 dark:text-rose-400 mt-1">{results.totalRawErrors ?? results.incorrectChars}</div>
-              <span className="text-[10px] text-slate-400 dark:text-neutral-500 mt-0.5">{results.incorrectChars} left uncorrected</span>
-            </div>
-          </div>
-
-          {/* Diagnostic Muscle Memory Advice */}
-          <div className="mt-4 p-3.5 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-xs font-mono">
-            {(results.backspaceCount || 0) > 3 && (results.realAccuracy ?? results.accuracy) < results.accuracy ? (
-              <div className="flex items-start gap-2.5 text-amber-800 dark:text-amber-200">
-                <span className="text-base shrink-0">⚠️</span>
-                <div>
-                  <span className="font-bold text-amber-900 dark:text-amber-300">Backspace Reliance Detected (बैकस्पेस की आदत):</span>
-                  <p className="text-slate-700 dark:text-neutral-300 text-[11px] mt-0.5 leading-relaxed">
-                    आपने टेस्ट के दौरान <strong>{results.backspaceCount} बार बैकस्पेस</strong> दबाकर गलतियों को ठीक किया। इससे फाइनल एक्यूरेसी तो <strong>{results.accuracy}%</strong> दिख रही है, लेकिन रियल की-स्ट्रोक शुद्धता <strong>{results.realAccuracy}%</strong> है। बैकस्पेस दबाने से आपकी टाइपिंग स्पीड (WPM) और रिफ्लेक्स फ्लो कम होता है। परीक्षा में स्पीड बनाए रखने के लिए <em>पहली बार में ही सही की दबाने</em> (Accuracy-First Muscle Memory) का अभ्यास करें।
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <div className="flex items-start gap-2.5 text-emerald-800 dark:text-emerald-200">
-                <span className="text-base shrink-0">⚡</span>
-                <div>
-                  <span className="font-bold text-emerald-900 dark:text-emerald-300">Pure Muscle Memory (उत्कृष्ट की-स्ट्रोक नियंत्रण):</span>
-                  <p className="text-slate-700 dark:text-neutral-300 text-[11px] mt-0.5 leading-relaxed">
-                    शानदार नियंत्रण! आपकी रियल और फाइनल एक्यूरेसी बहुत संतुलित हैं ({results.realAccuracy ?? results.accuracy}%) और बैकस्पेस का इस्तेमाल केवल {results.backspaceCount ?? 0} बार हुआ है। आपका कीबोर्ड पर नियंत्रण प्रोफेशनल लेवल का है।
-                  </p>
-                </div>
-              </div>
-            )}
-            {/* Direct Actionable Booster CTAs */}
-            <div className="mt-3.5 pt-3.5 border-t border-slate-200 dark:border-white/10 flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-neutral-400">Actionable Prescription:</span>
-                <span className="text-xs text-slate-700 dark:text-neutral-300">
-                  {(results.backspaceCount || 0) > 3
-                    ? '3-day No-Backspace challenge recommended to lock in 96%+ raw muscle precision.'
-                    : 'Maintain precision with sustained rhythmic paragraphs.'}
-                </span>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2">
-                {onLaunchBooster && (
-                  <button
-                    onClick={() => {
-                      const profile = getAdaptiveProfile();
-                      let drill = generateWeaknessDrill(profile);
-                      if (!drill || drill.length < 40) {
-                        drill = results.typedText && results.typedText.length > 50
-                          ? results.typedText.slice(0, 350)
-                          : 'focus rhythm cadence precision accuracy flow muscle memory speed judge master form clerk test court';
-                      }
-                      onLaunchBooster(drill, 'Real Accuracy Booster (No Backspace)', 'NO_BACKSPACE');
-                    }}
-                    className="px-3.5 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider bg-gradient-to-r from-amber-400 to-yellow-300 hover:from-amber-300 hover:to-yellow-200 text-black shadow-md flex items-center gap-1.5 font-mono"
-                  >
-                    <span>⚡ Boost Real Accuracy (No Backspace)</span>
-                    <span>→</span>
-                  </button>
-                )}
-
-                {onLaunchBooster && collisionInsights.topPairs.length > 0 && (
-                  <button
-                    onClick={() => {
-                      const profile = getAdaptiveProfile();
-                      const topPair = collisionInsights.topPairs[0];
-                      const drill = generateCollisionRepairDrill(profile, `${topPair.expected}-${topPair.typed}`);
-                      onLaunchBooster(drill, `Collision Fix (${topPair.expected.toUpperCase()} ↔ ${topPair.typed.toUpperCase()})`, 'NO_BACKSPACE');
-                    }}
-                    className="px-3.5 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider bg-cyan-600 hover:bg-cyan-500 text-white dark:bg-cyan-400 dark:text-black dark:hover:bg-cyan-300 shadow-md flex items-center gap-1.5 font-mono"
-                  >
-                    <span>🎯 Disentangle {collisionInsights.topPairs[0].expected.toUpperCase()} ↔ {collisionInsights.topPairs[0].typed.toUpperCase()}</span>
-                    <span>→</span>
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Official High Court & SSC Exam Evaluation Section */}
-        <div className="w-full mb-8 bento-card p-6 border border-slate-200 dark:border-white/15 rounded-2xl relative overflow-hidden shadow-xs">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-white/10">
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-                <h3 className="text-base font-bold text-slate-900 dark:text-white tracking-wide">
-                  Official Exam Evaluation (Court & SSC Typing Criteria)
-                </h3>
-              </div>
-              <p className="text-xs text-slate-600 dark:text-neutral-400 mt-0.5">
-                Evaluated against High Court, SSC CGL/CHSL, and State Clerk exam standards.
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-500 dark:text-neutral-400 font-mono">Category:</span>
-              <button
-                onClick={() => setExamCategory('UR')}
-                className={`text-xs px-3 py-1 rounded-lg font-mono font-bold transition-colors ${examCategory === 'UR' ? 'bg-slate-900 text-white dark:bg-white dark:text-black' : 'bg-slate-100 text-slate-600 dark:bg-white/5 dark:text-neutral-400 hover:text-slate-900 dark:hover:text-white'}`}
-              >
-                UR (5% Max Err)
-              </button>
-              <button
-                onClick={() => setExamCategory('OBC_SC_ST')}
-                className={`text-xs px-3 py-1 rounded-lg font-mono font-bold transition-colors ${examCategory === 'OBC_SC_ST' ? 'bg-slate-900 text-white dark:bg-white dark:text-black' : 'bg-slate-100 text-slate-600 dark:bg-white/5 dark:text-neutral-400 hover:text-slate-900 dark:hover:text-white'}`}
-              >
-                Reserved (7% Max Err)
-              </button>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mt-5">
-            <div className="p-3 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-200 dark:border-white/10 flex flex-col items-center">
-              <span className="text-[10px] font-mono uppercase text-slate-500 dark:text-neutral-400">Total Key Depressions</span>
-              <span className="text-2xl font-mono font-bold text-slate-900 dark:text-white mt-1">{examEval.totalKeyDepressions}</span>
-              <span className="text-[10px] text-slate-400 dark:text-neutral-500 mt-0.5">KDPH: {examEval.kdph}</span>
-            </div>
-            <div className="p-3 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-200 dark:border-white/10 flex flex-col items-center">
-              <span className="text-[10px] font-mono uppercase text-slate-500 dark:text-neutral-400">Full Mistakes</span>
-              <span className="text-2xl font-mono font-bold text-rose-600 dark:text-rose-400 mt-1">{examEval.fullMistakes}</span>
-              <span className="text-[10px] text-slate-400 dark:text-neutral-500 mt-0.5">Omission / Substitution</span>
-            </div>
-            <div className="p-3 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-200 dark:border-white/10 flex flex-col items-center">
-              <span className="text-[10px] font-mono uppercase text-slate-500 dark:text-neutral-400">Half Mistakes</span>
-              <span className="text-2xl font-mono font-bold text-amber-600 dark:text-amber-400 mt-1">{examEval.halfMistakes}</span>
-              <span className="text-[10px] text-slate-400 dark:text-neutral-500 mt-0.5">Punctuation / Spelling</span>
-            </div>
-            <div className="p-3 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-200 dark:border-white/10 flex flex-col items-center">
-              <span className="text-[10px] font-mono uppercase text-slate-500 dark:text-neutral-400">Error Percentage</span>
-              <span className={`text-2xl font-mono font-bold mt-1 ${examEval.errorPercentage <= examEval.maxAllowedError ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
-                {examEval.errorPercentage}%
-              </span>
-              <span className="text-[10px] text-slate-400 dark:text-neutral-500 mt-0.5">Allowed &le; {examEval.maxAllowedError}%</span>
-            </div>
-            <div className="p-3 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-200 dark:border-white/10 flex flex-col items-center col-span-2 md:col-span-1 justify-center">
-              <span className="text-[10px] font-mono uppercase text-slate-500 dark:text-neutral-400 mb-1">Result Status</span>
-              <span className={`text-xs font-black uppercase tracking-wider px-3 py-1.5 rounded-lg border ${
-                examEval.status === 'QUALIFIED'
-                  ? 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-500/20 dark:text-emerald-400 dark:border-emerald-500/30'
-                  : 'bg-rose-100 text-rose-800 border-rose-300 dark:bg-rose-500/20 dark:text-rose-400 dark:border-rose-500/30'
-              }`}>
-                {examEval.status}
-              </span>
-            </div>
-          </div>
         </div>
 
         {/* Session Performance */}
@@ -1032,64 +793,6 @@ export const Results: React.FC<ResultsProps> = ({ results, onReset, onNewImage, 
                 )}
             </div>
         </div>
-          {/* Biomechanical Collision & Tendon Analysis Card */}
-        {collisionInsights.totalErrors > 0 && (
-          <div className="w-full bg-white dark:bg-slate-900/80 border border-cyan-400/40 dark:border-cyan-500/30 rounded-2xl p-5 md:p-6 mb-8 shadow-xs">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
-              <div className="flex items-center gap-2">
-                <span className="text-cyan-500 font-bold">⚡</span>
-                <h3 className="text-slate-900 dark:text-white font-bold text-sm uppercase tracking-wider font-mono">
-                  Biomechanical Finger Collision & Tendon Audit
-                </h3>
-              </div>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-100 text-cyan-800 border border-cyan-300 dark:bg-cyan-500/20 dark:text-cyan-300 dark:border-cyan-500/30 font-semibold">
-                Hardware & Neuromuscular Diagnostic
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800">
-                <span className="text-[10px] font-mono text-cyan-700 dark:text-cyan-300 uppercase block font-semibold">Same-Finger Reach Overshoot</span>
-                <div className="text-xl font-bold font-mono text-slate-900 dark:text-white mt-1">
-                  {collisionInsights.sameRatio}% <span className="text-xs text-slate-500 dark:text-slate-400 font-normal">({collisionInsights.sameFinger} errors)</span>
-                </div>
-                <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1">
-                  Single finger confusion across multi-key reach columns (e.g. R↔T, F↔G, V↔B).
-                </p>
-              </div>
-
-              <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800">
-                <span className="text-[10px] font-mono text-indigo-700 dark:text-indigo-300 uppercase block font-semibold">Neighbor Finger Tendon Crosstalk</span>
-                <div className="text-xl font-bold font-mono text-slate-900 dark:text-white mt-1">
-                  {collisionInsights.neighborRatio}% <span className="text-xs text-slate-500 dark:text-slate-400 font-normal">({collisionInsights.neighbor} errors)</span>
-                </div>
-                <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1">
-                  Adjacent fingers co-firing due to linked extensor tendons (e.g. Ring W↔Middle E, S↔D).
-                </p>
-              </div>
-
-              <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 flex flex-col justify-between">
-                <div>
-                  <span className="text-[10px] font-mono text-amber-700 dark:text-amber-300 uppercase block font-semibold">Top Active Conflicts</span>
-                  {collisionInsights.topPairs.length > 0 ? (
-                    <div className="flex flex-wrap gap-1.5 mt-1.5">
-                      {collisionInsights.topPairs.map((p, idx) => (
-                        <span key={idx} className="px-2 py-0.5 rounded bg-cyan-100 border border-cyan-300 text-cyan-900 dark:bg-cyan-500/15 dark:border-cyan-500/30 dark:text-cyan-200 font-mono text-[11px] font-bold">
-                          {p.expected.toUpperCase()} ↔ {p.typed.toUpperCase()} <span className="text-[9px] text-slate-500 dark:text-slate-400 font-normal">({p.count}x)</span>
-                        </span>
-                      ))}
-                    </div>
-                  ) : (
-                    <span className="text-xs text-slate-400 dark:text-slate-500 italic mt-1 block">Clean finger isolation!</span>
-                  )}
-                </div>
-                <span className="text-[9px] font-mono text-cyan-700 dark:text-cyan-400/80 mt-2">
-                  Tip: Use Academy "Finger Collision Fix" to isolate tendons.
-                </span>
-              </div>
-            </div>
-          </div>
-        )}
 
         <div className="flex flex-col sm:flex-row flex-wrap gap-4 w-full justify-center">
             {onNextLesson && nextLessonLabel && (
@@ -1103,15 +806,6 @@ export const Results: React.FC<ResultsProps> = ({ results, onReset, onNewImage, 
             <Button onClick={onReset} className="w-full sm:w-auto">
                 Retry Same Test
             </Button>
-            {onLaunchBooster && results.originalText && (
-              <button
-                onClick={() => onLaunchBooster(results.originalText!, 'Retest (Accuracy First)', 'NO_BACKSPACE')}
-                className="w-full sm:w-auto px-5 py-3 rounded-2xl font-bold text-xs uppercase tracking-widest bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 dark:bg-amber-500/20 dark:hover:bg-amber-500/30 dark:text-amber-300 dark:border-amber-500/40 transition-all flex items-center justify-center gap-2 font-mono shadow-xs"
-                title="Retest this exact passage with Backspace disabled to build 96%+ raw muscle precision"
-              >
-                <span>🛡️ Retest (No Backspace)</span>
-              </button>
-            )}
             <button
                 onClick={() => setShowCertificate(true)}
                 className="w-full sm:w-auto px-6 py-3 rounded-2xl font-bold text-xs uppercase tracking-widest bg-gradient-to-r from-amber-500 to-yellow-400 text-black hover:brightness-110 transition-all shadow-[0_0_20px_rgba(245,158,11,0.25)] flex items-center justify-center gap-2"

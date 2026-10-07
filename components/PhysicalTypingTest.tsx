@@ -387,11 +387,9 @@ export const PhysicalTypingTest: React.FC<PhysicalTypingTestProps> = ({ ocrText,
       let netWpm = Math.max(0, Math.round(((normalizedCharCount / 5) - effectiveErrors) / minutes));
       let accuracy = Math.max(0, Math.round((correctChars / cleanInput.length) * 100));
       
-      const totalKeystrokes = Math.max(cleanInput.length, totalKeystrokesRef.current);
-      const totalRawErrors = errors + backspaceCountRef.current;
-      const realAccuracy = totalKeystrokes > 0
-        ? Math.max(0, Math.min(100, Math.round(((totalKeystrokes - totalRawErrors) / totalKeystrokes) * 100)))
-        : accuracy;
+      const totalKeystrokes = cleanInput.length;
+      const totalRawErrors = errors;
+      const realAccuracy = accuracy;
       
       let courtExamEval;
       if (isSSC || isCourtExam) {
@@ -399,7 +397,7 @@ export const PhysicalTypingTest: React.FC<PhysicalTypingTestProps> = ({ ocrText,
               truncatedOriginalRaw,
               currentInput,
               effectiveTime,
-              totalKeystrokes
+              cleanInput.length
           );
           rawWpm = courtExamEval.grossWpm;
           netWpm = courtExamEval.netWpm;

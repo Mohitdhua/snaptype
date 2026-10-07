@@ -124,8 +124,8 @@ export const CertificateModal: React.FC<CertificateModalProps> = ({ results, onC
                 <div className="text-2xl font-mono font-black text-emerald-400">{results.accuracy}%</div>
               </div>
               <div className="p-3 rounded-xl bg-white/5 border border-white/10">
-                <div className="text-[10px] uppercase font-bold text-neutral-400">Rate (KDPH)</div>
-                <div className="text-2xl font-mono font-black text-indigo-400">{kdph}</div>
+                <div className="text-[10px] uppercase font-bold text-neutral-400">Net Characters</div>
+                <div className="text-2xl font-mono font-black text-indigo-400">{results.correctChars}</div>
               </div>
               <div className="p-3 rounded-xl bg-white/5 border border-white/10">
                 <div className="text-[10px] uppercase font-bold text-neutral-400">Errors</div>

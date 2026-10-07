@@ -235,7 +235,7 @@ export const CourtExamScreenTest: React.FC<CourtExamScreenTestProps> = ({
       passageText,
       input,
       effectiveElapsed,
-      totalKeystrokesRef.current
+      input.length
     );
 
     const finalResults: TestResults = {
@@ -243,8 +243,8 @@ export const CourtExamScreenTest: React.FC<CourtExamScreenTestProps> = ({
       rawWpm: courtEval.grossWpm,
       accuracy: courtEval.accuracy,
       realAccuracy: courtEval.accuracy,
-      kdph: Math.round((courtEval.totalKeyDepressions / Math.max(0.001, effectiveElapsed / 3600))),
-      totalKeystrokes: courtEval.totalKeyDepressions,
+      kdph: Math.round((input.length / Math.max(0.001, effectiveElapsed / 3600))),
+      totalKeystrokes: input.length,
       totalRawErrors: courtEval.totalMistakes,
       backspaceCount: backspaceCountRef.current,
       correctedErrors: 0,
@@ -421,7 +421,7 @@ export const CourtExamScreenTest: React.FC<CourtExamScreenTestProps> = ({
 
           <div className="hidden sm:flex flex-col text-right font-mono text-[11px] text-slate-600 dark:text-neutral-400">
             <div>
-              Strokes: <span className="text-slate-900 dark:text-white font-bold">{totalKeystrokesRef.current}</span>
+              Characters: <span className="text-slate-900 dark:text-white font-bold">{input.length}</span>
             </div>
             <div>
               Words: <span className="text-indigo-600 dark:text-indigo-400 font-bold">{typedWords}</span> / {passageWords}
@@ -681,7 +681,7 @@ export const CourtExamScreenTest: React.FC<CourtExamScreenTestProps> = ({
 
             <div className="grid grid-cols-2 gap-2 text-xs font-mono bg-slate-100 dark:bg-white/5 p-3 rounded-xl border border-slate-200 dark:border-white/5 text-slate-800 dark:text-neutral-300">
               <div>Words Typed: <strong className="text-slate-950 dark:text-white">{typedWords}</strong></div>
-              <div>Total Strokes: <strong className="text-cyan-700 dark:text-cyan-400">{totalKeystrokesRef.current}</strong></div>
+              <div>Total Characters: <strong className="text-cyan-700 dark:text-cyan-400">{input.length}</strong></div>
               <div>Elapsed Time: <strong className="text-amber-600 dark:text-amber-400">{formatTime(Math.floor(elapsed))}</strong></div>
               <div>Error Cutoff: <strong className="text-emerald-600 dark:text-emerald-400">≤ 5.00%</strong></div>
             </div>

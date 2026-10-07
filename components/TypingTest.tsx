@@ -558,14 +558,11 @@ export const TypingTest: React.FC<TypingTestProps> = ({
         ? Math.max(0, Math.round(((input.length - errors) / input.length) * 100)) 
         : 100;
 
-    // Real keystroke accuracy taking all mistakes into account (including corrected via backspace)
-    const totalKeystrokes = Math.max(input.length, totalKeystrokesRef.current);
-    const totalRawErrors = totalRawErrorsRef.current;
-    const realAccuracy = totalKeystrokes > 0
-      ? Math.max(0, Math.min(100, Math.round(((totalKeystrokes - totalRawErrors) / totalKeystrokes) * 100)))
-      : 100;
+    // Standard examination assessment: metrics based directly on submitted text
+    const totalChars = input.length;
+    const realAccuracy = accuracy;
 
-    const kdph = Math.round((input.length / Math.max(0.001, timeElapsedSecs / 3600)));
+    const kdph = Math.round((totalChars / Math.max(0.001, timeElapsedSecs / 3600)));
 
     return {
       netWpm,
@@ -573,12 +570,12 @@ export const TypingTest: React.FC<TypingTestProps> = ({
       accuracy,
       realAccuracy,
       kdph,
-      totalKeystrokes,
-      totalRawErrors,
+      totalKeystrokes: totalChars,
+      totalRawErrors: errors,
       backspaceCount: backspaceCountRef.current,
       correctedErrors: correctedErrorsRef.current,
       timeElapsed: timeElapsedSecs,
-      totalChars: input.length,
+      totalChars,
       correctChars,
       incorrectChars: errors,
       hardKeys: hardKeysRef.current,
@@ -646,7 +643,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({
           targetText,
           input,
           partialStats.timeElapsed,
-          partialStats.totalKeystrokes
+          input.length
         );
 
         finalResults.isCourtExam = true;
@@ -656,6 +653,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({
         finalResults.netWpm = courtEval.netWpm;
         finalResults.accuracy = courtEval.accuracy;
         finalResults.incorrectChars = courtEval.totalMistakes;
+        finalResults.correctChars = Math.max(0, input.length - courtEval.totalMistakes * 5);
     }
 
     onComplete(finalResults);
@@ -989,7 +987,6 @@ export const TypingTest: React.FC<TypingTestProps> = ({
     } else if (val.length < prevInput.length) {
       const removedChars = prevInput.length - val.length;
       backspaceCountRef.current += removedChars;
-      totalKeystrokesRef.current += removedChars;
       for (let i = val.length; i < prevInput.length; i++) {
         if (i < targetText.length && prevInput[i] !== targetText[i]) {
           correctedErrorsRef.current += 1;
@@ -1093,7 +1090,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({
           <div className="flex items-center gap-6 font-mono text-sm">
             <span className="text-white font-bold">{stats.netWpm} WPM</span>
             <span className={stats.accuracy >= 95 ? 'text-emerald-400 font-bold' : 'text-amber-400 font-bold'}>
-              {stats.accuracy}% ACC {stats.realAccuracy !== undefined && stats.realAccuracy !== stats.accuracy ? `(${stats.realAccuracy}% real)` : ''}
+              {stats.accuracy}% ACC
             </span>
             <div className="flex items-center gap-2">
               <span className="text-neutral-400">{formatTime(displayTime)}</span>
@@ -1141,17 +1138,12 @@ export const TypingTest: React.FC<TypingTestProps> = ({
           <div className="w-px h-5 bg-white/10 hidden sm:block" />
 
           {/* Accuracy */}
-          <div className="flex items-baseline gap-1.5" title={`Accuracy${stats.realAccuracy !== undefined && stats.realAccuracy !== stats.accuracy ? ` (${stats.realAccuracy}% real)` : ''}`}>
+          <div className="flex items-baseline gap-1.5" title="Accuracy">
             <span className={`text-xl font-black tabular-nums leading-none ${
               stats.accuracy >= 97 ? 'text-emerald-400' : stats.accuracy >= 90 ? 'text-amber-400' : 'text-rose-400'
             }`}>
               {stats.accuracy}%
             </span>
-            {stats.realAccuracy !== undefined && stats.realAccuracy !== stats.accuracy && (
-              <span className="text-[10px] text-neutral-400 font-medium hidden sm:inline" title="Real Keystroke Accuracy (accounting for corrected errors)">
-                ({stats.realAccuracy}% real)
-              </span>
-            )}
           </div>
 
           {/* Errors count if any */}
@@ -1664,7 +1656,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({
                 <span className={`text-2xl font-black font-mono mt-0.5 ${stats.accuracy >= 95 ? 'text-emerald-400' : 'text-amber-400'}`}>
                   {stats.accuracy}%
                 </span>
-                <span className="text-[10px] text-neutral-500">{stats.realAccuracy !== undefined ? `${stats.realAccuracy}% real` : 'accuracy'}</span>
+                <span className="text-[10px] text-neutral-500">accuracy</span>
               </div>
               <div className="p-3.5 rounded-2xl bg-white/5 border border-white/10 pause-card text-center flex flex-col">
                 <span className="text-[10px] uppercase font-mono font-bold text-neutral-400 tracking-wider">

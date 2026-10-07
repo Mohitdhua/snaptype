@@ -269,9 +269,10 @@ export function evaluateCourtTypingTest(
   const origTokens = tokenizeWords(originalText);
   const typedTokens = tokenizeWords(typedText);
 
-  // Total key depressions: strokes including space, punctuation, symbols.
-  // Use tracked totalKeystrokes if provided, fallback to raw typed text character count.
-  const strokes = Math.max(typedText.length, totalKeystrokes || 0);
+  // In official examination standards (SSC, Punjab & Haryana High Court SSSC, etc.):
+  // The examination evaluation is strictly based on the submitted typed text.
+  // Backspaces or retyped characters do NOT inflate strokes or key depressions.
+  const strokes = typedText.length;
 
   // Minutes elapsed (for full official exam, standard is 10 min)
   const durationMinutes = Math.max(0.1, Number((elapsedSeconds / 60).toFixed(2)));

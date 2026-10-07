@@ -91,7 +91,30 @@ export const SnapTypeApp: React.FC<SnapTypeAppProps> = ({
 
   const [tabHistory, setTabHistory] = useState<HomeTab[]>(['HOME']);
 
+  const goHomeCreate = (targetTab?: HomeTab) => {
+    setGameState(GameState.UPLOAD);
+    setIsProcessing(false);
+    setResults(null);
+    setTimeLimit(getDefaultTimeLimit());
+    setText('');
+    setOriginalText('');
+    setImagePreview(null);
+    setIsSSCMode(false);
+    setHardcoreMode('NONE');
+    setActiveTestId(null);
+    setActiveLessonId(null);
+    setActiveExerciseIndex(0);
+    if (targetTab && targetTab !== homeTab) {
+      setTabHistory(prev => [...prev, targetTab]);
+      setHomeTab(targetTab);
+    }
+  };
+
   const navigateToTab = (nextTab: HomeTab) => {
+    if (gameState !== GameState.UPLOAD) {
+      goHomeCreate(nextTab);
+      return;
+    }
     if (nextTab !== homeTab) {
       setTabHistory(prev => [...prev, nextTab]);
       setHomeTab(nextTab);
@@ -115,6 +138,10 @@ export const SnapTypeApp: React.FC<SnapTypeAppProps> = ({
   const isRestoringFromHistoryRef = useRef(false);
   const hasInitializedHistoryRef = useRef(false);
   const lastRouteKeyRef = useRef('');
+  const resultsRef = useRef(results);
+  resultsRef.current = results;
+  const textRef = useRef(text);
+  textRef.current = text;
 
   const loadInitialHomeData = () => {
     setHistory(getHistory());
@@ -132,9 +159,17 @@ export const SnapTypeApp: React.FC<SnapTypeAppProps> = ({
       if (!state || state.__snaptype !== true) return;
 
       isRestoringFromHistoryRef.current = true;
-      setGameState(state.gameState);
-      if (state.gameState === GameState.UPLOAD) {
+      if (state.gameState === GameState.RESULTS && !resultsRef.current) {
+        setGameState(GameState.UPLOAD);
         setHomeTab(state.homeTab || 'HOME');
+      } else if (state.gameState === GameState.PLAYING && !textRef.current) {
+        setGameState(GameState.UPLOAD);
+        setHomeTab(state.homeTab || 'HOME');
+      } else {
+        setGameState(state.gameState);
+        if (state.gameState === GameState.UPLOAD) {
+          setHomeTab(state.homeTab || 'HOME');
+        }
       }
     };
 
@@ -220,21 +255,6 @@ export const SnapTypeApp: React.FC<SnapTypeAppProps> = ({
     setActiveLessonId(lessonId || null);
     setHardcoreMode(hardcore);
     setGameState(GameState.PLAYING);
-  };
-
-  const goHomeCreate = () => {
-    setGameState(GameState.UPLOAD);
-    setIsProcessing(false);
-    setResults(null);
-    setTimeLimit(getDefaultTimeLimit());
-    setText('');
-    setOriginalText('');
-    setImagePreview(null);
-    setIsSSCMode(false);
-    setHardcoreMode('NONE');
-    setActiveTestId(null);
-    setActiveLessonId(null);
-    setActiveExerciseIndex(0);
   };
 
   const handleImageSelect = async (
@@ -609,7 +629,7 @@ export const SnapTypeApp: React.FC<SnapTypeAppProps> = ({
       {/* Desktop Sidebar */}
       {gameState !== GameState.PLAYING && (
         <aside className={`hidden md:flex flex-col w-[260px] fixed top-0 left-0 bottom-0 z-50 border-r py-6 px-4 transition-all ${theme === 'light' ? 'bg-[#f8fafc] border-slate-200 shadow-sm' : 'bg-[#0a0d14] border-white/10'}`}>
-          <button className="flex items-center gap-2.5 hover:opacity-85 transition-opacity text-left mb-8 w-full" onClick={goHomeCreate}>
+          <button className="flex items-center gap-2.5 hover:opacity-85 transition-opacity text-left mb-8 w-full" onClick={() => navigateToTab('HOME')}>
             <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center shadow-md shrink-0">
               <span className="text-white font-black text-xl leading-none keep-white">S</span>
             </div>
@@ -653,7 +673,15 @@ export const SnapTypeApp: React.FC<SnapTypeAppProps> = ({
           </nav>
 
           <div className={`flex flex-col gap-2 mt-4 pt-4 border-t ${theme === 'light' ? 'border-slate-200' : 'border-white/10'}`}>
-            <button onClick={onSwitchToSpellingApp} className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold transition-all w-full text-left ${theme === 'light' ? 'text-violet-600 hover:bg-violet-50' : 'text-violet-400 hover:bg-violet-500/10'}`}>
+            <button
+              onClick={() => {
+                if (gameState !== GameState.UPLOAD) {
+                  goHomeCreate();
+                }
+                onSwitchToSpellingApp();
+              }}
+              className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold transition-all w-full text-left ${theme === 'light' ? 'text-violet-600 hover:bg-violet-50' : 'text-violet-400 hover:bg-violet-500/10'}`}
+            >
               <span className="text-sm">🗣️</span> SnapSpell
             </button>
             <button onClick={onToggleTheme} className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold transition-all w-full text-left ${theme === 'light' ? 'text-slate-600 hover:bg-slate-100' : 'text-slate-400 hover:bg-white/5'}`}>
@@ -666,14 +694,24 @@ export const SnapTypeApp: React.FC<SnapTypeAppProps> = ({
       {/* Mobile Top Bar */}
       {gameState !== GameState.PLAYING && (
         <header className={`md:hidden flex items-center justify-between p-3 border-b fixed top-0 left-0 right-0 z-50 shadow-sm ${theme === 'light' ? 'bg-[#f8fafc] border-slate-200' : 'bg-[#0c1017] border-white/10'}`}>
-          <button className="flex items-center gap-2.5 text-left" onClick={goHomeCreate}>
+          <button className="flex items-center gap-2.5 text-left" onClick={() => navigateToTab('HOME')}>
             <div className="w-8 h-8 rounded-xl bg-indigo-600 flex items-center justify-center shadow-sm shrink-0">
               <span className="text-white font-black text-base leading-none keep-white">S</span>
             </div>
             <div className={`text-sm font-extrabold tracking-tight leading-tight ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>SnapType</div>
           </button>
           <div className="flex gap-2">
-            <button onClick={onSwitchToSpellingApp} className="p-2 rounded-xl bg-violet-500/10 text-violet-500 text-lg">🗣️</button>
+            <button
+              onClick={() => {
+                if (gameState !== GameState.UPLOAD) {
+                  goHomeCreate();
+                }
+                onSwitchToSpellingApp();
+              }}
+              className="p-2 rounded-xl bg-violet-500/10 text-violet-500 text-lg"
+            >
+              🗣️
+            </button>
             <button onClick={onToggleTheme} className={`p-2 rounded-xl ${theme === 'light' ? 'bg-slate-200/50' : 'bg-white/10'} text-lg`}>{theme === 'dark' ? '☀️' : '🌙'}</button>
           </div>
         </header>
