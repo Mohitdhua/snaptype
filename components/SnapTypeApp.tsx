@@ -19,17 +19,113 @@ type AppHistoryState = {
   homeTab: HomeTab;
 };
 
-const HOME_TABS: { id: HomeTab; label: string; icon: string }[] = [
-  { id: 'HOME', label: 'Home', icon: '🏠' },
-  { id: 'LESSONS', label: 'Lessons Suite', icon: '🎓' },
-  { id: 'FINGER_TRAINING', label: 'Finger Motor', icon: '🖐️' },
-  { id: 'ACCURACY_LAB', label: 'Accuracy Lab', icon: '🎯' },
-  { id: 'SPEED_LAB', label: 'Speed Lab', icon: '⚡' },
-  { id: 'PRACTICE', label: 'Practice Library', icon: '⌨️' },
-  { id: 'ASSESSMENT', label: 'Assessment', icon: '📋' },
-  { id: 'PROGRESS', label: 'Analytics', icon: '📈' },
-  { id: 'SETTINGS', label: 'Settings', icon: '⚙️' },
+const TabIcon: React.FC<{ id: HomeTab; className?: string }> = ({ id, className = "w-4 h-4" }) => {
+  switch (id) {
+    case 'HOME':
+      return (
+        <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+          <polyline points="9 22 9 12 15 12 15 22" />
+        </svg>
+      );
+    case 'LESSONS':
+      return (
+        <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z" />
+          <path d="M6 6h10" />
+          <path d="M6 10h10" />
+        </svg>
+      );
+    case 'PRACTICE':
+      return (
+        <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect width="20" height="14" x="2" y="4" rx="2" />
+          <path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M6 12h.01M18 12h.01M8 16h8" />
+        </svg>
+      );
+    case 'FINGER_TRAINING':
+      return (
+        <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0" />
+          <path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v6" />
+          <path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8" />
+          <path d="M18 8a2 2 0 0 1 2 2v4a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15" />
+        </svg>
+      );
+    case 'ACCURACY_LAB':
+      return (
+        <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10" />
+          <circle cx="12" cy="12" r="6" />
+          <circle cx="12" cy="12" r="2" />
+        </svg>
+      );
+    case 'SPEED_LAB':
+      return (
+        <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+        </svg>
+      );
+    case 'ASSESSMENT':
+      return (
+        <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+          <path d="M15 2H9a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1z" />
+          <path d="m9 14 2 2 4-4" />
+        </svg>
+      );
+    case 'PROGRESS':
+      return (
+        <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M3 3v18h18" />
+          <path d="m19 9-5 5-4-4-3 3" />
+        </svg>
+      );
+    case 'SETTINGS':
+      return (
+        <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+          <circle cx="12" cy="12" r="3" />
+        </svg>
+      );
+    default:
+      return null;
+  }
+};
+
+interface NavSection {
+  title: string;
+  items: { id: HomeTab; label: string }[];
+}
+
+const NAV_SECTIONS: NavSection[] = [
+  {
+    title: 'Core Hubs',
+    items: [
+      { id: 'HOME', label: 'Dashboard' },
+      { id: 'LESSONS', label: 'Lessons Suite' },
+      { id: 'PRACTICE', label: 'Practice Library' },
+    ],
+  },
+  {
+    title: 'Training Labs',
+    items: [
+      { id: 'FINGER_TRAINING', label: 'Finger Motor' },
+      { id: 'ACCURACY_LAB', label: 'Accuracy Lab' },
+      { id: 'SPEED_LAB', label: 'Speed Lab' },
+    ],
+  },
+  {
+    title: 'System & Insights',
+    items: [
+      { id: 'ASSESSMENT', label: 'Assessment' },
+      { id: 'PROGRESS', label: 'Analytics' },
+      { id: 'SETTINGS', label: 'Settings' },
+    ],
+  },
 ];
+
+const HOME_TABS: { id: HomeTab; label: string }[] = NAV_SECTIONS.flatMap(section => section.items);
 
 const getRouteKey = (nextGameState: GameState, nextHomeTab: HomeTab) =>
   nextGameState === GameState.UPLOAD ? `${nextGameState}:${nextHomeTab}` : nextGameState;
@@ -628,51 +724,83 @@ export const SnapTypeApp: React.FC<SnapTypeAppProps> = ({
 
       {/* Desktop Sidebar */}
       {gameState !== GameState.PLAYING && (
-        <aside className={`hidden md:flex flex-col w-[260px] fixed top-0 left-0 bottom-0 z-50 border-r py-6 px-4 transition-all ${theme === 'light' ? 'bg-[#f8fafc] border-slate-200 shadow-sm' : 'bg-[#0a0d14] border-white/10'}`}>
-          <button className="flex items-center gap-2.5 hover:opacity-85 transition-opacity text-left mb-8 w-full" onClick={() => navigateToTab('HOME')}>
-            <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center shadow-md shrink-0">
-              <span className="text-white font-black text-xl leading-none keep-white">S</span>
+        <aside className={`hidden md:flex flex-col w-[240px] fixed top-0 left-0 bottom-0 z-50 border-r py-5 px-3.5 transition-all select-none ${
+          theme === 'light' ? 'bg-[#fafafa] border-slate-200/80 shadow-xs' : 'bg-[#0a0d14] border-white/10'
+        }`}>
+          {/* Logo Header */}
+          <button className="flex items-center gap-3 hover:opacity-90 transition-opacity text-left mb-5 px-1 w-full" onClick={() => navigateToTab('HOME')}>
+            <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center shadow-xs shrink-0">
+              <span className="text-white font-black text-base leading-none keep-white">S</span>
             </div>
             <div>
-              <div className={`text-base font-extrabold tracking-tight leading-tight ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>SnapType</div>
-              <div className="text-[10px] font-mono text-indigo-500 font-semibold leading-none mt-0.5">Blind Typing Pro</div>
+              <div className={`text-sm font-extrabold tracking-tight leading-tight ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>SnapType</div>
+              <div className="text-[10px] font-mono text-indigo-500 dark:text-indigo-400 font-semibold tracking-wider uppercase leading-none mt-0.5">Blind Typing</div>
             </div>
           </button>
 
+          {/* User Stats Pill */}
           {userStats && (
-            <div className={`mb-6 p-3 rounded-xl border flex flex-col gap-2 shadow-sm ${theme === 'light' ? 'bg-white border-slate-200' : 'bg-white/5 border-white/10'}`}>
-              <div className="flex items-center justify-between text-xs font-mono">
-                <span className="opacity-60 uppercase font-bold tracking-widest text-[10px]">Streak</span>
-                <span className="text-amber-500 font-bold">{userStats.currentStreak}d 🔥</span>
+            <div className={`mb-4 px-3 py-2 rounded-xl border flex items-center justify-between transition-colors ${
+              theme === 'light' ? 'bg-slate-100/70 border-slate-200/80 text-slate-700' : 'bg-white/[0.04] border-white/[0.08] text-slate-300'
+            }`}>
+              <div className="flex items-center gap-1.5 text-xs font-medium">
+                <span className="text-amber-500 text-sm">🔥</span>
+                <span className="text-slate-700 dark:text-slate-300 font-semibold">{userStats.currentStreak}d</span>
+                <span className="text-[10px] text-slate-400 uppercase font-mono">streak</span>
               </div>
-              <div className="flex items-center justify-between text-xs font-mono">
-                <span className="opacity-60 uppercase font-bold tracking-widest text-[10px]">XP</span>
-                <span className="font-bold">{userStats.xp} ⭐</span>
+              <div className="h-3 w-[1px] bg-slate-300 dark:bg-white/10" />
+              <div className="flex items-center gap-1 text-xs font-semibold text-indigo-600 dark:text-indigo-400 font-mono">
+                <span className="text-[10px] text-indigo-500 dark:text-indigo-400">⚡</span>
+                <span>{Math.round(userStats.xp)} XP</span>
               </div>
             </div>
           )}
 
-          <nav className="flex flex-col gap-1 flex-1 overflow-y-auto pr-1 custom-scrollbar">
-            {HOME_TABS.map(tab => {
-              const isActive = homeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => navigateToTab(tab.id)}
-                  className={`px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center gap-3 w-full text-left ${
-                    isActive
-                      ? (theme === 'light' ? 'bg-indigo-50 text-indigo-700 shadow-sm' : 'bg-indigo-500/20 text-indigo-300 shadow-sm')
-                      : (theme === 'light' ? 'text-slate-600 hover:bg-slate-200/50' : 'text-neutral-400 hover:bg-white/5 hover:text-white')
-                  }`}
-                >
-                  <span className="text-base opacity-90">{tab.icon}</span>
-                  <span>{tab.label}</span>
-                </button>
-              );
-            })}
+          {/* Nav Links Grouped by Section */}
+          <nav className="flex-1 space-y-3.5 overflow-y-auto scrollbar-none pr-0.5">
+            {NAV_SECTIONS.map(section => (
+              <div key={section.title}>
+                <div className="px-2 mb-1 text-[10px] font-bold font-mono uppercase tracking-widest text-slate-400 dark:text-slate-500 opacity-70">
+                  {section.title}
+                </div>
+                <div className="space-y-0.5">
+                  {section.items.map(tab => {
+                    const isActive = homeTab === tab.id;
+                    return (
+                      <button
+                        key={tab.id}
+                        onClick={() => navigateToTab(tab.id)}
+                        className={`group px-2.5 py-1.5 rounded-lg text-[13px] font-medium transition-all flex items-center justify-between w-full text-left ${
+                          isActive
+                            ? (theme === 'light'
+                                ? 'bg-indigo-50/90 text-indigo-700 font-semibold shadow-xs'
+                                : 'bg-indigo-500/15 text-indigo-300 font-semibold shadow-xs')
+                            : (theme === 'light'
+                                ? 'text-slate-600 hover:bg-slate-200/50 hover:text-slate-900'
+                                : 'text-slate-400 hover:bg-white/5 hover:text-slate-100')
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <TabIcon id={tab.id} className={`w-4 h-4 transition-colors ${
+                            isActive
+                              ? (theme === 'light' ? 'text-indigo-600' : 'text-indigo-400')
+                              : 'text-slate-400 group-hover:text-slate-600 dark:text-slate-500 dark:group-hover:text-slate-300'
+                          }`} />
+                          <span>{tab.label}</span>
+                        </div>
+                        {isActive && (
+                          <div className="w-1.5 h-1.5 rounded-full bg-indigo-600 dark:bg-indigo-400" />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           </nav>
 
-          <div className={`flex flex-col gap-2 mt-4 pt-4 border-t ${theme === 'light' ? 'border-slate-200' : 'border-white/10'}`}>
+          {/* Footer Actions */}
+          <div className={`flex flex-col gap-1 mt-3 pt-3 border-t ${theme === 'light' ? 'border-slate-200/80' : 'border-white/10'}`}>
             <button
               onClick={() => {
                 if (gameState !== GameState.UPLOAD) {
@@ -680,12 +808,32 @@ export const SnapTypeApp: React.FC<SnapTypeAppProps> = ({
                 }
                 onSwitchToSpellingApp();
               }}
-              className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold transition-all w-full text-left ${theme === 'light' ? 'text-violet-600 hover:bg-violet-50' : 'text-violet-400 hover:bg-violet-500/10'}`}
+              className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all w-full text-left ${
+                theme === 'light' ? 'text-violet-700 hover:bg-violet-50' : 'text-violet-400 hover:bg-violet-500/10'
+              }`}
             >
-              <span className="text-sm">🗣️</span> SnapSpell
+              <svg className="w-4 h-4 text-violet-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3z"/>
+              </svg>
+              <span>SnapSpell</span>
             </button>
-            <button onClick={onToggleTheme} className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold transition-all w-full text-left ${theme === 'light' ? 'text-slate-600 hover:bg-slate-100' : 'text-slate-400 hover:bg-white/5'}`}>
-              <span className="text-sm">{theme === 'dark' ? '☀️' : '🌙'}</span> Theme
+            <button
+              onClick={onToggleTheme}
+              className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all w-full text-left ${
+                theme === 'light' ? 'text-slate-600 hover:bg-slate-200/50' : 'text-slate-400 hover:bg-white/5'
+              }`}
+            >
+              {theme === 'dark' ? (
+                <svg className="w-4 h-4 text-amber-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="4"/>
+                  <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>
+                </svg>
+              ) : (
+                <svg className="w-4 h-4 text-slate-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>
+                </svg>
+              )}
+              <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
             </button>
           </div>
         </aside>
@@ -693,9 +841,9 @@ export const SnapTypeApp: React.FC<SnapTypeAppProps> = ({
 
       {/* Mobile Top Bar */}
       {gameState !== GameState.PLAYING && (
-        <header className={`md:hidden flex items-center justify-between p-3 border-b fixed top-0 left-0 right-0 z-50 shadow-sm ${theme === 'light' ? 'bg-[#f8fafc] border-slate-200' : 'bg-[#0c1017] border-white/10'}`}>
+        <header className={`md:hidden flex items-center justify-between p-3 border-b fixed top-0 left-0 right-0 z-50 shadow-sm ${theme === 'light' ? 'bg-[#fafafa] border-slate-200' : 'bg-[#0c1017] border-white/10'}`}>
           <button className="flex items-center gap-2.5 text-left" onClick={() => navigateToTab('HOME')}>
-            <div className="w-8 h-8 rounded-xl bg-indigo-600 flex items-center justify-center shadow-sm shrink-0">
+            <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center shadow-sm shrink-0">
               <span className="text-white font-black text-base leading-none keep-white">S</span>
             </div>
             <div className={`text-sm font-extrabold tracking-tight leading-tight ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>SnapType</div>
@@ -719,10 +867,20 @@ export const SnapTypeApp: React.FC<SnapTypeAppProps> = ({
 
       {/* Mobile Bottom Nav */}
       {gameState !== GameState.PLAYING && (
-        <nav className={`md:hidden fixed bottom-0 left-0 right-0 p-2 border-t flex items-center gap-2 overflow-x-auto z-50 shadow-[0_-8px_30px_rgba(0,0,0,0.12)] scrollbar-none pb-safe ${theme === 'light' ? 'bg-[#f8fafc] border-slate-200' : 'bg-[#0c1017] border-white/10'}`}>
+        <nav className={`md:hidden fixed bottom-0 left-0 right-0 p-1.5 border-t flex items-center gap-1 overflow-x-auto z-50 shadow-[0_-8px_30px_rgba(0,0,0,0.12)] scrollbar-none pb-safe ${
+          theme === 'light' ? 'bg-[#fafafa] border-slate-200' : 'bg-[#0c1017] border-white/10'
+        }`}>
           {HOME_TABS.map(tab => (
-            <button key={tab.id} onClick={() => navigateToTab(tab.id)} className={`flex-shrink-0 flex flex-col items-center gap-1 p-2 rounded-xl min-w-[72px] transition-colors ${homeTab === tab.id ? (theme === 'light' ? 'text-indigo-600 bg-indigo-50' : 'text-indigo-400 bg-indigo-500/20') : 'text-slate-500 hover:bg-slate-500/5'}`}>
-              <span className="text-xl leading-none mb-0.5">{tab.icon}</span>
+            <button
+              key={tab.id}
+              onClick={() => navigateToTab(tab.id)}
+              className={`flex-shrink-0 flex flex-col items-center gap-1 px-3 py-1.5 rounded-lg min-w-[64px] transition-colors ${
+                homeTab === tab.id
+                  ? (theme === 'light' ? 'text-indigo-600 bg-indigo-50' : 'text-indigo-400 bg-indigo-500/20')
+                  : 'text-slate-500 hover:bg-slate-500/5'
+              }`}
+            >
+              <TabIcon id={tab.id} className="w-4 h-4" />
               <span className="text-[10px] font-bold tracking-tight">{tab.label}</span>
             </button>
           ))}
