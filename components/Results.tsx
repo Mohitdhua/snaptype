@@ -1,16 +1,11 @@
-
-import React, { useState, useMemo, useEffect } from 'react';
-import { Button } from './Button';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { TestResults, HardcoreMode } from '../types';
-import { getHistory } from '../services/storageService';
 import { getStoredTheme } from '../services/themeService';
-import { ProgressChart } from './ProgressChart';
 import { CertificateModal } from './CertificateModal';
 import { DiagnosticReportModal } from './DiagnosticReportModal';
-import { ComposedChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { ComposedChart, Area, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { playSound } from '../services/soundService';
 import { evaluateCourtTypingTest, generateFullComparison } from '../services/courtEvaluationService';
-import { FullPassageComparison } from './FullPassageComparison';
 
 interface ResultsProps {
   results: TestResults;
@@ -22,18 +17,16 @@ interface ResultsProps {
   nextLessonLabel?: string;
 }
 
-const roundTo = (value: number, precision = 1) => {
-  const factor = 10 ** precision;
-  return Math.round(value * factor) / factor;
-};
-
 const formatTime = (secs: number) => {
   const m = Math.floor(secs / 60);
   const s = Math.floor(secs % 60);
   return `${m}:${s < 10 ? '0' : ''}${s}`;
 };
 
-const MAX_SESSION_CHART_POINTS = 240;
+const roundTo = (value: number, precision = 1) => {
+  const factor = 10 ** precision;
+  return Math.round(value * factor) / factor;
+};
 
 const downsampleSeries = <T,>(series: T[], maxPoints: number): T[] => {
   if (series.length <= maxPoints) return series;
@@ -46,44 +39,32 @@ const downsampleSeries = <T,>(series: T[], maxPoints: number): T[] => {
   return reduced;
 };
 
-const normalizeHardKey = (key: string) => {
-  if (key === '\n' || key === 'Enter') return 'Enter';
-  if (key === ' ' || key === 'Space') return 'Space';
-  return key;
-};
-
-const formatHardKeyLabel = (key: string) => {
-  if (key === 'Space') return '[space]';
-  if (key === 'Enter') return '[enter]';
-  return key;
-};
-
 const SessionTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     const point = payload[0]?.payload;
     return (
-      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-3 rounded-lg shadow-xl z-50 text-xs">
-        <p className="text-slate-500 dark:text-slate-400 font-bold mb-1">{`Time: ${label}s`}</p>
-        <p className="text-indigo-600 dark:text-indigo-400 text-sm font-bold">{`Net WPM: ${point?.wpm ?? 0}`}</p>
-        <p className="text-slate-700 dark:text-slate-300">{`Raw WPM: ${point?.raw ?? 0}`}</p>
-        <p className="text-emerald-600 dark:text-emerald-400">{`Accuracy: ${point?.accuracy ?? 0}%`}</p>
+      <div className="bg-slate-900/95 text-white border border-white/10 px-3 py-2 rounded-xl shadow-2xl backdrop-blur-md text-xs font-mono">
+        <p className="text-slate-400 mb-0.5">{`Time: ${label}s`}</p>
+        <p className="text-emerald-400 font-bold">{`Net: ${point?.wpm ?? 0} WPM`}</p>
+        <p className="text-slate-300">{`Gross: ${point?.raw ?? 0} WPM`}</p>
+        <p className="text-cyan-400">{`Accuracy: ${point?.accuracy ?? 0}%`}</p>
       </div>
     );
   }
   return null;
 };
 
-const HEATMAP_LAYOUT = [
-  ['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'],
-  ['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l'],
-  ['z', 'x', 'c', 'v', 'b', 'n', 'm'],
-  ['Space']
-];
-
-export const Results: React.FC<ResultsProps> = ({ results, onReset, onNewImage, onPractice, onLaunchBooster, onNextLesson, nextLessonLabel }) => {
+export const Results: React.FC<ResultsProps> = ({
+  results,
+  onReset,
+  onNewImage,
+  onPractice,
+  onNextLesson,
+  nextLessonLabel,
+}) => {
   const [showCertificate, setShowCertificate] = useState(false);
   const [showDiagnosticModal, setShowDiagnosticModal] = useState(false);
-  const [hardKeyView, setHardKeyView] = useState<'heatmap' | 'chips'>('heatmap');
+  const [showPassageReview, setShowPassageReview] = useState(false);
   const [isLight, setIsLight] = useState(() => getStoredTheme() === 'light');
 
   useEffect(() => {
@@ -91,6 +72,41 @@ export const Results: React.FC<ResultsProps> = ({ results, onReset, onNewImage, 
     window.addEventListener('snaptype-theme-change', handler);
     return () => window.removeEventListener('snaptype-theme-change', handler);
   }, []);
+
+  // Keyboard navigation: Enter -> next drill / retry, Tab -> retry, Esc -> home
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent) => {
+      if (showCertificate || showDiagnosticModal) return;
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        if (onNextLesson) {
+          onNextLesson();
+        } else {
+          onReset();
+        }
+      } else if (e.key === 'Tab') {
+        e.preventDefault();
+        onReset();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        onNewImage();
+      }
+    },
+    [onNextLesson, onReset, onNewImage, showCertificate, showDiagnosticModal]
+  );
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleKeyDown]);
+
+  useEffect(() => {
+    if (results.accuracy >= 95) {
+      const timeoutId = setTimeout(() => playSound('success'), 300);
+      return () => clearTimeout(timeoutId);
+    }
+    return undefined;
+  }, [results.accuracy]);
 
   const courtEvaluation = useMemo(() => {
     if (results.courtExam) return results.courtExam;
@@ -106,16 +122,51 @@ export const Results: React.FC<ResultsProps> = ({ results, onReset, onNewImage, 
   }, [results]);
 
   const fullComparisonData = useMemo(() => {
-    if (courtEvaluation?.comparisonData) {
-      return courtEvaluation.comparisonData;
-    }
+    if (!showPassageReview) return null;
     const orig = results.originalText || '';
     const typed = results.typedText || '';
     if (orig.trim() || typed.trim()) {
       return generateFullComparison(orig, typed);
     }
     return null;
-  }, [courtEvaluation, results.originalText, results.typedText]);
+  }, [showPassageReview, results.originalText, results.typedText]);
+
+  const sessionHistory = results.history || [];
+  const sessionChartData = useMemo(
+    () => downsampleSeries(sessionHistory, 180),
+    [sessionHistory]
+  );
+
+  const sessionInsights = useMemo(() => {
+    if (sessionHistory.length === 0) {
+      return {
+        peakWpm: results.netWpm,
+        avgWpm: results.netWpm,
+      };
+    }
+    const wpmValues = sessionHistory.map(point => point.wpm);
+    const avgWpm = wpmValues.reduce((sum, value) => sum + value, 0) / wpmValues.length;
+    return {
+      peakWpm: Math.max(...wpmValues),
+      avgWpm: roundTo(avgWpm, 1),
+    };
+  }, [results.netWpm, sessionHistory]);
+
+  const topMissedWords = useMemo(
+    () =>
+      Object.entries(results.missedWords || {})
+        .sort((a, b) => (b[1] as number) - (a[1] as number))
+        .slice(0, 6),
+    [results.missedWords]
+  );
+
+  const topHardKeys = useMemo(
+    () =>
+      Object.entries(results.hardKeys || {})
+        .sort((a, b) => (b[1] as number) - (a[1] as number))
+        .slice(0, 6),
+    [results.hardKeys]
+  );
 
   const handlePrintScorecard = () => {
     if (!courtEvaluation) return;
@@ -125,53 +176,51 @@ export const Results: React.FC<ResultsProps> = ({ results, onReset, onNewImage, 
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Punjab & Haryana High Court Clerk - Typing Examination Scorecard</title>
+          <title>SSSC Typing Examination Official Scorecard</title>
           <style>
             @page { size: A4; margin: 20mm; }
-            body { font-family: 'Segoe UI', Arial, sans-serif; color: #111; padding: 20px; line-height: 1.5; }
-            .header { text-align: center; border-bottom: 2px solid #111; padding-bottom: 12px; margin-bottom: 20px; }
-            .header h1 { font-size: 16pt; margin: 0; text-transform: uppercase; }
-            .header p { margin: 4px 0 0; font-size: 11pt; color: #444; }
+            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #0f172a; padding: 24px; line-height: 1.6; }
+            .header { text-align: center; border-bottom: 2px solid #0f172a; padding-bottom: 16px; margin-bottom: 24px; }
+            .header h1 { font-size: 17pt; margin: 0; text-transform: uppercase; letter-spacing: 0.5px; }
+            .header p { margin: 4px 0 0; font-size: 11pt; color: #475569; }
             .verdict-box {
-              padding: 14px;
-              text-align: center;
-              border: 2px solid ${courtEvaluation.status === 'QUALIFIED' ? '#059669' : '#dc2626'};
-              background-color: ${courtEvaluation.status === 'QUALIFIED' ? '#ecfdf5' : '#fef2f2'};
-              border-radius: 8px;
-              margin-bottom: 24px;
+              padding: 16px; text-align: center;
+              border: 2px solid ${courtEvaluation.status === 'QUALIFIED' ? '#059669' : '#e11d48'};
+              background-color: ${courtEvaluation.status === 'QUALIFIED' ? '#ecfdf5' : '#fff1f2'};
+              border-radius: 12px; margin-bottom: 24px;
             }
-            .verdict-title { font-size: 18pt; font-weight: bold; color: ${courtEvaluation.status === 'QUALIFIED' ? '#059669' : '#dc2626'}; }
+            .verdict-title { font-size: 18pt; font-weight: 800; color: ${courtEvaluation.status === 'QUALIFIED' ? '#059669' : '#e11d48'}; letter-spacing: 1px; }
             .stats-table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
-            .stats-table th, .stats-table td { border: 1px solid #ccc; padding: 10px; text-align: left; }
-            .stats-table th { background: #f3f4f6; font-size: 10pt; text-transform: uppercase; }
-            .stats-table td { font-size: 11pt; font-weight: 600; }
-            .formula-box { background: #f9fafb; border: 1px solid #e5e7eb; padding: 12px; border-radius: 6px; font-family: monospace; font-size: 10.5pt; margin-bottom: 20px; }
-            .notice { font-size: 9.5pt; color: #555; border-top: 1px solid #ddd; padding-top: 12px; }
+            .stats-table th, .stats-table td { border: 1px solid #cbd5e1; padding: 12px; text-align: left; }
+            .stats-table th { background: #f8fafc; font-size: 10pt; text-transform: uppercase; letter-spacing: 0.5px; color: #475569; }
+            .stats-table td { font-size: 11pt; font-weight: 600; font-family: monospace; }
+            .formula-box { background: #f8fafc; border: 1px solid #e2e8f0; padding: 14px; border-radius: 8px; font-family: monospace; font-size: 11pt; margin-bottom: 20px; color: #334155; }
+            .notice { font-size: 9.5pt; color: #64748b; border-top: 1px solid #e2e8f0; padding-top: 14px; }
           </style>
         </head>
         <body>
           <div class="header">
             <h1>High Court of Punjab and Haryana at Chandigarh</h1>
             <p>Society for Centralized Recruitment of Staff in Subordinate Courts (S.S.S.C.)</p>
-            <p><strong>Computer Proficiency Test (CPT) &bull; English Typing Examination Scorecard</strong></p>
+            <p><strong>Computer Proficiency Test (CPT) • Official English Typing Scorecard</strong></p>
           </div>
           <div class="verdict-box">
             <div class="verdict-title">${courtEvaluation.status === 'QUALIFIED' ? 'QUALIFIED / PASSED' : 'DISQUALIFIED'}</div>
-            <div style="margin-top: 6px; font-size: 11pt;">${courtEvaluation.status === 'QUALIFIED' ? 'Candidate meets both Net Speed (≥ 30.00 WPM) and Accuracy (Mistakes ≤ 5.00%) standards.' : courtEvaluation.disqualificationReasons.join(' • ')}</div>
+            <div style="margin-top: 6px; font-size: 11pt;">${courtEvaluation.status === 'QUALIFIED' ? 'Candidate meets both Net Speed (≥ 30.00 WPM) and Accuracy (Mistakes ≤ 5.00%) recruitment benchmarks.' : courtEvaluation.disqualificationReasons.join(' • ')}</div>
           </div>
           <table class="stats-table">
             <tr><th>Examination Parameter</th><th>Candidate Performance</th><th>Official Qualifying Benchmark</th></tr>
             <tr><td>Total Characters Typed</td><td>${courtEvaluation.totalKeyDepressions}</td><td>—</td></tr>
-            <tr><td>Gross Words (Characters / 5)</td><td>${courtEvaluation.grossWords} words</td><td>—</td></tr>
+            <tr><td>Gross Words (Chars / 5)</td><td>${courtEvaluation.grossWords} words</td><td>—</td></tr>
             <tr><td>Gross Speed</td><td>${courtEvaluation.grossWpm} WPM</td><td>—</td></tr>
-            <tr><td>Total Mistakes (Omissions + Substitutions + Additions)</td><td>${courtEvaluation.totalMistakes} (O:${courtEvaluation.omissionsCount}, S:${courtEvaluation.substitutionsCount}, A:${courtEvaluation.additionsCount})</td><td>1 word penalty / mistake</td></tr>
+            <tr><td>Total Mistakes (Omissions + Substitutions + Additions)</td><td>${courtEvaluation.totalMistakes} (O:${courtEvaluation.omissionsCount}, S:${courtEvaluation.substitutionsCount}, A:${courtEvaluation.additionsCount})</td><td>1 word deduction / mistake</td></tr>
             <tr><td>Net Words (Gross - Mistakes)</td><td>${courtEvaluation.netWords} words</td><td>—</td></tr>
             <tr><td><strong>Net Speed (WPM)</strong></td><td><strong>${courtEvaluation.netWpm} WPM</strong></td><td><strong>Minimum 30.00 WPM</strong></td></tr>
             <tr><td><strong>Error Rate (%)</strong></td><td><strong>${courtEvaluation.errorPercentage}%</strong></td><td><strong>Maximum 5.00%</strong></td></tr>
             <tr><td>Final Accuracy</td><td>${courtEvaluation.accuracy}%</td><td>Minimum 95.00%</td></tr>
           </table>
           <div class="formula-box">
-            Formula: Net Speed = (Gross Words - Total Mistakes) / 10 Minutes = (${courtEvaluation.grossWords} - ${courtEvaluation.totalMistakes}) / 10 = ${courtEvaluation.netWpm} WPM
+            Official SSSC Formula: Net Speed = (Gross Words - Total Mistakes) ÷ 10 Minutes = (${courtEvaluation.grossWords} - ${courtEvaluation.totalMistakes}) ÷ 10 = ${courtEvaluation.netWpm} WPM
           </div>
           <div class="notice">
             ${courtEvaluation.spreadsheetNotice}
@@ -183,657 +232,396 @@ export const Results: React.FC<ResultsProps> = ({ results, onReset, onNewImage, 
     printWindow.document.close();
   };
 
-  useEffect(() => {
-      if ((results.badgesUnlocked && results.badgesUnlocked.length > 0) || (results.isSSC && (results.sscMarks || 0) > 0)) {
-          const timeoutId = setTimeout(() => playSound('success'), 500);
-          return () => clearTimeout(timeoutId);
-      }
-      return undefined;
-  }, [results]);
-
-  const normalizedHardKeys = useMemo(() => {
-    const normalized: Record<string, number> = {};
-    for (const [key, count] of Object.entries(results.hardKeys)) {
-      const normalizedKey = normalizeHardKey(key).toLowerCase();
-      normalized[normalizedKey] = (normalized[normalizedKey] || 0) + (count as number);
-    }
-    return normalized;
-  }, [results.hardKeys]);
-
-  const topHardKeys = useMemo(
-    () => {
-      const normalized: Record<string, number> = {};
-      for (const [key, count] of Object.entries(results.hardKeys)) {
-        const normalizedKey = normalizeHardKey(key);
-        normalized[normalizedKey] = (normalized[normalizedKey] || 0) + (count as number);
-      }
-
-      return Object.entries(normalized)
-        .sort((a, b) => (b[1] as number) - (a[1] as number))
-        .slice(0, 8);
-    },
-    [results.hardKeys]
-  );
-
-  const topMissedWords = useMemo(
-    () =>
-      Object.entries(results.missedWords || {})
-        .sort((a, b) => (b[1] as number) - (a[1] as number))
-        .slice(0, 12),
-    [results.missedWords]
-  );
-
-  const sessionHistory = results.history || [];
-  const sessionChartData = useMemo(
-    () => downsampleSeries(sessionHistory, MAX_SESSION_CHART_POINTS),
-    [sessionHistory]
-  );
-  const sameTestHistory = useMemo(() => {
-    if (!results.testId) return [];
-    return getHistory().filter(entry => entry.testId === results.testId);
-  }, [results.testId]);
-
-  const sessionInsights = useMemo(() => {
-    if (sessionHistory.length === 0) {
-      return {
-        peakWpm: results.netWpm,
-        avgWpm: results.netWpm,
-        avgAcc: results.accuracy,
-        stability: 0,
-        trendDelta: 0,
-      };
-    }
-
-    const wpmValues = sessionHistory.map(point => point.wpm);
-    const accuracyValues = sessionHistory.map(point => point.accuracy);
-    const avgWpm = wpmValues.reduce((sum, value) => sum + value, 0) / wpmValues.length;
-    const avgAcc = accuracyValues.reduce((sum, value) => sum + value, 0) / accuracyValues.length;
-    const variance = wpmValues.reduce((sum, value) => sum + (value - avgWpm) ** 2, 0) / wpmValues.length;
-    const trendDelta = wpmValues[wpmValues.length - 1] - wpmValues[0];
-
-    return {
-      peakWpm: Math.max(...wpmValues),
-      avgWpm: roundTo(avgWpm, 1),
-      avgAcc: roundTo(avgAcc, 1),
-      stability: roundTo(Math.sqrt(variance), 1),
-      trendDelta: roundTo(trendDelta, 1),
-    };
-  }, [results.accuracy, results.netWpm, sessionHistory]);
-
   return (
-    <div className="w-full max-w-6xl mx-auto flex flex-col items-center animate-scale-in pb-12">
-        {/* Top Navigation & Back Bar */}
-        <div className="w-full flex items-center justify-between pb-4 mb-6 border-b border-slate-200 dark:border-white/10 gap-3">
+    <div className="w-full max-w-4xl mx-auto px-4 py-4 md:py-6 animate-fade-in text-slate-900 dark:text-neutral-100">
+      {/* ── 1. Minimal Top Navigation ── */}
+      <header className="flex items-center justify-between gap-4 pb-4 border-b border-slate-200/80 dark:border-white/10">
+        <div className="flex items-center gap-3">
           <button
             onClick={onNewImage}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-900 border border-slate-300 dark:bg-white/10 dark:hover:bg-white/15 dark:text-white dark:border-white/15 text-xs font-bold transition-all shadow-xs cursor-pointer group"
-            title="Back to Dashboard / वापस जाएं"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-mono font-medium text-slate-600 hover:text-slate-900 dark:text-neutral-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 transition-colors cursor-pointer"
+            title="Return to Home (Esc)"
           >
-            <span className="text-base leading-none transition-transform group-hover:-translate-x-1">←</span>
-            <span>Back to Dashboard / वापस जाएं</span>
+            <span>←</span>
+            <span>Home</span>
           </button>
+          <span className="text-slate-300 dark:text-neutral-700 font-mono text-xs">/</span>
+          <span className="text-[11px] font-mono uppercase tracking-widest text-slate-500 dark:text-neutral-400 font-semibold">
+            {courtEvaluation ? 'CPT Examination' : results.lessonId ? 'Curriculum Drill' : 'Test Result'}
+          </span>
+          {results.ghostWpm && (
+            <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
+              ⚡ {results.ghostWpm} WPM Pacer {results.netWpm >= results.ghostWpm ? 'Beaten' : ''}
+            </span>
+          )}
+        </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              onClick={onReset}
-              className="px-3.5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs transition-all shadow-xs flex items-center gap-1.5 cursor-pointer keep-white active:scale-95"
-              title="Retry this same passage"
-            >
-              <span>↺</span>
-              <span>Retry Test</span>
-            </button>
+        <div className="flex items-center gap-2">
+          {courtEvaluation && (
             <button
               onClick={handlePrintScorecard}
-              className="px-3 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 dark:bg-white/5 dark:hover:bg-white/10 dark:text-neutral-300 dark:border-white/10 text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer"
-              title="Print Official Scorecard"
+              className="px-3 py-1.5 rounded-xl text-xs font-mono font-medium bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-slate-700 dark:text-neutral-300 border border-slate-200 dark:border-white/10 transition-colors flex items-center gap-1.5 cursor-pointer"
+              title="Print official scorecard"
             >
               <span>🖨️</span>
-              <span className="hidden sm:inline">Print Scorecard</span>
+              <span className="hidden sm:inline">Scorecard</span>
             </button>
-          </div>
-        </div>
+          )}
 
-        <h2 className="text-3xl md:text-4xl font-extrabold text-slate-900 dark:text-stitch-accent mb-6">
-            Session Report
-        </h2>
+          <button
+            onClick={onReset}
+            className="px-3.5 py-1.5 rounded-xl text-xs font-mono font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-slate-800 dark:text-white border border-slate-200 dark:border-white/10 transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
+            title="Retry test (Tab)"
+          >
+            <span>↺</span>
+            <span>Retry</span>
+            <span className="hidden sm:inline text-[9px] text-slate-400 dark:text-neutral-500 font-normal">Tab</span>
+          </button>
 
-        {/* Badge / XP Notification */}
-        {(results.badgesUnlocked && results.badgesUnlocked.length > 0) || results.xpGained ? (
-            <div className="w-full mb-8 bento-card border border-slate-200 dark:border-white/20 p-4 rounded-xl flex flex-col md:flex-row items-center justify-between gap-4 shadow-xs">
-                <div className="flex items-center gap-3">
-                    <span className="text-2xl text-amber-500 dark:text-white">★</span>
-                    <div>
-                        <div className="text-slate-900 dark:text-white font-bold">Session Complete!</div>
-                        <div className="text-slate-500 dark:text-stitch-muted text-sm">You earned <span className="font-bold text-slate-900 dark:text-white">+{results.xpGained || 0} XP</span></div>
-                    </div>
-                </div>
-                {results.badgesUnlocked && results.badgesUnlocked.length > 0 && (
-                     <div className="flex gap-2">
-                        {results.badgesUnlocked.map(badge => (
-                            <div key={badge.id} className="flex items-center gap-2 bg-slate-900 text-white dark:bg-white dark:text-black px-3 py-1.5 rounded-full shadow-lg animate-pulse">
-                                <span className="text-lg">{badge.icon}</span>
-                                <span className="font-bold text-sm">{badge.name} Unlocked!</span>
-                            </div>
-                        ))}
-                    </div>
-                )}
-            </div>
-        ) : null}
-        
-        {/* Punjab & Haryana High Court / SSSC Clerk Exam Scorecard */}
-        {(results.isCourtExam || results.isSSC || courtEvaluation) && courtEvaluation && (
-          <div className="w-full bento-card p-6 md:p-7 mb-8 relative overflow-hidden border border-slate-200 dark:border-white/10 shadow-md bg-white dark:bg-[#121721] rounded-2xl animate-fade-in">
-            {/* Ribbon & Official Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 border-b border-slate-200 dark:border-white/10">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 dark:bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-2xl shrink-0">
-                  🏛️
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-mono uppercase tracking-widest text-indigo-600 dark:text-indigo-400 font-bold">
-                      Official Recruitment Standard
-                    </span>
-                    <span className="text-[9px] font-mono font-bold bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-full">
-                      S.S.S.C. CPT
-                    </span>
-                  </div>
-                  <h3 className="text-lg md:text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-                    High Court of Punjab & Haryana / Subordinate Courts
-                  </h3>
-                  <p className="text-xs text-slate-500 dark:text-neutral-400">
-                    Clerk Computer Proficiency Test (English Typing Test • 10 Minutes Duration)
-                  </p>
-                </div>
-              </div>
-
-              {/* Status Badge & Print Scorecard Button */}
-              <div className="flex items-center gap-3 self-start md:self-auto">
-                <button
-                  onClick={handlePrintScorecard}
-                  className="px-3 py-2 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-700 dark:text-neutral-200 border border-slate-200 dark:border-white/10 transition-all flex items-center gap-1.5 shadow-xs"
-                  title="Print official examination scorecard"
-                >
-                  <span>🖨️</span>
-                  <span>Print Scorecard</span>
-                </button>
-
-                <div className={`px-4 py-2 rounded-xl border font-mono font-black text-sm tracking-wide flex items-center gap-2 ${
-                  courtEvaluation.status === 'QUALIFIED'
-                    ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-700 dark:text-emerald-400 shadow-emerald-500/10'
-                    : 'bg-rose-500/15 border-rose-500/40 text-rose-700 dark:text-rose-400 shadow-rose-500/10'
-                }`}>
-                  <span className="w-2.5 h-2.5 rounded-full animate-ping" style={{ backgroundColor: courtEvaluation.status === 'QUALIFIED' ? '#10b981' : '#f43f5e' }} />
-                  <span>{courtEvaluation.status === 'QUALIFIED' ? 'QUALIFIED / PASSED' : 'DISQUALIFIED'}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Disqualification Reasons Banner if disqualified */}
-            {courtEvaluation.status === 'DISQUALIFIED' && (
-              <div className="mt-4 p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-500/30 text-xs text-rose-800 dark:text-rose-300 flex flex-col gap-1">
-                <span className="font-bold flex items-center gap-1.5">
-                  <span>⚠️</span> Disqualification Specifics:
-                </span>
-                <ul className="list-disc list-inside space-y-0.5 pl-2 font-mono">
-                  {courtEvaluation.disqualificationReasons.map((reason, idx) => (
-                    <li key={idx}>{reason}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {/* Formula Explanation Callout */}
-            <div className="mt-5 p-3.5 rounded-xl bg-slate-50 dark:bg-black/30 border border-slate-200 dark:border-white/5 font-mono text-xs text-slate-700 dark:text-neutral-300 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-              <div>
-                <span className="text-slate-400 dark:text-neutral-500 font-bold uppercase text-[10px] block">
-                  Official SSSC Speed & Penalty Formula
-                </span>
-                <span className="font-bold text-slate-900 dark:text-white">
-                  Net Speed = (Gross Words − Mistakes) ÷ 10 = ({courtEvaluation.grossWords} − {courtEvaluation.totalMistakes}) ÷ 10 = <span className={courtEvaluation.netWpm >= 30 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}>{courtEvaluation.netWpm} WPM</span>
-                </span>
-              </div>
-              <div className="text-[11px] text-slate-500 dark:text-neutral-400 shrink-0">
-                1 Mistake = 1 Full Word (5 strokes) Deduction
-              </div>
-            </div>
-
-            {/* Key 6-Tile Metrics Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mt-5">
-              {/* Total Characters */}
-              <div className="flex flex-col items-center justify-center p-3.5 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-200 dark:border-white/10">
-                <div className="text-[10px] text-slate-500 dark:text-neutral-400 uppercase font-bold tracking-wider mb-1">Total Characters</div>
-                <div className="text-2xl font-mono font-black text-slate-900 dark:text-white">{courtEvaluation.totalKeyDepressions}</div>
-                <div className="text-[10px] text-slate-400 dark:text-neutral-400 mt-0.5 font-mono">{courtEvaluation.grossWords} words</div>
-              </div>
-
-              {/* Gross Speed */}
-              <div className="flex flex-col items-center justify-center p-3.5 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-200 dark:border-white/10">
-                <div className="text-[10px] text-slate-500 dark:text-neutral-400 uppercase font-bold tracking-wider mb-1">Gross Speed</div>
-                <div className="text-2xl font-mono font-black text-slate-900 dark:text-white">{courtEvaluation.grossWpm}</div>
-                <div className="text-[10px] text-slate-400 dark:text-neutral-400 mt-0.5 font-mono">Gross WPM</div>
-              </div>
-
-              {/* Total Mistakes */}
-              <div className="flex flex-col items-center justify-center p-3.5 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-200 dark:border-white/10">
-                <div className="text-[10px] text-slate-500 dark:text-neutral-400 uppercase font-bold tracking-wider mb-1">Total Mistakes</div>
-                <div className="text-2xl font-mono font-black text-rose-600 dark:text-rose-400">−{courtEvaluation.totalMistakes}</div>
-                <div className="text-[10px] text-slate-400 dark:text-neutral-400 mt-0.5 font-mono">O:{courtEvaluation.omissionsCount} S:{courtEvaluation.substitutionsCount} A:{courtEvaluation.additionsCount}</div>
-              </div>
-
-              {/* Net Speed */}
-              <div className="flex flex-col items-center justify-center p-3.5 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-200 dark:border-white/10">
-                <div className="text-[10px] text-slate-500 dark:text-neutral-400 uppercase font-bold tracking-wider mb-1">Net Speed</div>
-                <div className={`text-2xl font-mono font-black ${courtEvaluation.netWpm >= 30 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
-                  {courtEvaluation.netWpm}
-                </div>
-                <div className="text-[10px] font-mono font-bold mt-0.5 text-slate-400 dark:text-neutral-400">
-                  Cutoff: ≥ 30 WPM
-                </div>
-              </div>
-
-              {/* Error Rate */}
-              <div className="flex flex-col items-center justify-center p-3.5 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-200 dark:border-white/10">
-                <div className="text-[10px] text-slate-500 dark:text-neutral-400 uppercase font-bold tracking-wider mb-1">Error Rate</div>
-                <div className={`text-2xl font-mono font-black ${courtEvaluation.errorPercentage <= 5 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
-                  {courtEvaluation.errorPercentage}%
-                </div>
-                <div className="text-[10px] font-mono font-bold mt-0.5 text-slate-400 dark:text-neutral-400">
-                  Limit: ≤ 5.00%
-                </div>
-              </div>
-
-              {/* Accuracy */}
-              <div className="flex flex-col items-center justify-center p-3.5 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-200 dark:border-white/10">
-                <div className="text-[10px] text-slate-500 dark:text-neutral-400 uppercase font-bold tracking-wider mb-1">Accuracy</div>
-                <div className={`text-2xl font-mono font-black ${courtEvaluation.accuracy >= 95 ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`}>
-                  {courtEvaluation.accuracy}%
-                </div>
-                <div className="text-[10px] font-mono font-bold mt-0.5 text-slate-400 dark:text-neutral-400">
-                  Cutoff: ≥ 95%
-                </div>
-              </div>
-            </div>
-
-            {/* Quick Summary of Mistake Types */}
-            {courtEvaluation.totalMistakes > 0 && (
-              <div className="mt-5 border-t border-slate-200 dark:border-white/10 pt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-neutral-200">
-                    Mistake Classification:
-                  </span>
-                  <span className="text-[11px] font-mono text-slate-600 dark:text-neutral-300">
-                    Omissions: <strong className="text-amber-600 dark:text-amber-400">{courtEvaluation.omissionsCount}</strong> • Substitutions: <strong className="text-rose-600 dark:text-rose-400">{courtEvaluation.substitutionsCount}</strong> • Additions: <strong className="text-blue-600 dark:text-blue-400">{courtEvaluation.additionsCount}</strong>
-                  </span>
-                </div>
-                <div className="text-xs font-mono font-semibold text-indigo-600 dark:text-indigo-400 flex items-center gap-1">
-                  <span>↓ Full word-by-word comparison below</span>
-                </div>
-              </div>
-            )}
-
-            {/* Official Spreadsheet Rule Notice */}
-            <div className="mt-5 p-3 rounded-xl bg-amber-500/10 border border-amber-500/25 flex items-start gap-2.5 text-xs text-amber-800 dark:text-amber-300">
-              <span className="text-base shrink-0">📊</span>
-              <div>
-                <span className="font-bold">SSSC Examination Pre-Requisite: </span>
-                <span>{courtEvaluation.spreadsheetNotice}</span>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Full Word-by-Word Passage & Typo Comparison (Collapsible / Hideable) */}
-        {fullComparisonData && (
-          <FullPassageComparison
-            comparisonData={fullComparisonData}
-            initialExpanded={true}
-          />
-        )}
-
-        {/* Ghost Pacer Race Result Banner */}
-        {results.ghostWpm && (
-          <div className="w-full mb-6 p-4 rounded-2xl bg-gradient-to-r from-purple-50 via-indigo-50 to-slate-50 dark:from-purple-950/60 dark:via-indigo-950/40 dark:to-neutral-900 border border-purple-200 dark:border-purple-500/40 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-xs">
-            <div className="flex items-center gap-3">
-              <span className="text-2xl">🏎️</span>
-              <div>
-                <span className="text-[10px] font-mono uppercase tracking-wider text-purple-700 dark:text-purple-300 font-bold">
-                  Ghost Pacer Challenge ({results.ghostWpm} WPM Benchmark)
-                </span>
-                <h4 className="text-sm font-bold text-slate-900 dark:text-white">
-                  {results.netWpm >= results.ghostWpm
-                    ? `Victory! You outpaced the ${results.ghostWpm} WPM target by +${results.netWpm - results.ghostWpm} WPM!`
-                    : `Close race! You finished only ${results.ghostWpm - results.netWpm} WPM behind the target pace.`}
-                </h4>
-              </div>
-            </div>
-            <span className={`text-xs font-mono font-bold px-3 py-1 rounded-xl ${
-              results.netWpm >= results.ghostWpm ? 'bg-emerald-100 text-emerald-800 border border-emerald-300 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/40' : 'bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-500/40'
-            }`}>
-              {results.netWpm >= results.ghostWpm ? 'PACER BEATEN ⚡' : 'CADENCE RECOVERY 🎯'}
-            </span>
-          </div>
-        )}
-
-        {/* Next Exercise / Lesson Banner */}
-        {onNextLesson && nextLessonLabel && (
-          <div className="w-full mb-6 p-4 md:p-5 rounded-2xl bg-gradient-to-r from-emerald-50 via-teal-50 to-cyan-50 dark:from-emerald-950/40 dark:via-teal-950/30 dark:to-neutral-950/50 border border-emerald-200 dark:border-emerald-500/40 shadow-xs flex flex-col sm:flex-row justify-between items-center gap-4 animate-fade-in">
-            <div className="flex items-center gap-3 text-left">
-              <div className="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-500/20 border border-emerald-300 dark:border-emerald-500/40 flex items-center justify-center text-xl shrink-0">
-                🚀
-              </div>
-              <div>
-                <span className="text-[10px] font-mono uppercase tracking-widest text-emerald-700 dark:text-emerald-400 font-bold">
-                  Curriculum Advancement
-                </span>
-                <h4 className="text-sm md:text-base font-bold text-slate-900 dark:text-white">
-                  Exercise Complete! Ready for the next drill?
-                </h4>
-              </div>
-            </div>
-
+          {onNextLesson && nextLessonLabel && (
             <button
               onClick={onNextLesson}
-              className="w-full sm:w-auto px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 hover:brightness-110 text-black transition-all shadow-[0_0_20px_rgba(52,211,153,0.35)] flex items-center justify-center gap-2 font-mono shrink-0"
+              className="px-4 py-1.5 rounded-xl text-xs font-mono font-bold bg-gradient-to-r from-emerald-500 to-teal-500 hover:brightness-105 text-white shadow-sm flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
+              title="Proceed to next exercise (Enter)"
             >
               <span>{nextLessonLabel}</span>
+              <span className="text-[10px] bg-black/20 px-1.5 py-0.2 rounded font-normal">↵</span>
+            </button>
+          )}
+        </div>
+      </header>
+
+      {/* ── 2. Official Court Exam Verdict Badge (If Court / SSC Mode) ── */}
+      {courtEvaluation && (
+        <div className={`mt-5 p-4 rounded-2xl border transition-all ${
+          courtEvaluation.status === 'QUALIFIED'
+            ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-900 dark:text-emerald-200'
+            : 'bg-rose-500/10 border-rose-500/30 text-rose-900 dark:text-rose-200'
+        }`}>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">{courtEvaluation.status === 'QUALIFIED' ? '🏛️' : '⚠️'}</span>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-mono uppercase tracking-widest font-bold opacity-75">
+                    High Court of Punjab & Haryana / S.S.S.C. CPT
+                  </span>
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-black uppercase ${
+                    courtEvaluation.status === 'QUALIFIED'
+                      ? 'bg-emerald-500 text-white'
+                      : 'bg-rose-500 text-white'
+                  }`}>
+                    {courtEvaluation.status}
+                  </span>
+                </div>
+                <p className="text-xs mt-0.5 font-mono">
+                  {courtEvaluation.status === 'QUALIFIED'
+                    ? `Qualified! Net speed ${courtEvaluation.netWpm} WPM (≥30 req) with ${courtEvaluation.errorPercentage}% mistakes (≤5% req).`
+                    : courtEvaluation.disqualificationReasons.join(' • ')}
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={handlePrintScorecard}
+              className="self-start sm:self-auto px-3 py-1.5 rounded-xl text-xs font-mono font-bold bg-white dark:bg-black/40 border border-current hover:opacity-80 transition-opacity"
+            >
+              Print Scorecard 🖨️
             </button>
           </div>
-        )}
-
-        {/* Main Stats: Examination Standard Metrics */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 w-full mb-8">
-            {/* 1. Net Speed */}
-            <div className="bento-card flex flex-col items-center justify-center py-6 shadow-xs relative overflow-hidden group border border-emerald-500/30 bg-emerald-50/40 dark:bg-emerald-950/10">
-                <span className="text-emerald-600 dark:text-emerald-400 font-black text-4xl md:text-5xl mb-1 font-mono">{results.netWpm}</span>
-                <span className="text-slate-700 dark:text-slate-300 font-bold uppercase tracking-widest text-[11px]">Net Speed</span>
-                <span className="text-slate-400 dark:text-stitch-muted text-[10px] mt-1 font-mono">Net WPM</span>
-            </div>
-
-            {/* 2. Gross Speed */}
-            <div className="bento-card flex flex-col items-center justify-center py-6 shadow-xs">
-                <span className="text-slate-800 dark:text-stitch-accent font-bold text-3xl md:text-4xl mb-1 font-mono">{results.rawWpm}</span>
-                <span className="text-slate-500 dark:text-stitch-muted font-bold uppercase tracking-widest text-[11px]">Gross Speed</span>
-                <span className="text-slate-400 dark:text-stitch-muted text-[10px] mt-1 font-mono">Gross WPM</span>
-            </div>
-
-            {/* 3. Net Characters Typed */}
-            <div className="bento-card flex flex-col items-center justify-center py-6 shadow-xs border border-indigo-200/60 dark:border-indigo-500/20 bg-indigo-50/30 dark:bg-indigo-950/10">
-                <span className="text-indigo-600 dark:text-indigo-400 font-bold text-3xl md:text-4xl mb-1 font-mono">{results.correctChars}</span>
-                <span className="text-slate-700 dark:text-slate-300 font-bold uppercase tracking-widest text-[11px]">Net Characters Typed</span>
-                <span className="text-slate-400 dark:text-stitch-muted text-[10px] mt-1 font-mono">Total: {results.totalChars} chars</span>
-            </div>
-
-            {/* 4. Accuracy */}
-            <div className="bento-card flex flex-col items-center justify-center py-6 shadow-xs">
-                <span className={`${results.accuracy >= 95 ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'} font-bold text-3xl md:text-4xl mb-1 font-mono`}>{results.accuracy}%</span>
-                <span className="text-slate-500 dark:text-stitch-muted font-bold uppercase tracking-widest text-[11px]">Accuracy</span>
-                <span className="text-slate-400 dark:text-stitch-muted text-[10px] mt-1 font-mono">Final accuracy</span>
-            </div>
-
-            {/* 5. Errors / Mistakes */}
-            <div className="bento-card flex flex-col items-center justify-center py-6 shadow-xs border border-rose-100 dark:border-rose-500/20">
-                <span className="text-rose-600 dark:text-rose-400 font-bold text-3xl md:text-4xl mb-1 font-mono">{results.incorrectChars}</span>
-                <span className="text-slate-500 dark:text-stitch-muted font-bold uppercase tracking-widest text-[11px]">Errors / Mistakes</span>
-                <span className="text-slate-400 dark:text-stitch-muted text-[10px] mt-1 font-mono">Uncorrected</span>
-            </div>
-
-            {/* 6. Time Elapsed */}
-            <div className="bento-card flex flex-col items-center justify-center py-6 shadow-xs">
-                <span className="text-slate-800 dark:text-white font-bold text-3xl md:text-4xl mb-1 font-mono">{formatTime(results.timeElapsed)}</span>
-                <span className="text-slate-500 dark:text-stitch-muted font-bold uppercase tracking-widest text-[11px]">Time Elapsed</span>
-                <span className="text-slate-400 dark:text-stitch-muted text-[10px] mt-1 font-mono">Test duration</span>
-            </div>
         </div>
+      )}
 
-        {/* Session Performance */}
-        <div className="w-full mb-8 space-y-4">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div className="bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700/80 rounded-xl p-3 shadow-xs">
-                    <div className="text-[10px] uppercase tracking-wider text-slate-500">Peak WPM</div>
-                    <div className="text-xl font-mono text-indigo-600 dark:text-indigo-300 font-bold">{sessionInsights.peakWpm}</div>
+      {/* ── 3. Ultra-Sleek Hero Metrics Showcase ── */}
+      <section className="mt-6 p-6 sm:p-8 rounded-3xl bg-slate-50/60 dark:bg-[#0e131d] border border-slate-200/80 dark:border-white/10 shadow-sm relative overflow-hidden">
+        {/* Subtle Ambient Radial Glow */}
+        <div className="absolute top-0 right-1/4 w-80 h-80 bg-emerald-500/10 dark:bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-1/4 w-72 h-72 bg-indigo-500/10 dark:bg-indigo-500/5 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="relative z-10">
+          {/* Top Hero Row: Big WPM & Core Stat Shelf */}
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-slate-200/80 dark:border-white/10">
+            {/* Primary Centerpiece: Net Speed */}
+            <div className="flex flex-col">
+              <span className="text-[11px] font-mono uppercase tracking-widest text-slate-500 dark:text-neutral-400 font-bold mb-1">
+                Net Speed
+              </span>
+              <div className="flex items-baseline gap-2.5">
+                <span className="text-7xl sm:text-8xl md:text-9xl font-black font-mono tracking-tighter text-slate-900 dark:text-white leading-none">
+                  {results.netWpm}
+                </span>
+                <div className="flex flex-col">
+                  <span className="text-lg sm:text-xl font-black font-mono text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
+                    WPM
+                  </span>
+                  <span className="text-[10px] font-mono text-slate-400 dark:text-neutral-500">
+                    adjusted
+                  </span>
                 </div>
-                <div className="bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700/80 rounded-xl p-3 shadow-xs">
-                    <div className="text-[10px] uppercase tracking-wider text-slate-500">Avg WPM</div>
-                    <div className="text-xl font-mono text-cyan-700 dark:text-cyan-300 font-bold">{sessionInsights.avgWpm}</div>
-                </div>
-                <div className="bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700/80 rounded-xl p-3 shadow-xs">
-                    <div className="text-[10px] uppercase tracking-wider text-slate-500">Avg Accuracy</div>
-                    <div className="text-xl font-mono text-emerald-600 dark:text-emerald-300 font-bold">{sessionInsights.avgAcc}%</div>
-                </div>
-                <div className="bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700/80 rounded-xl p-3 shadow-xs">
-                    <div className="text-[10px] uppercase tracking-wider text-slate-500">Pacing Trend</div>
-                    <div className={`text-xl font-mono font-bold ${sessionInsights.trendDelta >= 0 ? 'text-emerald-600 dark:text-emerald-300' : 'text-rose-600 dark:text-rose-300'}`}>
-                        {sessionInsights.trendDelta >= 0 ? '+' : ''}
-                        {sessionInsights.trendDelta}
-                    </div>
-                </div>
+              </div>
             </div>
 
-            {sessionChartData.length > 2 && (
-                <div className="w-full h-80 bg-white dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-xs flex flex-col">
-                    <h3 className="text-slate-700 dark:text-slate-400 text-xs font-bold uppercase tracking-wider mb-4">Session Performance</h3>
-                    <div className="flex-1 min-h-0">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <ComposedChart data={sessionChartData} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
-                                <CartesianGrid strokeDasharray="3 3" stroke={isLight ? "#e2e8f0" : "#334155"} vertical={false} />
-                                <XAxis dataKey="time" tickFormatter={value => `${value}s`} stroke={isLight ? "#94a3b8" : "#64748b"} tick={{ fontSize: 11, fill: isLight ? "#64748b" : "#94a3b8" }} tickLine={false} axisLine={false} />
-                                <YAxis
-                                    yAxisId="speed"
-                                    stroke={isLight ? "#94a3b8" : "#64748b"}
-                                    tick={{ fontSize: 11, fill: isLight ? "#64748b" : "#94a3b8" }}
-                                    tickLine={false}
-                                    axisLine={false}
-                                    domain={[0, (dataMax: number) => Math.max(20, Math.ceil((dataMax + 8) / 10) * 10)]}
-                                />
-                                <YAxis
-                                    yAxisId="accuracy"
-                                    orientation="right"
-                                    stroke={isLight ? "#059669" : "#34d399"}
-                                    tick={{ fontSize: 11, fill: isLight ? "#059669" : "#34d399" }}
-                                    tickLine={false}
-                                    axisLine={false}
-                                    domain={[0, 100]}
-                                />
-                                <Tooltip content={<SessionTooltip />} cursor={{ stroke: isLight ? '#cbd5e1' : '#475569', strokeWidth: 1 }} />
-                                <Area yAxisId="accuracy" type="monotone" dataKey="accuracy" stroke="#34d399" fill="#34d399" fillOpacity={isLight ? 0.15 : 0.08} />
-                                <Line yAxisId="speed" type="monotone" dataKey="wpm" stroke="#818cf8" strokeWidth={2.5} dot={false} activeDot={{ r: 5, fill: '#818cf8' }} animationDuration={1000} />
-                                <Line yAxisId="speed" type="monotone" dataKey="raw" stroke={isLight ? "#64748b" : "#94a3b8"} strokeWidth={1.8} dot={false} strokeDasharray="5 4" />
-                            </ComposedChart>
-                        </ResponsiveContainer>
-                    </div>
-                </div>
-            )}
+            {/* 5 Secondary Metrics Pillars */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6 shrink-0 font-mono">
+              <div className="flex flex-col">
+                <span className="text-[10px] uppercase tracking-wider text-slate-400 dark:text-neutral-500">Gross</span>
+                <span className="text-2xl sm:text-3xl font-black text-slate-800 dark:text-neutral-200 mt-0.5">
+                  {results.rawWpm}
+                </span>
+                <span className="text-[9px] text-slate-400 dark:text-neutral-500">wpm</span>
+              </div>
 
-            {sessionChartData.length > 2 && (
-                <div className="bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700/70 rounded-xl p-4 text-sm text-slate-700 dark:text-slate-300 flex flex-wrap gap-3">
-                    <span className="bg-white dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-full px-3 py-1 text-xs shadow-2xs">{`Stability sigma: ${sessionInsights.stability}`}</span>
-                    <span className="bg-white dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-full px-3 py-1 text-xs shadow-2xs">
-                        {sessionInsights.trendDelta >= 3 ? 'Strong finish' : sessionInsights.trendDelta <= -3 ? 'Early spike, then fade' : 'Steady pacing'}
-                    </span>
-                </div>
-            )}
+              <div className="flex flex-col">
+                <span className="text-[10px] uppercase tracking-wider text-slate-400 dark:text-neutral-500">Accuracy</span>
+                <span className={`text-2xl sm:text-3xl font-black mt-0.5 ${
+                  results.accuracy >= 97 ? 'text-emerald-600 dark:text-emerald-400' : results.accuracy >= 90 ? 'text-amber-500' : 'text-rose-500'
+                }`}>
+                  {results.accuracy}%
+                </span>
+                <span className="text-[9px] text-slate-400 dark:text-neutral-500">precision</span>
+              </div>
+
+              <div className="flex flex-col">
+                <span className="text-[10px] uppercase tracking-wider text-slate-400 dark:text-neutral-500">Net Chars</span>
+                <span className="text-2xl sm:text-3xl font-black text-indigo-600 dark:text-indigo-400 mt-0.5">
+                  {results.correctChars}
+                </span>
+                <span className="text-[9px] text-slate-400 dark:text-neutral-500">of {results.totalChars}</span>
+              </div>
+
+              <div className="flex flex-col">
+                <span className="text-[10px] uppercase tracking-wider text-slate-400 dark:text-neutral-500">Mistakes</span>
+                <span className={`text-2xl sm:text-3xl font-black mt-0.5 ${
+                  results.incorrectChars === 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500'
+                }`}>
+                  {results.incorrectChars === 0 ? '0 ✓' : results.incorrectChars}
+                </span>
+                <span className="text-[9px] text-slate-400 dark:text-neutral-500">errors</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Minimal Cadence Sparkline Curve */}
+          {sessionChartData.length > 2 && (
+            <div className="mt-5 pt-1">
+              <div className="flex items-center justify-between text-xs font-mono text-slate-400 dark:text-neutral-500 mb-2">
+                <span className="text-[10px] uppercase tracking-wider">Speed Rhythm Curve</span>
+                <span className="text-[11px]">
+                  Peak: <strong className="text-slate-800 dark:text-white font-bold">{sessionInsights.peakWpm} WPM</strong> • Avg: <strong className="text-slate-800 dark:text-white font-bold">{sessionInsights.avgWpm} WPM</strong> • Time: <strong className="text-slate-800 dark:text-white font-bold">{formatTime(results.timeElapsed)}</strong>
+                </span>
+              </div>
+              <div className="w-full h-28 sm:h-32">
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart data={sessionChartData} margin={{ top: 4, right: 0, left: -24, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="minimalWpmGlow" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#10b981" stopOpacity={0.22} />
+                        <stop offset="100%" stopColor="#10b981" stopOpacity={0.0} />
+                      </linearGradient>
+                    </defs>
+                    <XAxis dataKey="time" tickFormatter={v => `${v}s`} stroke={isLight ? '#cbd5e1' : '#334155'} tick={{ fontSize: 9 }} tickLine={false} axisLine={false} />
+                    <YAxis yAxisId="speed" stroke={isLight ? '#cbd5e1' : '#334155'} tick={{ fontSize: 9 }} tickLine={false} axisLine={false} />
+                    <Tooltip content={<SessionTooltip />} cursor={{ stroke: isLight ? '#94a3b8' : '#475569', strokeWidth: 1 }} />
+                    <Area yAxisId="speed" type="monotone" dataKey="wpm" stroke="#10b981" strokeWidth={2} fill="url(#minimalWpmGlow)" />
+                    <Line yAxisId="speed" type="monotone" dataKey="raw" stroke={isLight ? '#94a3b8' : '#64748b'} strokeWidth={1} dot={false} strokeDasharray="3 3" />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
         </div>
+      </section>
 
-        {results.testId && sameTestHistory.length >= 1 && (
-            <div className="w-full mb-8 space-y-3">
-                <div className="flex items-center justify-between">
-                    <h3 className="text-slate-800 dark:text-slate-300 font-bold uppercase tracking-wider text-sm">This Test Performance</h3>
-                    <span className="text-xs text-slate-500">{`${sameTestHistory.length} attempts on this test`}</span>
-                </div>
-                <ProgressChart
-                    history={sameTestHistory}
-                    highlightId={sameTestHistory[sameTestHistory.length - 1]?.id}
-                    className="h-80"
-                />
-            </div>
-        )}
+      {/* ── 4. Targeted Focus Areas (Only rendered if user has errors) ── */}
+      {(topMissedWords.length > 0 || topHardKeys.length > 0) ? (
+        <section className="mt-4 p-4 rounded-2xl bg-white dark:bg-[#0e131d] border border-slate-200/80 dark:border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs font-mono">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400 dark:text-neutral-500">
+              Needs Practice:
+            </span>
+            {topMissedWords.slice(0, 4).map(([word, count]) => (
+              <span key={word} className="px-2 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-300 font-semibold">
+                {word} <span className="opacity-60 text-[10px]">×{count}</span>
+              </span>
+            ))}
+            {topHardKeys.slice(0, 4).map(([key, count]) => (
+              <span key={key} className="px-2 py-0.5 rounded-md bg-rose-500/10 border border-rose-500/20 text-rose-700 dark:text-rose-300 font-semibold uppercase">
+                [{key}] <span className="opacity-60 text-[10px]">×{count}</span>
+              </span>
+            ))}
+          </div>
 
-        {/* Practice Areas */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full mb-8">
-            {/* Hard Keys Section */}
-            <div className="bg-white dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 flex flex-col h-full relative group shadow-xs">
-                <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
-                    <h3 className="text-slate-800 dark:text-slate-300 font-bold flex items-center gap-2">
-                        <svg className="w-5 h-5 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-                        Diagnostic Hard Keys
-                    </h3>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => setHardKeyView(v => v === 'heatmap' ? 'chips' : 'heatmap')}
-                        className="text-xs px-2.5 py-1 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 dark:bg-slate-700/60 dark:hover:bg-slate-700 dark:text-slate-300 dark:border-slate-600 font-medium transition-colors"
-                      >
-                        {hardKeyView === 'heatmap' ? 'List View' : 'Heatmap View'}
-                      </button>
-                      {topHardKeys.length > 0 && (
-                        <button 
-                            onClick={() => onPractice('keys')}
-                            className="text-xs bg-rose-50 hover:bg-rose-100 text-rose-700 dark:bg-rose-500/10 dark:hover:bg-rose-500/20 dark:text-rose-400 px-3 py-1 rounded-full font-semibold transition-colors border border-rose-200 dark:border-rose-500/20"
-                        >
-                            Practice Keys
-                        </button>
-                      )}
-                    </div>
-                </div>
-                
-                {hardKeyView === 'heatmap' ? (
-                  <div className="flex flex-col gap-1.5 w-full items-center my-auto p-3 bg-slate-50 dark:bg-slate-950/60 rounded-xl border border-slate-200 dark:border-slate-800 select-none">
-                    {HEATMAP_LAYOUT.map((row, rIdx) => (
-                      <div key={rIdx} className="flex gap-1 justify-center w-full">
-                        {row.map((k) => {
-                          const count = normalizedHardKeys[k.toLowerCase()] || 0;
-                          const isSpace = k === 'Space';
-                          let colorClass = 'bg-white dark:bg-slate-900/90 text-slate-700 dark:text-slate-500 border-slate-200 dark:border-slate-800/80 shadow-2xs';
-                          if (count === 1) {
-                            colorClass = 'bg-amber-100 dark:bg-amber-500/20 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-500/50 shadow-[0_0_8px_rgba(245,158,11,0.25)] font-bold';
-                          } else if (count >= 2) {
-                            colorClass = 'bg-rose-100 dark:bg-rose-500/25 text-rose-800 dark:text-rose-300 border-rose-300 dark:border-rose-500/60 shadow-[0_0_12px_rgba(244,63,94,0.35)] font-bold animate-pulse';
-                          }
-
-                          return (
-                            <div
-                              key={k}
-                              className={`h-8 rounded-lg flex items-center justify-center font-mono text-[11px] border relative transition-all ${isSpace ? 'w-44' : 'w-7 sm:w-8'} ${colorClass}`}
-                              title={`Key ${k}: ${count} error(s)`}
-                            >
-                              <span>{isSpace ? '—' : k.toUpperCase()}</span>
-                              {count > 0 && (
-                                <span className="absolute -top-1 -right-1 bg-rose-500 text-white font-black text-[9px] w-3.5 h-3.5 rounded-full flex items-center justify-center shadow">
-                                  {count}
-                                </span>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ))}
-                    <div className="flex items-center gap-4 text-[10px] font-mono text-slate-500 dark:text-slate-400 mt-2">
-                      <div className="flex items-center gap-1">
-                        <span className="w-2.5 h-2.5 rounded bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800" />
-                        <span>0 errors</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <span className="w-2.5 h-2.5 rounded bg-amber-200 dark:bg-amber-500/40 border border-amber-400 dark:border-amber-500" />
-                        <span>1 error</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <span className="w-2.5 h-2.5 rounded bg-rose-200 dark:bg-rose-500/50 border border-rose-400 dark:border-rose-500" />
-                        <span>2+ errors</span>
-                      </div>
-                    </div>
-                  </div>
-                ) : topHardKeys.length > 0 ? (
-                    <div className="flex flex-wrap gap-3 content-start">
-                        {topHardKeys.map(([key, count]) => (
-                            <div key={key} className="flex items-center gap-2 bg-slate-50 dark:bg-slate-900 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700">
-                                <div className="bg-slate-200 dark:bg-slate-700 min-w-[32px] h-8 flex items-center justify-center text-lg font-mono font-bold text-slate-800 dark:text-white rounded">
-                                    {formatHardKeyLabel(key)}
-                                </div>
-                                <span className="text-rose-600 dark:text-rose-400 font-bold text-sm">x{count}</span>
-                            </div>
-                        ))}
-                    </div>
-                ) : (
-                    <div className="flex-1 flex items-center justify-center text-slate-400 dark:text-slate-500 italic text-sm py-4">
-                        Great job! No specific problem keys detected.
-                    </div>
-                )}
-            </div>
-
-            {/* Missed Words Section */}
-            <div className="bg-white dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 flex flex-col h-full relative shadow-xs">
-                <div className="flex justify-between items-start mb-4">
-                    <h3 className="text-slate-800 dark:text-slate-300 font-bold flex items-center gap-2">
-                        <svg className="w-5 h-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
-                        Missed Words
-                    </h3>
-                    {topMissedWords.length > 0 && (
-                         <button 
-                            onClick={() => onPractice('words')}
-                            className="text-xs bg-amber-50 hover:bg-amber-100 text-amber-800 dark:bg-amber-500/10 dark:hover:bg-amber-500/20 dark:text-amber-400 px-3 py-1 rounded-full font-semibold transition-colors border border-amber-200 dark:border-amber-500/20"
-                        >
-                            Practice Words
-                        </button>
-                    )}
-                </div>
-
-                {topMissedWords.length > 0 ? (
-                    <div className="flex flex-wrap gap-2 content-start">
-                        {topMissedWords.map(([word, count]) => (
-                            <div key={word} className="group relative bg-slate-50 border border-slate-200 hover:border-amber-500 dark:bg-slate-900 dark:border-slate-700 dark:hover:border-amber-500/50 rounded px-3 py-1 text-sm text-slate-800 dark:text-slate-300 font-mono transition-colors">
-                                {word}
-                                <span className="ml-2 text-amber-600 dark:text-amber-500 text-xs font-bold">x{count}</span>
-                            </div>
-                        ))}
-                    </div>
-                ) : (
-                     <div className="flex-1 flex items-center justify-center text-slate-400 dark:text-slate-500 italic text-sm py-4">
-                        Perfection! No words were missed.
-                    </div>
-                )}
-            </div>
-        </div>
-
-        <div className="flex flex-col sm:flex-row flex-wrap gap-4 w-full justify-center">
-            {onNextLesson && nextLessonLabel && (
+          <div className="flex items-center gap-2 shrink-0">
+            {topMissedWords.length > 0 && (
               <button
-                onClick={onNextLesson}
-                className="w-full sm:w-auto px-7 py-3 rounded-2xl font-bold text-xs uppercase tracking-widest bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 hover:brightness-110 text-black transition-all shadow-[0_0_25px_rgba(52,211,153,0.35)] flex items-center justify-center gap-2 font-mono"
+                onClick={() => onPractice('words')}
+                className="px-2.5 py-1 rounded-lg text-xs font-bold text-amber-700 dark:text-amber-300 hover:bg-amber-500/15 border border-amber-500/30 transition-colors"
               >
-                <span>{nextLessonLabel}</span>
+                Drill Words →
               </button>
             )}
-            <Button onClick={onReset} className="w-full sm:w-auto">
-                Retry Same Test
-            </Button>
+            {topHardKeys.length > 0 && (
+              <button
+                onClick={() => onPractice('keys')}
+                className="px-2.5 py-1 rounded-lg text-xs font-bold text-rose-700 dark:text-rose-300 hover:bg-rose-500/15 border border-rose-500/30 transition-colors"
+              >
+                Drill Keys →
+              </button>
+            )}
+          </div>
+        </section>
+      ) : results.incorrectChars === 0 ? (
+        <div className="mt-4 p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-800 dark:text-emerald-300 text-xs font-mono flex items-center gap-2">
+          <span>✨</span>
+          <span className="font-semibold">Flawless execution! 100% precision with zero typos recorded.</span>
+        </div>
+      ) : null}
+
+      {/* ── 5. Clean, Collapsible Typed Passage Inspection (Zero Bloat) ── */}
+      {(results.originalText || results.typedText) && (
+        <section className="mt-4">
+          <button
+            type="button"
+            onClick={() => setShowPassageReview(!showPassageReview)}
+            className="w-full py-2.5 px-4 rounded-xl text-xs font-mono font-medium text-slate-500 hover:text-slate-900 dark:text-neutral-400 dark:hover:text-white bg-slate-100/70 hover:bg-slate-100 dark:bg-white/5 dark:hover:bg-white/10 border border-slate-200/80 dark:border-white/10 transition-colors flex items-center justify-between cursor-pointer"
+          >
+            <span>{showPassageReview ? '▲ Hide Typed Passage Review' : '▼ Inspect Typed Passage vs Original'}</span>
+            <span className="text-[10px] text-slate-400">
+              {results.typedText?.split(/\s+/).filter(Boolean).length || 0} words submitted
+            </span>
+          </button>
+
+          {showPassageReview && fullComparisonData && (
+            <div className="mt-2 p-4 rounded-2xl bg-white dark:bg-[#0c1017] border border-slate-200 dark:border-white/10 text-xs font-mono leading-relaxed max-h-64 overflow-y-auto animate-fade-in">
+              <div className="flex items-center gap-3 pb-2 mb-3 border-b border-slate-200 dark:border-white/10 text-[10px] text-slate-500 dark:text-neutral-400">
+                <span>Legend:</span>
+                <span className="text-slate-800 dark:text-neutral-200">Normal = Correct</span>
+                <span className="text-rose-500 line-through">Red = Substitution</span>
+                <span className="text-amber-500">[Amber] = Omission</span>
+                <span className="text-blue-500">+Blue = Addition</span>
+              </div>
+
+              <div className="leading-loose select-text">
+                {fullComparisonData.tokens.map((token, idx) => {
+                  if (token.type === 'correct') {
+                    return (
+                      <span key={idx} className="text-slate-700 dark:text-neutral-300 mr-1.5">
+                        {token.typed}
+                      </span>
+                    );
+                  }
+                  if (token.type === 'substitution') {
+                    return (
+                      <span
+                        key={idx}
+                        className="inline-flex items-baseline mr-1.5 px-1 py-0.5 rounded bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/25 font-bold"
+                        title={`Expected: "${token.expected}"`}
+                      >
+                        <span className="line-through opacity-60 mr-1">{token.expected}</span>
+                        <span>{token.typed}</span>
+                      </span>
+                    );
+                  }
+                  if (token.type === 'omission') {
+                    return (
+                      <span
+                        key={idx}
+                        className="inline-flex mr-1.5 px-1 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/25 font-bold"
+                        title="Omitted word"
+                      >
+                        [{token.expected}]
+                      </span>
+                    );
+                  }
+                  if (token.type === 'addition') {
+                    return (
+                      <span
+                        key={idx}
+                        className="inline-flex mr-1.5 px-1 py-0.5 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/25 font-bold"
+                        title="Extra word"
+                      >
+                        +{token.typed}
+                      </span>
+                    );
+                  }
+                  return null;
+                })}
+
+                {fullComparisonData.unattemptedWords.length > 0 && (
+                  <span className="text-slate-400 dark:text-neutral-600 italic">
+                    ... ({fullComparisonData.unattemptedWords.length} words unattempted)
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* ── 6. Primary Action Buttons ── */}
+      <footer className="mt-8 pt-6 border-t border-slate-200/80 dark:border-white/10 flex flex-wrap items-center justify-between gap-3 font-mono">
+        <div className="flex items-center gap-2">
+          {onNextLesson && nextLessonLabel ? (
             <button
-                onClick={() => setShowCertificate(true)}
-                className="w-full sm:w-auto px-6 py-3 rounded-2xl font-bold text-xs uppercase tracking-widest bg-gradient-to-r from-amber-500 to-yellow-400 text-black hover:brightness-110 transition-all shadow-[0_0_20px_rgba(245,158,11,0.25)] flex items-center justify-center gap-2"
+              onClick={onNextLesson}
+              className="px-6 py-2.5 rounded-xl text-xs font-bold bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 hover:brightness-105 text-white shadow-md flex items-center gap-2 cursor-pointer active:scale-95"
             >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                </svg>
-                <span>Claim Official Certificate</span>
+              <span>{nextLessonLabel}</span>
+              <span className="text-[10px] bg-black/20 px-1.5 py-0.5 rounded">Enter ↵</span>
             </button>
+          ) : (
             <button
-                onClick={() => setShowDiagnosticModal(true)}
-                className="w-full sm:w-auto px-6 py-3 rounded-2xl font-bold text-xs uppercase tracking-widest bg-indigo-600 hover:bg-indigo-500 text-white transition-all shadow-[0_0_20px_rgba(99,102,241,0.3)] flex items-center justify-center gap-2"
+              onClick={onReset}
+              className="px-6 py-2.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-md flex items-center gap-2 cursor-pointer active:scale-95"
             >
-                <span>🖨️ Candidate Diagnostic Report</span>
+              <span>↺ Retry Test</span>
+              <span className="text-[10px] bg-black/20 px-1.5 py-0.5 rounded">Tab ⇥</span>
             </button>
-             <Button onClick={onNewImage} variant="secondary" className="w-full sm:w-auto flex items-center justify-center gap-2">
-                <span>←</span>
-                <span>Back to Dashboard / Return Home</span>
-            </Button>
+          )}
+
+          {onNextLesson && nextLessonLabel && (
+            <button
+              onClick={onReset}
+              className="px-4 py-2.5 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-slate-700 dark:text-neutral-300 border border-slate-200 dark:border-white/10 transition-colors cursor-pointer"
+            >
+              <span>↺ Retry Drill</span>
+            </button>
+          )}
         </div>
 
-        {showCertificate && (
-          <CertificateModal results={results} onClose={() => setShowCertificate(false)} />
-        )}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowCertificate(true)}
+            className="px-3.5 py-2 rounded-xl text-xs font-medium bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-slate-700 dark:text-neutral-300 border border-slate-200 dark:border-white/10 transition-colors cursor-pointer"
+          >
+            Claim Certificate 📜
+          </button>
 
-        {showDiagnosticModal && (
-          <DiagnosticReportModal results={results} onClose={() => setShowDiagnosticModal(false)} />
-        )}
+          <button
+            onClick={() => setShowDiagnosticModal(true)}
+            className="px-3.5 py-2 rounded-xl text-xs font-medium bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-slate-700 dark:text-neutral-300 border border-slate-200 dark:border-white/10 transition-colors cursor-pointer"
+          >
+            Diagnostic Report 🖨️
+          </button>
+
+          <button
+            onClick={onNewImage}
+            className="px-3.5 py-2 rounded-xl text-xs font-medium text-slate-500 hover:text-slate-900 dark:text-neutral-400 dark:hover:text-white transition-colors cursor-pointer"
+            title="Return to Dashboard (Esc)"
+          >
+            Dashboard
+          </button>
+        </div>
+      </footer>
+
+      {/* Modals */}
+      {showCertificate && (
+        <CertificateModal results={results} onClose={() => setShowCertificate(false)} />
+      )}
+
+      {showDiagnosticModal && (
+        <DiagnosticReportModal results={results} onClose={() => setShowDiagnosticModal(false)} />
+      )}
     </div>
   );
 };
