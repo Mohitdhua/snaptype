@@ -857,10 +857,12 @@ export const SnapTypeApp: React.FC<SnapTypeAppProps> = ({
                 onSwitchToSpellingApp();
               }}
               className="p-2 rounded-xl bg-violet-500/10 text-violet-500 text-lg"
+              aria-label="Switch to SnapSpell"
+              title="Switch to SnapSpell"
             >
               🗣️
             </button>
-            <button onClick={onToggleTheme} className={`p-2 rounded-xl ${theme === 'light' ? 'bg-slate-200/50' : 'bg-white/10'} text-lg`}>{theme === 'dark' ? '☀️' : '🌙'}</button>
+            <button onClick={onToggleTheme} className={`p-2 rounded-xl ${theme === 'light' ? 'bg-slate-200/50' : 'bg-white/10'} text-lg`} aria-label="Toggle Light/Dark Theme" title="Toggle Light/Dark Theme">{theme === 'dark' ? '☀️' : '🌙'}</button>
           </div>
         </header>
       )}
