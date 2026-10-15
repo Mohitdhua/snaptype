@@ -8,14 +8,21 @@ import { playSound, playKeystrokeSound, getSoundProfile, setSoundProfile, SoundP
 import { getUserStats, setDefaultTimeLimit } from '../services/storageService';
 import { Theme, getStoredTheme, applyTheme } from '../services/themeService';
 import { evaluateCourtTypingTest } from '../services/courtEvaluationService';
+import {
+  DisplayChar,
+  DisplayToken,
+  TokenLine,
+  SharedTextWindow,
+  tokenizeTargetText,
+  partitionTokensIntoLines,
+  computeSharedTextWindow,
+} from '../services/textWindowService';
 
 const TYPING_TEXT_SCALE_KEY = 'snaptype_typing_text_scale_v1';
 const TYPING_FONT_KEY = 'snaptype_typing_font_v1';
 export const AUTOPAUSE_ENABLED_KEY = 'snaptype_autopause_enabled_v1';
 export const AUTOPAUSE_DELAY_KEY = 'snaptype_autopause_delay_v1';
 export type PauseReason = 'manual' | 'auto_idle' | 'auto_blur' | null;
-const WINDOW_PRE_CHARS = 400;
-const WINDOW_POST_CHARS = 800;
 const ENTER_SYMBOL = '\u23CE';
 
 export type TypingFont = 'inter' | 'roboto-mono' | 'jakarta' | 'courier' | 'jetbrains';
@@ -66,18 +73,6 @@ interface TypingTestProps {
 }
 
 type CharStatus = 'pending' | 'correct' | 'incorrect';
-interface DisplayChar {
-  char: string;
-  index: number;
-}
-
-interface DisplayToken {
-  tokenKey: string;
-  isWord: boolean;
-  chars: DisplayChar[];
-  startIndex: number;
-  endIndex: number;
-}
 
 interface CharItemProps {
   char: string;
@@ -87,7 +82,7 @@ interface CharItemProps {
 
 const CharItemBase: React.FC<CharItemProps> = ({ char, status, index }) => {
     const isNewline = char === '\n';
-    let className = "relative inline-block align-top char-token ";
+    let className = "relative inline char-token ";
     
     if (status === 'pending') {
       className += "char-pending";
@@ -140,7 +135,7 @@ const TokenItemBase: React.FC<TokenItemProps> = ({ token, input }) => {
   });
 
   if (token.isWord) {
-    return <span className="inline-block whitespace-nowrap align-top">{renderedChars}</span>;
+    return <span className="inline-block whitespace-nowrap align-baseline">{renderedChars}</span>;
   }
   return <>{renderedChars}</>;
 };
@@ -190,6 +185,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({
   const shakeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const caretRef = useRef<HTMLDivElement>(null);
   const lastActiveLineTopRef = useRef<number | null>(null);
+  const isComposingRef = useRef(false);
   const [showKeyboard, setShowKeyboard] = useState(() => {
     try {
       return localStorage.getItem('snaptype_show_keyboard_v1') === 'true';
@@ -253,12 +249,16 @@ export const TypingTest: React.FC<TypingTestProps> = ({
   const triggerErrorShake = useCallback(() => {
     const el = cardRef.current;
     if (!el) return;
-    el.classList.remove('animate-shake', 'border-rose-500/60');
-    void el.offsetWidth;
-    el.classList.add('animate-shake', 'border-rose-500/60');
+    el.classList.add('border-rose-500/60');
+    el.animate([
+      { transform: 'translateX(0)' },
+      { transform: 'translateX(-3px)' },
+      { transform: 'translateX(3px)' },
+      { transform: 'translateX(0)' }
+    ], { duration: 180, easing: 'ease-in-out' });
     if (shakeTimeoutRef.current) clearTimeout(shakeTimeoutRef.current);
     shakeTimeoutRef.current = setTimeout(() => {
-      el.classList.remove('animate-shake', 'border-rose-500/60');
+      el.classList.remove('border-rose-500/60');
     }, 180);
   }, []);
   const [isMetronomeOn, setIsMetronomeOn] = useState(false);
@@ -352,54 +352,54 @@ export const TypingTest: React.FC<TypingTestProps> = ({
     }
   }, [textScale]);
 
-  // Memoize target text handling
+  // Memoize target text handling & tokenization
   const targetText = useMemo(() => text.replace(/\r\n/g, "\n"), [text]);
   const displayTokens = useMemo<DisplayToken[]>(() => {
-    const rawTokens = targetText.match(/(\s+|[^\s]+)/g) || [];
-    let nextIndex = 0;
-    return rawTokens.map((token, tokenIndex) => {
-      const startIndex = nextIndex;
-      const charsInToken = token.split('').map(char => ({
-        char,
-        index: nextIndex++
-      }));
-      return {
-        tokenKey: `${tokenIndex}-${charsInToken[0]?.index ?? tokenIndex}`,
-        isWord: /\S/.test(token),
-        chars: charsInToken,
-        startIndex,
-        endIndex: nextIndex - 1,
-      };
-    });
+    return tokenizeTargetText(targetText);
   }, [targetText]);
-  const { windowStart, windowEnd } = useMemo(() => {
-    if (targetText.length <= 1000) {
-      return { windowStart: 0, windowEnd: targetText.length };
-    }
-    const start = Math.max(0, currIndex - WINDOW_PRE_CHARS);
-    const end = Math.min(targetText.length, currIndex + WINDOW_POST_CHARS);
-    return { windowStart: start, windowEnd: end };
-  }, [currIndex, targetText.length]);
-  const windowedTokens = useMemo<DisplayToken[]>(() => {
-    return displayTokens
-      .filter(token => token.endIndex >= windowStart && token.startIndex < windowEnd)
-      .map(token => {
-        if (token.startIndex >= windowStart && token.endIndex < windowEnd) {
-          return token;
+
+  // Track scroll container width for responsive line partitioning
+  const [containerWidth, setContainerWidth] = useState<number>(0);
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const updateWidth = () => {
+      const w = container.clientWidth;
+      if (w > 0) {
+        setContainerWidth(w);
+      }
+    };
+
+    updateWidth();
+    const ro = new ResizeObserver(() => {
+      updateWidth();
+    });
+    ro.observe(container);
+    return () => ro.disconnect();
+  }, []);
+
+  // Await web font rasterization to guarantee zero FOUT line reflow
+  useEffect(() => {
+    if (typeof document !== 'undefined' && document.fonts) {
+      document.fonts.ready.then(() => {
+        const container = containerRef.current;
+        if (container && container.clientWidth > 0) {
+          setContainerWidth(container.clientWidth);
         }
-        const clippedChars = token.chars.filter(char => char.index >= windowStart && char.index < windowEnd);
-        if (clippedChars.length === 0) return null;
-        return {
-          ...token,
-          chars: clippedChars,
-          startIndex: clippedChars[0].index,
-          endIndex: clippedChars[clippedChars.length - 1].index,
-        };
-      })
-      .filter((token): token is DisplayToken => token !== null);
-  }, [displayTokens, windowStart, windowEnd]);
-  const prefixText = useMemo(() => (windowStart > 0 ? targetText.slice(0, windowStart) : ''), [targetText, windowStart]);
-  const suffixText = useMemo(() => (windowEnd < targetText.length ? targetText.slice(windowEnd) : ''), [targetText, windowEnd]);
+      });
+    }
+  }, [typingFont]);
+
+  // Pre-computed immutable lines (Monkeytype Line-Partitioned Architecture)
+  const lines = useMemo<TokenLine[]>(() => {
+    return partitionTokensIntoLines(displayTokens, containerWidth, textScale, typingFont);
+  }, [displayTokens, containerWidth, textScale, typingFont]);
+
+  // Shared single source of truth window (100% parity: virtual === physical)
+  const sharedWindow = useMemo<SharedTextWindow>(() => {
+    return computeSharedTextWindow(targetText, displayTokens, lines);
+  }, [targetText, displayTokens, lines]);
 
   useEffect(() => {
     historyRef.current = [];
@@ -454,11 +454,11 @@ export const TypingTest: React.FC<TypingTestProps> = ({
     };
   }, [isMetronomeOn, startTime, ghostTargetWpm, isPaused]);
 
-  // Segmented timer calculations
+  // High-precision monotonic timer calculations (performance.now)
   const getPreciseElapsedSecs = useCallback((): number => {
     let totalMs = accumulatedTimeMsRef.current;
     if (activeSegmentStartTimeRef.current !== null && !isPausedRef.current) {
-      totalMs += (Date.now() - activeSegmentStartTimeRef.current);
+      totalMs += (performance.now() - activeSegmentStartTimeRef.current);
     }
     return totalMs / 1000;
   }, []);
@@ -466,7 +466,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({
   const pauseTest = useCallback((reason: PauseReason = 'manual') => {
     if (hasCompletedRef.current || !startTime || isPausedRef.current) return;
     if (activeSegmentStartTimeRef.current !== null) {
-      accumulatedTimeMsRef.current += (Date.now() - activeSegmentStartTimeRef.current);
+      accumulatedTimeMsRef.current += (performance.now() - activeSegmentStartTimeRef.current);
       activeSegmentStartTimeRef.current = null;
     }
     if (autoPauseTimeoutRef.current) {
@@ -481,7 +481,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({
 
   const resumeTest = useCallback(() => {
     if (hasCompletedRef.current || !isPausedRef.current) return;
-    activeSegmentStartTimeRef.current = Date.now();
+    activeSegmentStartTimeRef.current = performance.now();
     isPausedRef.current = false;
     setIsPaused(false);
     setPauseReason(null);
@@ -594,7 +594,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({
        autoPauseTimeoutRef.current = null;
      }
      if (activeSegmentStartTimeRef.current !== null) {
-       accumulatedTimeMsRef.current += (Date.now() - activeSegmentStartTimeRef.current);
+       accumulatedTimeMsRef.current += (performance.now() - activeSegmentStartTimeRef.current);
        activeSegmentStartTimeRef.current = null;
      }
      const partialStats = calculateStats(false);
@@ -791,18 +791,16 @@ export const TypingTest: React.FC<TypingTestProps> = ({
     const cursorEl = container.querySelector(`[data-char-idx="${charIndexToMeasure}"]`) as HTMLSpanElement | null;
     if (!cursorEl) return;
 
-    const textFlowEl = container.querySelector('.typing-text-flow') as HTMLDivElement | null;
-    const flowOffsetTop = textFlowEl ? textFlowEl.offsetTop : 0;
+    const containerRect = container.getBoundingClientRect();
+    const cursorRect = cursorEl.getBoundingClientRect();
 
-    // Stable line coordinates: offsetTop is relative to the text flow container
-    const lineTop = cursorEl.offsetTop + flowOffsetTop;
+    // Stable line coordinates calculated directly from viewport rects + scrollTop
+    const lineTop = cursorRect.top - containerRect.top + container.scrollTop;
     const lineHeightPx = Math.round(textScale * 1.65);
     const caretHeight = Math.max(18, Math.round(textScale * 1.1));
     const caretTop = lineTop + Math.round((lineHeightPx - caretHeight) / 2);
 
     // Horizontal caret position
-    const containerRect = container.getBoundingClientRect();
-    const cursorRect = cursorEl.getBoundingClientRect();
     let newLeft = cursorRect.left - containerRect.left + container.scrollLeft;
     if (currIndex >= targetText.length) {
       newLeft += cursorRect.width;
@@ -883,7 +881,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({
   }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    if (hasCompletedRef.current) return;
+    if (hasCompletedRef.current || isComposingRef.current) return;
     const rawVal = e.target.value.slice(0, targetText.length);
     const prevInput = input;
     if (isPausedRef.current) {
@@ -893,7 +891,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({
       const now = Date.now();
       setStartTime(now);
       accumulatedTimeMsRef.current = 0;
-      activeSegmentStartTimeRef.current = now;
+      activeSegmentStartTimeRef.current = performance.now();
     }
     resetAutoPauseTimer();
 
@@ -919,6 +917,41 @@ export const TypingTest: React.FC<TypingTestProps> = ({
       if (inputRef.current) {
         inputRef.current.value = val;
         inputRef.current.setSelectionRange(val.length, val.length);
+      }
+    }
+
+    // Smart Word Advancement on Space (Prevent Desynchronization in Practice Modes)
+    // If user typed Space mid-word, advance cleanly to next word boundary
+    // so the rest of the text remains 100% in sync!
+    if (
+      !isSSC &&
+      !isCourtExam &&
+      hardcoreMode !== 'STOP_ON_ERROR' &&
+      val.length === prevInput.length + 1 &&
+      val.endsWith(' ')
+    ) {
+      const midWordIndex = prevInput.length;
+      if (midWordIndex < targetText.length && targetText[midWordIndex] !== ' ') {
+        const nextSpaceIdx = targetText.indexOf(' ', midWordIndex);
+        const nextNewlineIdx = targetText.indexOf('\n', midWordIndex);
+        let nextBoundary = nextSpaceIdx;
+        if (nextNewlineIdx !== -1 && (nextBoundary === -1 || nextNewlineIdx < nextBoundary)) {
+          nextBoundary = nextNewlineIdx;
+        }
+
+        if (nextBoundary !== -1 && nextBoundary - midWordIndex <= 12) {
+          const skippedCount = nextBoundary - midWordIndex;
+          totalRawErrorsRef.current += skippedCount;
+          linearErrorsRef.current += skippedCount;
+          totalKeystrokesRef.current += skippedCount;
+
+          val = targetText.slice(0, nextBoundary + 1);
+          if (inputRef.current) {
+            inputRef.current.value = val;
+            inputRef.current.setSelectionRange(val.length, val.length);
+          }
+          if (soundProfile !== 'off') playSound('error');
+        }
       }
     }
 
@@ -1018,7 +1051,7 @@ export const TypingTest: React.FC<TypingTestProps> = ({
             const expectedChar = targetText[newCharIndex];
 
             // Measure inter-keystroke interval
-            const nowTime = Date.now();
+            const nowTime = performance.now();
             if (lastKeystrokeTimeRef.current !== null) {
               const delta = nowTime - lastKeystrokeTimeRef.current;
               if (delta >= 15 && delta <= 2500) {
@@ -1743,26 +1776,41 @@ export const TypingTest: React.FC<TypingTestProps> = ({
             className={`whitespace-pre-wrap break-normal min-h-full pb-20 relative z-10 ${activeFontClass} typing-text-flow select-none [word-break:normal] [overflow-wrap:normal]`}
             style={{ fontSize: `${textScale}px`, lineHeight }}
           >
-            {prefixText && <span className="char-correct opacity-60">{prefixText}</span>}
-            {windowedTokens.map(token => (
-              <TokenItem
-                key={token.tokenKey}
-                token={token}
-                input={input}
-                inputLength={input.length}
-                inputRevision={inputRevision}
-              />
+            {sharedWindow.lines.map((line) => (
+              <div
+                key={line.lineIndex}
+                data-line-idx={line.lineIndex}
+                className="typing-line"
+              >
+                {line.tokens.map((token) => (
+                  <TokenItem
+                    key={token.tokenKey}
+                    token={token}
+                    input={input}
+                    inputLength={input.length}
+                    inputRevision={inputRevision}
+                  />
+                ))}
+              </div>
             ))}
-            {suffixText && <span className="char-pending">{suffixText}</span>}
           </div>
           
           {/* Hidden Textarea (supports native focus and keyboard events, strictly pinned to append-only and fixed at viewport top) */}
           <textarea
             ref={inputRef}
             className="opacity-0 fixed top-0 left-0 w-1 h-1 pointer-events-none -z-50 resize-none select-none"
+            style={{ fontSize: '16px', transform: 'scale(0.01)', transformOrigin: 'top left' }}
             value={input}
             onChange={handleInputChange}
+            onCompositionStart={() => {
+              isComposingRef.current = true;
+            }}
+            onCompositionEnd={(e) => {
+              isComposingRef.current = false;
+              handleInputChange(e as any);
+            }}
             onBlur={focusInput}
+            inputMode="text"
             onSelect={(e) => {
               const len = e.currentTarget.value.length;
               if (e.currentTarget.selectionStart !== len || e.currentTarget.selectionEnd !== len) {

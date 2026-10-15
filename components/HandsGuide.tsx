@@ -1,8 +1,11 @@
 import React, { useMemo } from 'react';
 
-interface HandsGuideProps {
-  nextChar: string;
+export interface HandsGuideProps {
+  nextChar?: string;
   focusHand?: 'left' | 'right';
+  highlightFingers?: FingerId[];
+  customLabel?: string;
+  onSelectFinger?: (id: FingerId) => void;
 }
 
 export type FingerId = 'lp' | 'lr' | 'lm' | 'li' | 'thumb' | 'ri' | 'rm' | 'rr' | 'rp';
@@ -31,7 +34,7 @@ export const FINGER_MAP: Record<string, FingerId> = {
   'enter': 'rp', '\n': 'rp', 'backspace': 'rp',
 };
 
-const FINGER_NAMES: Record<FingerId, string> = {
+export const FINGER_NAMES: Record<FingerId, string> = {
   lp: 'Left Pinky',
   lr: 'Left Ring Finger',
   lm: 'Left Middle Finger',
@@ -43,16 +46,24 @@ const FINGER_NAMES: Record<FingerId, string> = {
   rp: 'Right Pinky',
 };
 
-export const HandsGuideBase: React.FC<HandsGuideProps> = ({ nextChar, focusHand }) => {
+export const HandsGuideBase: React.FC<HandsGuideProps> = ({ nextChar, focusHand, highlightFingers, customLabel, onSelectFinger }) => {
   const activeFinger = useMemo<FingerId | null>(() => {
     if (!nextChar) return null;
     const lower = nextChar.toLowerCase();
     return FINGER_MAP[lower] || FINGER_MAP[nextChar] || null;
   }, [nextChar]);
 
-  const fingerLabel = activeFinger ? FINGER_NAMES[activeFinger] : 'Home Row Position';
+  const fingerLabel = useMemo(() => {
+    if (customLabel) return customLabel;
+    if (activeFinger) return FINGER_NAMES[activeFinger];
+    if (highlightFingers && highlightFingers.length > 0) {
+      return highlightFingers.map(f => FINGER_NAMES[f]).join(' & ');
+    }
+    return 'Home Row Position';
+  }, [customLabel, activeFinger, highlightFingers]);
 
   const isShiftNeeded = useMemo(() => {
+    if (!nextChar) return false;
     return /[A-Z!@#$%^&*()_+{}|:"<>?~]/.test(nextChar);
   }, [nextChar]);
 
@@ -66,7 +77,19 @@ export const HandsGuideBase: React.FC<HandsGuideProps> = ({ nextChar, focusHand 
       }
       return 'fill-indigo-500 stroke-indigo-300 stroke-2';
     }
+
+    if (highlightFingers && highlightFingers.includes(id)) {
+      if (id.startsWith('r')) {
+        return 'fill-cyan-500/80 stroke-cyan-300 stroke-2 shadow-lg';
+      }
+      return 'fill-indigo-500/80 stroke-indigo-300 stroke-2 shadow-lg';
+    }
+
     return 'fill-neutral-900 stroke-neutral-700/80';
+  };
+
+  const getFingerInteractiveClass = (id: FingerId) => {
+    return `${getFingerClass(id)} ${onSelectFinger ? 'cursor-pointer hover:opacity-85 transition-opacity' : ''}`;
   };
 
   return (
@@ -106,15 +129,15 @@ export const HandsGuideBase: React.FC<HandsGuideProps> = ({ nextChar, focusHand 
               strokeWidth="2"
             />
             {/* Pinky (lp) */}
-            <rect x="25" y="25" width="16" height="42" rx="8" className={getFingerClass('lp')} strokeWidth="2" />
+            <rect x="25" y="25" width="16" height="42" rx="8" className={getFingerInteractiveClass('lp')} strokeWidth="2" onClick={() => onSelectFinger?.('lp')} />
             {/* Ring (lr) */}
-            <rect x="47" y="15" width="16" height="52" rx="8" className={getFingerClass('lr')} strokeWidth="2" />
+            <rect x="47" y="15" width="16" height="52" rx="8" className={getFingerInteractiveClass('lr')} strokeWidth="2" onClick={() => onSelectFinger?.('lr')} />
             {/* Middle (lm) */}
-            <rect x="69" y="8" width="16" height="59" rx="8" className={getFingerClass('lm')} strokeWidth="2" />
+            <rect x="69" y="8" width="16" height="59" rx="8" className={getFingerInteractiveClass('lm')} strokeWidth="2" onClick={() => onSelectFinger?.('lm')} />
             {/* Index (li) */}
-            <rect x="91" y="15" width="16" height="52" rx="8" className={getFingerClass('li')} strokeWidth="2" />
+            <rect x="91" y="15" width="16" height="52" rx="8" className={getFingerInteractiveClass('li')} strokeWidth="2" onClick={() => onSelectFinger?.('li')} />
             {/* Thumb (thumb) */}
-            <rect x="116" y="45" width="28" height="18" rx="9" className={getFingerClass('thumb')} strokeWidth="2" />
+            <rect x="116" y="45" width="28" height="18" rx="9" className={getFingerInteractiveClass('thumb')} strokeWidth="2" onClick={() => onSelectFinger?.('thumb')} />
           </svg>
           <div className="flex gap-2 text-[9px] font-mono text-neutral-500 mt-1">
             <span className={activeFinger === 'lp' ? 'text-indigo-400 font-bold' : ''}>A</span>
@@ -139,15 +162,15 @@ export const HandsGuideBase: React.FC<HandsGuideProps> = ({ nextChar, focusHand 
               strokeWidth="2"
             />
             {/* Thumb (thumb) */}
-            <rect x="16" y="45" width="28" height="18" rx="9" className={getFingerClass('thumb')} strokeWidth="2" />
+            <rect x="16" y="45" width="28" height="18" rx="9" className={getFingerInteractiveClass('thumb')} strokeWidth="2" onClick={() => onSelectFinger?.('thumb')} />
             {/* Index (ri) */}
-            <rect x="53" y="15" width="16" height="52" rx="8" className={getFingerClass('ri')} strokeWidth="2" />
+            <rect x="53" y="15" width="16" height="52" rx="8" className={getFingerInteractiveClass('ri')} strokeWidth="2" onClick={() => onSelectFinger?.('ri')} />
             {/* Middle (rm) */}
-            <rect x="75" y="8" width="16" height="59" rx="8" className={getFingerClass('rm')} strokeWidth="2" />
+            <rect x="75" y="8" width="16" height="59" rx="8" className={getFingerInteractiveClass('rm')} strokeWidth="2" onClick={() => onSelectFinger?.('rm')} />
             {/* Ring (rr) */}
-            <rect x="97" y="15" width="16" height="52" rx="8" className={getFingerClass('rr')} strokeWidth="2" />
+            <rect x="97" y="15" width="16" height="52" rx="8" className={getFingerInteractiveClass('rr')} strokeWidth="2" onClick={() => onSelectFinger?.('rr')} />
             {/* Pinky (rp) */}
-            <rect x="119" y="25" width="16" height="42" rx="8" className={getFingerClass('rp')} strokeWidth="2" />
+            <rect x="119" y="25" width="16" height="42" rx="8" className={getFingerInteractiveClass('rp')} strokeWidth="2" onClick={() => onSelectFinger?.('rp')} />
           </svg>
           <div className="flex gap-2 text-[9px] font-mono text-neutral-500 mt-1">
             <span className={activeFinger === 'ri' ? 'text-cyan-400 font-bold' : ''}>J</span>

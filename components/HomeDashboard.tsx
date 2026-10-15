@@ -58,7 +58,21 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({ stats, onNavigateT
       </div>
 
       {/* Quick Access Utility Actions */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 w-full gap-3 mt-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 w-full gap-3 mt-6">
+        <button
+          onClick={() => onNavigateTab('CREATE')}
+          className="p-3.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 hover:bg-slate-50 dark:hover:bg-white/10 text-left transition-all flex items-center justify-between"
+        >
+          <div>
+            <div className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+              <span>📷</span>
+              <span>Upload / Custom OCR</span>
+            </div>
+            <p className="text-[10px] text-slate-500 dark:text-neutral-400 mt-0.5">Image OCR • Paste custom practice</p>
+          </div>
+          <span className="text-xs font-mono text-indigo-500 font-bold">Open →</span>
+        </button>
+
         <button
           onClick={() => onNavigateTab('LESSONS')}
           className="p-3.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 hover:bg-slate-50 dark:hover:bg-white/10 text-left transition-all flex items-center justify-between"

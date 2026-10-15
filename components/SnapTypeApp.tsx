@@ -12,7 +12,7 @@ interface SnapTypeAppProps {
   onSwitchToSpellingApp: () => void;
 }
 
-type HomeTab = 'HOME' | 'LESSONS' | 'FINGER_TRAINING' | 'ACCURACY_LAB' | 'SPEED_LAB' | 'PRACTICE' | 'ASSESSMENT' | 'PROGRESS' | 'SETTINGS';
+type HomeTab = 'HOME' | 'CREATE' | 'LESSONS' | 'FINGER_TRAINING' | 'ACCURACY_LAB' | 'SPEED_LAB' | 'PRACTICE' | 'ASSESSMENT' | 'PROGRESS' | 'SETTINGS';
 type AppHistoryState = {
   __snaptype: true;
   gameState: GameState;
@@ -26,6 +26,14 @@ const TabIcon: React.FC<{ id: HomeTab; className?: string }> = ({ id, className 
         <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
           <polyline points="9 22 9 12 15 12 15 22" />
+        </svg>
+      );
+    case 'CREATE':
+      return (
+        <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+          <polyline points="17 8 12 3 7 8" />
+          <line x1="12" x2="12" y1="3" y2="15" />
         </svg>
       );
     case 'LESSONS':
@@ -103,6 +111,7 @@ const NAV_SECTIONS: NavSection[] = [
     title: 'Core Hubs',
     items: [
       { id: 'HOME', label: 'Dashboard' },
+      { id: 'CREATE', label: 'Upload & OCR' },
       { id: 'LESSONS', label: 'Lessons Suite' },
       { id: 'PRACTICE', label: 'Practice Library' },
     ],
@@ -615,6 +624,29 @@ export const SnapTypeApp: React.FC<SnapTypeAppProps> = ({
         <Suspense fallback={<SectionLoader />}>
           <HomeDashboard stats={userStats} onNavigateTab={navigateToTab} onStartDrill={(t, title, limit) => startGame({rawText: t, imageSrc: null, mode: 'DIGITAL', selectedTimeLimit: limit ?? timeLimit ?? getDefaultTimeLimit(), sscEnabled: false, testId: null})} />
         </Suspense>
+      );
+    }
+    if (homeTab === 'CREATE') {
+      return (
+        <div className="w-full max-w-4xl mx-auto animate-fade-in flex flex-col items-center pt-2 px-4">
+          <div className="text-center mb-6">
+            <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight mb-2">
+              Upload Image or Paste Custom Text
+            </h1>
+            <p className="text-sm opacity-70 max-w-lg mx-auto">
+              Extract text from photos, documents, or screenshots using AI OCR, or paste your own custom practice material.
+            </p>
+          </div>
+          <div className="w-full bento-card p-6 md:p-8">
+            <Suspense fallback={<SectionLoader />}>
+              <ImageUploader
+                onImageSelect={handleImageSelect}
+                onTextSelect={handleTextSelect}
+                isProcessing={isProcessing}
+              />
+            </Suspense>
+          </div>
+        </div>
       );
     }
     if (homeTab === 'LESSONS') {
