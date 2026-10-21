@@ -235,6 +235,8 @@ export const FullPassageComparison: React.FC<FullPassageComparisonProps> = ({
                   type="button"
                   onClick={() => setSearchQuery('')}
                   className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-600 dark:hover:text-white"
+                  aria-label="Clear search"
+                  title="Clear search"
                 >
                   ✕
                 </button>
