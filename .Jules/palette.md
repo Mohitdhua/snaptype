@@ -5,3 +5,6 @@
 ## 2024-05-18 - Make Power-User Features Discoverable
 **Learning:** Found existing keyboard shortcuts (Ctrl+Enter, Esc) in the TypingTest component that were completely invisible to users. Power-user features only provide UX value if users know they exist.
 **Action:** Added subtle visual `<kbd>` hints directly into the relevant action buttons ("Submit" and "Back"). Next time, ensure keyboard shortcuts are visibly documented in the UI as they are implemented, especially for frequent/core interaction loops like completing a typing test.
+## 2026-07-24 - Inline Delete Confirmation
+**Learning:** Implementing inline confirmation for destructive actions (like delete) using a brief timeout and visual state change (e.g., 'Sure?') provides a less intrusive, accessible alternative to full modal dialogs, preventing accidental clicks without disrupting workflow.
+**Action:** Apply this pattern for other potentially destructive icon-only actions where accidental clicks are costly but modal dialogs would feel heavy-handed.
