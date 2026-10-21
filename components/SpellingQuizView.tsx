@@ -429,6 +429,8 @@ export const SpellingQuizView: React.FC<SpellingQuizViewProps> = ({
                   type="button"
                   onClick={() => setShowSettings(false)}
                   className="text-neutral-400 hover:text-white text-lg font-bold p-1"
+                  aria-label="Close settings"
+                  title="Close settings"
                 >
                   ✕
                 </button>
@@ -855,6 +857,7 @@ export const SpellingQuizView: React.FC<SpellingQuizViewProps> = ({
               }}
               className="w-12 h-12 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white flex items-center justify-center text-xl shadow-lg hover:scale-105 transition-all cursor-pointer border border-indigo-400/30"
               title="Click or press Space/Enter to replay audio"
+              aria-label="Replay audio"
             >
               🔊
             </button>
